@@ -12,7 +12,7 @@ _Input_
   - Following data must be found
     - _left.bin image
     - _right.bin image
-    - _dataset_metadata.json file, representing metadata for the left+right capture dataset
+    - dataset metadata for the left+right capture dataset; can be attached as Clowder metadata or included as a metadata.json file
 
 _Output_
 
