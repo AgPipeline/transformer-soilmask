@@ -11,10 +11,26 @@ def main():
     #set logging
     logging.basicConfig(format='%(levelname)-7s : %(name)s -  %(message)s', level=logging.WARN)
     logging.getLogger('pyclowder.extractors').setLevel(logging.INFO)
+    logger = logging.getLogger('extractor')
+    logger.setLevel(logging.DEBUG)
+
+    # setup
+    extractors.setup(extractorName=extractorName,
+                     messageType=messageType,
+                     rabbitmqURL=rabbitmqURL,
+                     rabbitmqExchange=rabbitmqExchange,
+                     mountedPaths=mountedPaths)
+
+    # register extractor info
+    extractors.register_extractor(registrationEndpoints)
 
     #connect to rabbitmq
-    extractors.connect_message_bus(extractorName=extractorName, messageType=messageType, processFileFunction=process_dataset,
-                                   checkMessageFunction=check_message, rabbitmqExchange=rabbitmqExchange, rabbitmqURL=rabbitmqURL)
+    extractors.connect_message_bus(extractorName=extractorName,
+                                   messageType=messageType,
+                                   processFileFunction=process_dataset,
+                                   checkMessageFunction=check_message,
+                                   rabbitmqExchange=rabbitmqExchange,
+                                   rabbitmqURL=rabbitmqURL)
 
 def check_message(parameters):
     # TODO: re-enable once this is merged into Clowder: https://opensource.ncsa.illinois.edu/bitbucket/projects/CATS/repos/clowder/pull-requests/883/overview
@@ -28,8 +44,9 @@ def check_message(parameters):
                 return False
                 #extractors.remove_dataset_metadata_jsonld(parameters['host'], parameters['secretKey'], parameters['datasetId'], extractorName)
         # Check for required metadata before beginning processing
-        if ['content'] in m and 'lemnatec_measurement_metadata' in m['content']:
+        if 'content' in m and 'lemnatec_measurement_metadata' in m['content']:
             found_meta = True
+
 
     # Check for a left and right file before beginning processing
     found_left = False
