@@ -1,37 +1,38 @@
-FROM geodata/gdal
+FROM ubuntu
 MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
 # ------------------------
-# This Dockerfile requires scripts from both the main stereoImager directory and the /extractor sub-directory.
-# From main stereoImager directory:
-#     docker build -f extractor/Dockerfile -t terra-demosaic .
+# From /demosaic directory:
+#     docker build -f Dockerfile -t terra-demosaic .
 #     docker run -p 9000:9000 -e RABBITMQ_URI=amqp://user:pass@<ip>/%2f terra-demosaic
 # ------------------------
 
 # Install any programs needed
-USER root
-RUN apt-get update && apt-get install -y -q build-essential \
-       git \
-       python-setuptools python-dev build-essential \
+RUN useradd -u 47852 demosaic \
+    && apt-get -y update \
+    && apt-get install -y -q build-essential git python python-pip python-gdal \
     && rm -rf /var/lib/apt/lists/* \
-    && easy_install pip \
-    && pip install pika requests numpy scipy pillow \
+    && pip install pika requests numpy scipy pillow urllib3 \
+    && cd /home \
+    && mkdir demosaic \
+    && chown -R demosaic /home/demosaic \
     && git clone https://opensource.ncsa.illinois.edu/bitbucket/scm/cats/pyclowder.git \
     && cd pyclowder \
-    && git checkout bugfix/CATS-554-add-pyclowder-support-for-dataset \
+    && git checkout local-mount-path-downloading \
     && python setup.py install
 
 # command to run when starting docker
-COPY /extractor/entrypoint.sh /extractor/extractor_info.json /extractor/*.py /home/extractor/
-COPY bin_to_geotiff.py /home/
-ENTRYPOINT ["/home/extractor/entrypoint.sh"]
+COPY entrypoint.sh extractor_info.json *.py /home/demosaic/
+
+USER demosaic
+ENTRYPOINT ["/home/demosaic/entrypoint.sh"]
 CMD ["extractor"]
 
 # Setup environment variables. These are passed into the container. You can change
 # these to your setup. If RABBITMQ_URI is not set, it will try and use the rabbitmq
 # server that is linked into the container. MAIN_SCRIPT is set to the script to be
 # executed by entrypoint.sh
-ENV RABBITMQ_EXCHANGE="clowder" \
+ENV RABBITMQ_EXCHANGE="terra" \
     RABBITMQ_VHOST="%2F" \
     RABBITMQ_QUEUE="terra.demosaic" \
     MAIN_SCRIPT="terra.demosaic.py"
