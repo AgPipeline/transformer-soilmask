@@ -99,6 +99,16 @@ def process_dataset(parameters):
     out_dir = os.path.join(outputDir, subpath, dsname)
     print("...output directory: %s" % out_dir)
 
+    #Determine output paths
+    lbase = os.path.basename(img_left)[:-4]
+    rbase = os.path.basename(img_right)[:-4]
+    left_jpg = os.path.join(out_dir, lbase+'.jpg')
+    right_jpg = os.path.join(out_dir, rbase+'.jpg')
+    left_tiff = os.path.join(out_dir, lbase+'.tif')
+    right_tiff = os.path.join(out_dir, rbase+'.tif')
+    print("...jpgs: %s %s" % (left_jpg, right_jpg))
+    print("...tifs: %s %s" % (left_tiff, right_tiff))
+
     print("Determining image shapes")
     left_shape = bin2tiff.get_image_shape(metadata, 'left')
     right_shape = bin2tiff.get_image_shape(metadata, 'right')
@@ -110,24 +120,19 @@ def process_dataset(parameters):
     left_gps_bounds = bin2tiff.get_bounding_box(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
     right_gps_bounds = bin2tiff.get_bounding_box(right_position, fov)
 
-    print("Creating demosaicked images")
-    left_out = os.path.join(out_dir, img_left[:-4] + '.jpg')
-    right_out = os.path.join(out_dir, img_right[:-4] + '.jpg')
-    print("...jpgs: %s %s" % (left_out, right_out))
-    left_image = bin2tiff.process_image(left_shape, img_left, left_out)
-    right_image = bin2tiff.process_image(right_shape, img_right, right_out)
+    print("Creating JPG images")
+    left_image = bin2tiff.process_image(left_shape, img_left, left_jpg)
+    right_image = bin2tiff.process_image(right_shape, img_right, right_jpg)
     print("Uploading output JPGs to dataset")
-    extractors.upload_file_to_dataset(left_out, parameters)
-    extractors.upload_file_to_dataset(right_out, parameters)
+    extractors.upload_file_to_dataset(left_jpg, parameters)
+    extractors.upload_file_to_dataset(right_jpg, parameters)
 
     print("Creating geoTIFF images")
-    left_tiff_out = os.path.join(out_dir, img_left[:-4] + '.tif')
-    bin2tiff.create_geotiff('left', left_image, left_gps_bounds, left_tiff_out)
-    right_tiff_out = os.path.join(out_dir, img_right[:-4] + '.tif')
-    bin2tiff.create_geotiff('right', right_image, right_gps_bounds, right_tiff_out)
+    bin2tiff.create_geotiff('left', left_image, left_gps_bounds, left_tiff)
+    bin2tiff.create_geotiff('right', right_image, right_gps_bounds, right_tiff)
     print("Uploading output geoTIFFs to dataset")
-    extractors.upload_file_to_dataset(left_tiff_out, parameters)
-    extractors.upload_file_to_dataset(right_tiff_out, parameters)
+    extractors.upload_file_to_dataset(left_tiff, parameters)
+    extractors.upload_file_to_dataset(right_tiff, parameters)
 
     # Tell Clowder this is completed so subsequent file updates don't daisy-chain
     metadata = {
