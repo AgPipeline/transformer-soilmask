@@ -93,10 +93,14 @@ def process_dataset(parameters):
     print("...metafile: %s" % metafile)
     dsname = parameters["datasetInfo"]["name"]
     if dsname.find(" - ") > -1:
-        subpath = dsname.split(" - ")[1]
+        timestamp = dsname.split(" - ")[1]
     else:
-        subpath = ""
-    out_dir = os.path.join(outputDir, subpath, dsname)
+        timestamp = "dsname"
+    if timestamp.find("__") > -1:
+        datestamp = timestamp.split("__")[1]
+    else:
+        datestamp = ""
+    out_dir = os.path.join(outputDir, datestamp, timestamp)
     print("...output directory: %s" % out_dir)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
