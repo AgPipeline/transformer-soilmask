@@ -97,7 +97,7 @@ def process_dataset(parameters):
     else:
         timestamp = "dsname"
     if timestamp.find("__") > -1:
-        datestamp = timestamp.split("__")[1]
+        datestamp = timestamp.split("__")[0]
     else:
         datestamp = ""
     out_dir = os.path.join(outputDir, datestamp, timestamp)
