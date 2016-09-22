@@ -35,3 +35,5 @@ bin2tiffScript = "bin_to_geotiff.py"
 
 # Dictionary that maps {"remote Clowder source path": "local mounted path"} for streamlining Clowder downloads
 mountedPaths = {}
+
+outputDir = '/home/extractor/sites/ua-mac/Level_1/demosaic'

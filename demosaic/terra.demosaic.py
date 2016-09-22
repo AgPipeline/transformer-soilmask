@@ -63,6 +63,8 @@ def check_message(parameters):
         return False
 
 def process_dataset(parameters):
+    global outputDir
+
     metafile, img_left, img_right, metadata = None, None, None, None
 
     # Get left/right files and metadata
@@ -86,10 +88,10 @@ def process_dataset(parameters):
         bin2tiff.fail('Could not find all of left/right/metadata.')
         return
 
-    print("img_left: %s" % img_left)
-    print("img_right: %s" % img_right)
-    print("metafile: %s" % metafile)
-    temp_out_dir = metafile.replace(os.path.basename(metafile), "")
+    #print("img_left: %s" % img_left)
+    #print("img_right: %s" % img_right)
+    #print("metafile: %s" % metafile)
+    temp_out_dir = os.path.join(outputDir, parameters["datasetInfo"]["name"])
 
     print("Determining image shapes")
     left_shape = bin2tiff.get_image_shape(metadata, 'left')
