@@ -98,6 +98,8 @@ def process_dataset(parameters):
         subpath = ""
     out_dir = os.path.join(outputDir, subpath, dsname)
     print("...output directory: %s" % out_dir)
+    if not os.path.exists(out_dir):
+        os.mkdirs(out_dir)
 
     #Determine output paths
     lbase = os.path.basename(img_left)[:-4]
