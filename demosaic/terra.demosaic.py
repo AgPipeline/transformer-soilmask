@@ -88,10 +88,16 @@ def process_dataset(parameters):
         bin2tiff.fail('Could not find all of left/right/metadata.')
         return
 
-    #print("img_left: %s" % img_left)
-    #print("img_right: %s" % img_right)
-    #print("metafile: %s" % metafile)
-    temp_out_dir = os.path.join(outputDir, parameters["datasetInfo"]["name"])
+    print("...img_left: %s" % img_left)
+    print("...img_right: %s" % img_right)
+    print("...metafile: %s" % metafile)
+    dsname = parameters["datasetInfo"]["name"]
+    if dsname.find(" - ") > -1:
+        subpath = dsname.split(" - ")[1]
+    else:
+        subpath = ""
+    out_dir = os.path.join(outputDir, subpath, dsname)
+    print("...output directory: %s" % out_dir)
 
     print("Determining image shapes")
     left_shape = bin2tiff.get_image_shape(metadata, 'left')
@@ -105,18 +111,19 @@ def process_dataset(parameters):
     right_gps_bounds = bin2tiff.get_bounding_box(right_position, fov)
 
     print("Creating demosaicked images")
-    left_out = os.path.join(temp_out_dir, img_left[:-4] + '.jpg')
+    left_out = os.path.join(out_dir, img_left[:-4] + '.jpg')
+    right_out = os.path.join(out_dir, img_right[:-4] + '.jpg')
+    print("...jpgs: %s %s" % (left_out, right_out))
     left_image = bin2tiff.process_image(left_shape, img_left, left_out)
-    right_out = os.path.join(temp_out_dir, img_right[:-4] + '.jpg')
     right_image = bin2tiff.process_image(right_shape, img_right, right_out)
     print("Uploading output JPGs to dataset")
     extractors.upload_file_to_dataset(left_out, parameters)
     extractors.upload_file_to_dataset(right_out, parameters)
 
     print("Creating geoTIFF images")
-    left_tiff_out = os.path.join(temp_out_dir, img_left[:-4] + '.tif')
+    left_tiff_out = os.path.join(out_dir, img_left[:-4] + '.tif')
     bin2tiff.create_geotiff('left', left_image, left_gps_bounds, left_tiff_out)
-    right_tiff_out = os.path.join(temp_out_dir, img_right[:-4] + '.tif')
+    right_tiff_out = os.path.join(out_dir, img_right[:-4] + '.tif')
     bin2tiff.create_geotiff('right', right_image, right_gps_bounds, right_tiff_out)
     print("Uploading output geoTIFFs to dataset")
     extractors.upload_file_to_dataset(left_tiff_out, parameters)
