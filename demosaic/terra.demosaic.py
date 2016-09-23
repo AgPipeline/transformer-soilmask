@@ -33,6 +33,18 @@ def main():
                                    rabbitmqURL=rabbitmqURL)
 
 def check_message(parameters):
+    # Check for a left and right file before beginning processing
+    found_left = False
+    found_right = False
+    for f in parameters['filelist']:
+        if 'filename' in f and f['filename'].endswith('_left.bin'):
+            found_left = True
+        elif 'filename' in f and f['filename'].endswith('_right.bin'):
+            found_right = True
+
+    if not (found_left and found_right):
+        return False
+
     # TODO: re-enable once this is merged into Clowder: https://opensource.ncsa.illinois.edu/bitbucket/projects/CATS/repos/clowder/pull-requests/883/overview
     # fetch metadata from dataset to check if we should remove existing entry for this extractor first
     md = extractors.download_dataset_metadata_jsonld(parameters['host'], parameters['secretKey'], parameters['datasetId'], extractorName)
@@ -46,16 +58,6 @@ def check_message(parameters):
         # Check for required metadata before beginning processing
         if 'content' in m and 'lemnatec_measurement_metadata' in m['content']:
             found_meta = True
-
-
-    # Check for a left and right file before beginning processing
-    found_left = False
-    found_right = False
-    for f in parameters['filelist']:
-        if 'filename' in f and f['filename'].endswith('_left.bin'):
-            found_left = True
-        elif 'filename' in f and f['filename'].endswith('_right.bin'):
-            found_right = True
 
     if found_left and found_right and found_meta:
         return True
