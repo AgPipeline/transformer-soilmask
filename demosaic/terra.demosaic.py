@@ -52,7 +52,7 @@ def check_message(parameters):
     for m in md:
         if 'agent' in m and 'name' in m['agent']:
             if m['agent']['name'].find(extractorName) > -1:
-                print("skipping, already done")
+                print("skipping dataset %s, already processed" % parameters['datasetId'])
                 return False
                 #extractors.remove_dataset_metadata_jsonld(parameters['host'], parameters['secretKey'], parameters['datasetId'], extractorName)
         # Check for required metadata before beginning processing
