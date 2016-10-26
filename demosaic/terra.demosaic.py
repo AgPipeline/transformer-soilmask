@@ -107,6 +107,7 @@ def process_dataset(parameters):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
+    metadata = bin2tiff.lower_keys(metadata)
     #Determine output paths
     lbase = os.path.basename(img_left)[:-4]
     rbase = os.path.basename(img_right)[:-4]
