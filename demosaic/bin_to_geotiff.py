@@ -23,7 +23,7 @@ from PIL import Image
 from math import cos, pi
 from osgeo import gdal, osr
 
-ZERO_ZERO = (33.0745,-111.97475) # (latitude, longitude) of SE corner (positions are + in NW direction); I think this is EPSG4326 (wgs84)
+ZERO_ZERO = (33.07451869,-111.97477775) # (latitude, longitude) of SE corner (positions are + in NW direction); I think this is EPSG4326 (wgs84)
 # NOTE: This STEREO_OFFSET is an experimentally determined value.
 STEREO_OFFSET = .17 # distance from center_position to each of the stereo cameras (left = +, right = -)
 
@@ -41,12 +41,12 @@ def main(in_dir, out_dir, tif_list_file, bounds):
     if not os.path.isdir(in_dir):
         fail('Could not find input directory: ' + in_dir)
     if not os.path.isdir(out_dir):
-        fail('Could not find output directory: ' + out_dir)
+        os.mkdir(out_dir)
 
     metas, ims_left, ims_right = find_input_files(in_dir)
 
     for meta, im_left, im_right in zip(metas, ims_left, ims_right):
-        metadata = lower_keys(load_json(join(in_dir, meta))) # make all our keys lowercase since keys appear to change case (???)
+        metadata = lower_keys(load_json(meta)) # make all our keys lowercase since keys appear to change case (???)
 
         left_shape = get_image_shape(metadata, 'left')
         right_shape = get_image_shape(metadata, 'right')
@@ -61,18 +61,22 @@ def main(in_dir, out_dir, tif_list_file, bounds):
         right_gps_bounds = get_bounding_box(right_position, fov)
 
         # check if this file is in the GPS bounds of interest
-        if left_gps_bounds[1] > bounds[0] and left_gps_bounds[0] < bounds[2] and left_gps_bounds[3] > bounds[1] and left_gps_bounds[2] < bounds[3]:
-            left_file_path = join(in_dir, im_left)
-            left_out = join(out_dir, 'left.jpg', )
-            left_image = process_image(left_shape, left_file_path, left_out)
-            right_file_path = join(in_dir, im_right)
-            right_out = join(out_dir, 'right.jpg', )
-            right_image = process_image(right_shape, right_file_path, right_out)
+        #if left_gps_bounds[1] > bounds[0] and left_gps_bounds[0] < bounds[2] and left_gps_bounds[3] > bounds[1] and left_gps_bounds[2] < bounds[3]:
+        left_baseName = os.path.basename(im_left)
+        left_out = join(out_dir, left_baseName[:-3]+'jpg')
+        left_image = process_image(left_shape, im_left, left_out)
+        right_baseName = os.path.basename(im_right)
+        right_out = join(out_dir, right_baseName[:-3]+'jpg')
+        right_image = process_image(right_shape, im_right, right_out)
 
-            left_tiff_out = join(out_dir,'left.tif')
-            create_geotiff('left', left_image, left_gps_bounds, left_tiff_out)
-            right_tiff_out = join(out_dir,'right.tif')
-            create_geotiff('right', right_image, right_gps_bounds, right_tiff_out)
+        left_tiff_out = join(out_dir,left_baseName[:-3]+'tif')
+        create_geotiff('left', left_image, left_gps_bounds, left_tiff_out)
+        right_tiff_out = join(out_dir,right_baseName[:-3]+'tif')
+        create_geotiff('right', right_image, right_gps_bounds, right_tiff_out)
+        # once we've saved the image, make sure to append this path to our list of TIFs
+        f = open(tif_list_file,'a+')
+        f.write(left_tiff_out + '\n')
+            
 
 def lower_keys(in_dict):
     if type(in_dict) is dict:
@@ -86,16 +90,24 @@ def lower_keys(in_dict):
         return in_dict
 
 def find_input_files(in_dir):
-    metadata_suffix = '_metadata.json'
-    metas = [os.path.basename(meta) for meta in glob(join(in_dir, '*' + metadata_suffix))]
-    if len(metas) == 0:
-        fail('No metadata file found in input directory.')
-
-    guids = [meta[:-len(metadata_suffix)] for meta in metas]
-    ims_left = [guid + '_left.bin' for guid in guids]
-    ims_right = [guid + '_right.bin' for guid in guids]
-
-    return metas, ims_left, ims_right
+    json_suffix = os.path.join(in_dir, '*_metadata.json')
+    jsons = glob(json_suffix)
+    if len(jsons) == 0:
+        fail('Could not find .json file')
+        
+        
+    left_suffix = os.path.join(in_dir, '*_left.bin')
+    lefts = glob(left_suffix)
+    if len(lefts) == 0:
+        fail('Could not find left.bin file')
+    
+    right_suffix = os.path.join(in_dir, '*_right.bin')
+    rights = glob(right_suffix)
+    if len(rights) == 0:
+        fail('Could not find right.bin file')
+    
+    
+    return jsons, lefts, rights
 
 def load_json(meta_path):
     try:
@@ -150,7 +162,7 @@ def get_position(metadata):
 def get_fov(metadata, camHeight, shape):
     try:
         cam_meta = metadata['lemnatec_measurement_metadata']['sensor_fixed_metadata']
-        fov = cam_meta["field of view at 2m in X- Y- direction [m]"]
+        fov = cam_meta["field of view at 2m in x- y- direction [m]"]
     except KeyError as err:
         fail('Metadata file missing key: ' + err.args[0])
 
@@ -193,23 +205,23 @@ def get_bounding_box(center_position, fov):
         lng_min_offset = x_min/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
         lng_max_offset = x_max/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
 
-        lat_min = ZERO_ZERO[0] - lat_min_offset
-        lat_max = ZERO_ZERO[0] - lat_max_offset
+        lat_min = ZERO_ZERO[0] + lat_min_offset
+        lat_max = ZERO_ZERO[0] + lat_max_offset
         lng_min = ZERO_ZERO[1] - lng_min_offset
         lng_max = ZERO_ZERO[1] - lng_max_offset
     except Exception as ex:
         fail('Failed to get GPS bounds from center + FOV: ' + str(ex))
-    return (lat_max, lat_min, lng_max, lng_min)
+    return (lat_min, lat_max, lng_max, lng_min)
 
 def process_image(shape, in_file, out_file):
     try:
         im = np.fromfile(in_file, dtype='uint8').reshape(shape[::-1])
         im_color = demosaic(im)
-        im_color = np.flipud(np.rot90(im_color))
+        im_color = (np.rot90(im_color))
         Image.fromarray(im_color).save(out_file)
         return im_color
     except Exception as ex:
-        fail('Error processing image "%s": %s' % (in_file, str(ex)))
+        fail('Error processing image "%s": %s' % (str(ex)))
 
 def demosaic(im):
     # Assuming GBRG ordering.
@@ -258,11 +270,11 @@ def create_geotiff(which_im, np_arr, gps_bounds, out_file_path):
         output_raster.GetRasterBand(1).FlushCache()
         output_raster.GetRasterBand(1).SetNoDataValue(-99)
 
-        output_raster.GetRasterBand(2).WriteArray(np_arr[:,:,1].astype('uint8')) # write red channel to raster file
+        output_raster.GetRasterBand(2).WriteArray(np_arr[:,:,1].astype('uint8')) # write green channel to raster file
         output_raster.GetRasterBand(2).FlushCache()
         output_raster.GetRasterBand(2).SetNoDataValue(-99)
 
-        output_raster.GetRasterBand(3).WriteArray(np_arr[:,:,2].astype('uint8')) # write red channel to raster file
+        output_raster.GetRasterBand(3).WriteArray(np_arr[:,:,2].astype('uint8')) # write blue channel to raster file
         output_raster.GetRasterBand(3).FlushCache()
         output_raster.GetRasterBand(3).SetNoDataValue(-99)
 
