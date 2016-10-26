@@ -3,29 +3,31 @@ MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
 # ------------------------
 # From /demosaic directory:
-#     docker build -f Dockerfile -t terra-demosaic .
-#     docker run -p 9000:9000 -e RABBITMQ_URI=amqp://user:pass@<ip>/%2f terra-demosaic
+#     docker build -f Dockerfile -t terra-ext-demosaic .
+#     docker run -p 9000 -e RABBITMQ_URI=amqp://user:pass@<ip>/%2f terra-demosaic
 # ------------------------
 
 # Install any programs needed
-RUN useradd -u 47852 demosaic \
+RUN useradd -u 47852 extractor \
     && apt-get -y update \
-    && apt-get install -y -q build-essential git python python-pip python-gdal \
+    && apt-get install -y -q build-essential git python python-pip python-gdal libnetcdf-dev \
+                             libpng-dev libjpeg8-dev libfreetype6-dev \
+                             libblas-dev liblapack-dev libatlas-base-dev gfortran \
+    && usr/bin/yes | apt-get build-dep python-matplotlib \
     && rm -rf /var/lib/apt/lists/* \
     && pip install pika requests numpy scipy pillow urllib3 \
-    && cd /home \
-    && mkdir demosaic \
-    && chown -R demosaic /home/demosaic \
+    && mkdir /home/extractor \
+    && chown -R extractor /home/extractor \
+    && cd /home/extractor \
     && git clone https://opensource.ncsa.illinois.edu/bitbucket/scm/cats/pyclowder.git \
     && cd pyclowder \
-    && git checkout local-mount-path-downloading \
     && python setup.py install
 
 # command to run when starting docker
-COPY entrypoint.sh extractor_info.json *.py /home/demosaic/
+COPY entrypoint.sh extractor_info.json *.py /home/extractor/
 
-USER demosaic
-ENTRYPOINT ["/home/demosaic/entrypoint.sh"]
+USER extractor
+ENTRYPOINT ["/home/extractor/entrypoint.sh"]
 CMD ["extractor"]
 
 # Setup environment variables. These are passed into the container. You can change
