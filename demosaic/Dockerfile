@@ -1,12 +1,6 @@
 FROM ubuntu
 MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
-# ------------------------
-# From /demosaic directory:
-#     docker build -f Dockerfile -t terra-ext-demosaic .
-#     docker run -p 9000 -e RABBITMQ_URI=amqp://user:pass@<ip>/%2f terra-demosaic
-# ------------------------
-
 # Install any programs needed
 RUN useradd -u 47852 extractor \
     && apt-get -y update \
