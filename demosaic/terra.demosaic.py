@@ -1,6 +1,8 @@
 import os
 import logging
 import imp
+import tempfile
+import shutil
 
 from config import *
 import pyclowder.extractors as extractors
@@ -138,11 +140,17 @@ def process_dataset(parameters):
 
     print("Creating geoTIFF images")
     # Rename out.tif after creation to avoid long path errors
-    out_tmp_tiff = os.path.join(out_dir, 'out.tif')
+    out_tmp_tiff = tempfile.mkstmp()
     bin2tiff.create_geotiff('left', left_image, left_gps_bounds, out_tmp_tiff)
-    os.rename(out_tmp_tiff, left_tiff)
+    #os.rename(out_tmp_tiff, left_tiff)
+    shutil.copyfile(out_tmp_tiff[1], left_tiff)
+    os.remove(out_tmp_tiff[1])
+    out_tmp_tiff = tempfile.mkstmp()
     bin2tiff.create_geotiff('right', right_image, right_gps_bounds, out_tmp_tiff)
-    os.rename(out_tmp_tiff, right_tiff)
+    shutil.copyfile(out_tmp_tiff[1], left_tiff)
+    #os.rename(out_tmp_tiff, right_tiff)
+    shutil.copyfile(out_tmp_tiff[1], right_tiff)
+    os.remove(out_tmp_tiff[1])
     print("Uploading output geoTIFFs to dataset")
     extractors.upload_file_to_dataset(left_tiff, parameters)
     extractors.upload_file_to_dataset(right_tiff, parameters)
