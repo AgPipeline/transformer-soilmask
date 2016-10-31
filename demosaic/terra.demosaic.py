@@ -141,11 +141,11 @@ def process_dataset(parameters):
     print("Creating geoTIFF images")
     # Rename out.tif after creation to avoid long path errors
     out_tmp_tiff = tempfile.mkstemp()
-    bin2tiff.create_geotiff('left', left_image, left_gps_bounds, out_tmp_tiff)
+    bin2tiff.create_geotiff('left', left_image, left_gps_bounds, out_tmp_tiff[1])
     shutil.copyfile(out_tmp_tiff[1], left_tiff)
     os.remove(out_tmp_tiff[1])
     out_tmp_tiff = tempfile.mkstemp()
-    bin2tiff.create_geotiff('right', right_image, right_gps_bounds, out_tmp_tiff)
+    bin2tiff.create_geotiff('right', right_image, right_gps_bounds, out_tmp_tiff[1])
     shutil.copyfile(out_tmp_tiff[1], left_tiff)
     shutil.copyfile(out_tmp_tiff[1], right_tiff)
     os.remove(out_tmp_tiff[1])
