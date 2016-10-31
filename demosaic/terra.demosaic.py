@@ -137,8 +137,12 @@ def process_dataset(parameters):
     extractors.upload_file_to_dataset(right_jpg, parameters)
 
     print("Creating geoTIFF images")
-    bin2tiff.create_geotiff('left', left_image, left_gps_bounds, left_tiff)
-    bin2tiff.create_geotiff('right', right_image, right_gps_bounds, right_tiff)
+    # Rename out.tif after creation to avoid long path errors
+    out_tmp_tiff = os.path.join(out_dir, 'out.tif')
+    bin2tiff.create_geotiff('left', left_image, left_gps_bounds, out_tmp_tiff)
+    os.rename(out_tmp_tiff, left_tiff)
+    bin2tiff.create_geotiff('right', right_image, right_gps_bounds, out_tmp_tiff)
+    os.rename(out_tmp_tiff, right_tiff)
     print("Uploading output geoTIFFs to dataset")
     extractors.upload_file_to_dataset(left_tiff, parameters)
     extractors.upload_file_to_dataset(right_tiff, parameters)
