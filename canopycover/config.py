@@ -37,3 +37,7 @@ getCanopyCoverScript = "canopyCover.py"
 mountedPaths = {"/home/clowder/sites": "/home/extractor/sites"}
 
 outputDir = '/home/extractor/sites/'
+
+# BETYdb instance information for submitting output CSV (skipped if betyAPI is empty)
+betyAPI = "https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"
+betyKey = ""
