@@ -129,9 +129,10 @@ def process_dataset(parameters):
         os.makedirs(out_dir)
     
     (fields, traits) = ccCore.get_traits_table()
-    traits['local_datetime'] = str(ccCore.get_localdatetime(metadata))
+    str_time = str(ccCore.get_localdatetime(metadata))
+    traits['local_datetime'] = str_time.replace(" ", 'T')
     traits['canopy_cover'] = str(ccVal)
-    traits['site'] = 'Maricopa Field Scanner Plot '+ str(plotNum)
+    traits['site'] = 'MAC Field Scanner Field Plot '+ str(plotNum)
     trait_list = ccCore.generate_traits_list(traits)
     ccCore.generate_cc_csv(outfile, fields, trait_list)
     extractors.upload_file_to_dataset(outfile, parameters)
