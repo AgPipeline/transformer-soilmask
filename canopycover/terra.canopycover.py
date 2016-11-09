@@ -130,7 +130,8 @@ def process_dataset(parameters):
     
     (fields, traits) = ccCore.get_traits_table()
     str_time = str(ccCore.get_localdatetime(metadata))
-    traits['local_datetime'] = str_time.replace(" ", 'T')
+    str_date = str_time[6:10]+'-'+str_time[:5]+'T'+str_time[11:]
+    traits['local_datetime'] = str_date.replace("/", '-')
     traits['canopy_cover'] = str(ccVal)
     traits['site'] = 'MAC Field Scanner Field Plot '+ str(plotNum)
     trait_list = ccCore.generate_traits_list(traits)
