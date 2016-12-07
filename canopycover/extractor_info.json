@@ -1,0 +1,13 @@
+{
+  "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
+  "name": "terra.canopycover",
+  "version": "1.0",
+  "description": "Canopy Cover",
+  "author": "Zongyang Li",
+  "contributors": [],
+  "contexts": [],
+  "repository": {"repType": "git", "repUrl": ""},
+  "external_services": [],
+  "dependencies": [],
+  "bibtex": []
+}
