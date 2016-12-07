@@ -31,5 +31,5 @@ _Input_
     
 _Output_
 
+  - CSV with canopy coverage traits will be added to original dataset in Clowder
   - The configured BETYdb instance will have canopy coverage traits inserted
-  

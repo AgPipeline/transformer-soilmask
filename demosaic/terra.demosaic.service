@@ -1,0 +1,13 @@
+[Unit]
+Description=Stereo Image Demosaic Extractor
+After=network.target
+
+[Service]
+User=extractor
+Group=users
+Restart=on-failure
+WorkingDirectory=/home/extractor/extractors-stereo-rgb/demosaic
+ExecStart=/usr/bin/python /home/extractor/extractors-stereo-rgb/demosaic/terra.demosaic.py
+
+[Install]
+WantedBy=multi-user.target
