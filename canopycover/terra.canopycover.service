@@ -3,7 +3,7 @@ Description=Canopy Cover Extractor
 After=network.target
 
 [Service]
-User=ubuntu
+User=extractor
 Group=users
 Restart=on-failure
 WorkingDirectory=/home/extractor/extractors-stereo-rgb/demosaic
