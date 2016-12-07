@@ -9,12 +9,12 @@ RUN useradd -u 47852 extractor \
                              libblas-dev liblapack-dev libatlas-base-dev gfortran \
     && usr/bin/yes | apt-get build-dep python-matplotlib \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install pika requests numpy scipy pillow urllib3 \
+    && pip install pika requests numpy scipy pillow urllib3 enum pyyaml \
     && mkdir /home/extractor \
     && chown -R extractor /home/extractor \
     && cd /home/extractor \
-    && git clone https://opensource.ncsa.illinois.edu/bitbucket/scm/cats/pyclowder.git \
-    && cd pyclowder \
+    && git clone https://opensource.ncsa.illinois.edu/bitbucket/scm/cats/pyclowder2.git \
+    && cd pyclowder2 \
     && python setup.py install
 
 # command to run when starting docker

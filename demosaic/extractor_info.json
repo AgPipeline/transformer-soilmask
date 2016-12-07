@@ -1,12 +1,17 @@
 {
   "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
   "name": "terra.demosaic",
-  "version": "1.0",
+  "version": "2.0",
   "description": "Stereo Image Demosaic",
   "author": "Max Burnette <mburnet2@illinois.edu>",
   "contributors": [],
   "contexts": [],
   "repository": {"repType": "git", "repUrl": "https://github.com/terraref/extractors-stereo-rgb.git"},
+  "process": {
+    "dataset": [
+      "file.added"
+    ]
+  },
   "external_services": [],
   "dependencies": [],
   "bibtex": []
