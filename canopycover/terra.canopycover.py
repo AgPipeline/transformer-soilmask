@@ -6,174 +6,172 @@ Created on Oct 31, 2016
 
 
 import os
+import json
 import logging
-import imp
 import requests
 
-from config import *
-import pyclowder.extractors as extractors
+from pyclowder.extractors import Extractor
+from pyclowder.utils import CheckMessage
+import pyclowder.files
+import pyclowder.datasets
 
-def main():
-    global extractorName, messageType, rabbitmqExchange, rabbitmqURL, registrationEndpoints, mountedPaths
+import canopyCover as ccCore
 
-    #set logging
-    logging.basicConfig(format='%(levelname)-7s : %(name)s -  %(message)s', level=logging.WARN)
-    logging.getLogger('pyclowder.extractors').setLevel(logging.INFO)
-    logger = logging.getLogger('extractor')
-    logger.setLevel(logging.DEBUG)
+class CanopyCoverHeight(Extractor):
+    def __init__(self):
+        Extractor.__init__(self)
 
-    # setup
-    extractors.setup(extractorName=extractorName,
-                     messageType=messageType,
-                     rabbitmqURL=rabbitmqURL,
-                     rabbitmqExchange=rabbitmqExchange)
+        # add any additional arguments to parser
+        # self.parser.add_argument('--max', '-m', type=int, nargs='?', default=-1,
+        #                          help='maximum number (default=-1)')
+        self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
+                                 default="/home/extractor/sites/ua-mac/Level_1/demosaic",
+                                 help="root directory where timestamp & output directories will be created")
+        self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
+                                 help="whether to overwrite output file if it already exists in output directory")
+        self.parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
+                                 default="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv",
+                                 help="traits API endpoint of BETY instance that outputs should be posted to")
+        self.parser.add_argument('--betyKey', dest="bety_key", type=str, nargs='?', default=False,
+                                 help="API key for BETY instance specified by betyURL")
 
-    # register extractor info
-    extractors.register_extractor(registrationEndpoints)
+        # parse command line and load default logging configuration
+        self.setup()
 
-    #connect to rabbitmq
-    extractors.connect_message_bus(extractorName=extractorName,
-                                   messageType=messageType,
-                                   processFileFunction=process_dataset,
-                                   checkMessageFunction=check_message,
-                                   rabbitmqExchange=rabbitmqExchange,
-                                   rabbitmqURL=rabbitmqURL)
+        # setup logging for the exctractor
+        logging.getLogger('pyclowder').setLevel(logging.DEBUG)
+        logging.getLogger('__main__').setLevel(logging.DEBUG)
 
-def check_message(parameters):
-    # Check for a left and right file before beginning processing
-    found_left = False
-    found_right = False
-    for f in parameters['filelist']:
-        if 'filename' in f and f['filename'].endswith('_left.bin'):
-            found_left = True
-        elif 'filename' in f and f['filename'].endswith('_right.bin'):
-            found_right = True
+        # assign other arguments
+        self.output_dir = self.args.output_dir
+        self.force_overwrite = self.args.force_overwrite
+        self.bety_url = self.args.bety_url
+        self.bety_key = self.args.bety_key
 
-    if not (found_left and found_right):
-        return False
+    def check_message(self, connector, host, secret_key, resource, parameters):
+        # Check for a left and right file before beginning processing
+        found_left = False
+        found_right = False
 
-    # TODO: re-enable once this is merged into Clowder: https://opensource.ncsa.illinois.edu/bitbucket/projects/CATS/repos/clowder/pull-requests/883/overview
-    # fetch metadata from dataset to check if we should remove existing entry for this extractor first
-    md = extractors.download_dataset_metadata_jsonld(parameters['host'], parameters['secretKey'], parameters['datasetId'], extractorName)
-    found_meta = False
-    for m in md:
-        if 'agent' in m and 'name' in m['agent']:
-            if m['agent']['name'].find(extractorName) > -1:
-                print("skipping dataset %s, already processed" % parameters['datasetId'])
-                return False
-                #extractors.remove_dataset_metadata_jsonld(parameters['host'], parameters['secretKey'], parameters['datasetId'], extractorName)
-        # Check for required metadata before beginning processing
-        if 'content' in m and 'lemnatec_measurement_metadata' in m['content']:
-            found_meta = True
+        for f in resource['files']:
+            if 'filename' in f and f['filename'].endswith('_left.bin'):
+                found_left = True
+            elif 'filename' in f and f['filename'].endswith('_right.bin'):
+                found_right = True
+        if not (found_left and found_right):
+            return CheckMessage.ignore
 
-    if found_left and found_right:
-        return True
-    else:
-        return False
+        # fetch metadata from dataset to check if we should remove existing entry for this extractor first
+        md = pyclowder.datasets.download_metadata(connector, host, secret_key,
+                                                  resource['id'], self.extractor_info['name'])
+        found_meta = False
+        for m in md:
+            if 'agent' in m and 'name' in m['agent']:
+                if m['agent']['name'].find(self.extractor_info['name']) > -1:
+                    logging.info("skipping dataset %s, already processed" % resource['id'])
+                    return CheckMessage.ignore
+            # Check for required metadata before beginning processing
+            if 'content' in m and 'lemnatec_measurement_metadata' in m['content']:
+                found_meta = True
 
-def process_dataset(parameters):
-    global outputDir
-
-    metafile, img_left, img_right, metadata = None, None, None, None
-
-    # Get left/right files and metadata
-    for f in parameters['files']:
-        # First check metadata attached to dataset in Clowder for item of interest
-        if f.endswith('_dataset_metadata.json'):
-            all_dsmd = ccCore.load_json(f)
-            for curr_dsmd in all_dsmd:
-                if 'content' in curr_dsmd and 'lemnatec_measurement_metadata' in curr_dsmd['content']:
-                    metafile = f
-                    metadata = curr_dsmd['content']
-        # Otherwise, check if metadata was uploaded as a .json file
-        elif f.endswith('_metadata.json') and f.find('/_metadata.json') == -1 and metafile is None:
-            metafile = f
-            metadata = ccCore.load_json(metafile)
-        elif f.endswith('_left.bin'):
-            img_left = f
-        elif f.endswith('_right.bin'):
-            img_right = f
-    if None in [metafile, img_left, img_right, metadata]:
-        ccCore.fail('Could not find all of left/right/metadata.')
-        return
-
-    print("...img_left: %s" % img_left)
-    print("...img_right: %s" % img_right)
-    print("...metafile: %s" % metafile)
-    
-    dsname = parameters["datasetInfo"]["name"]
-    if dsname.find(" - ") > -1:
-        timestamp = dsname.split(" - ")[1]
-    else:
-        timestamp = "dsname"
-    if timestamp.find("__") > -1:
-        datestamp = timestamp.split("__")[0]
-    else:
-        datestamp = ""
-    out_dir = os.path.join(outputDir, datestamp, timestamp)
-    print("...output directory: %s" % out_dir)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    metadata = ccCore.lower_keys(metadata)
-
-    plotNum = ccCore.get_plot_num(metadata)
-    
-    ccVal = ccCore.get_CC_from_bin(img_left)
-    
-    # generate output CSV & send to Clowder + BETY
-    outfile = os.path.join(outputDir, parameters['datasetInfo']['name'], 'ccTraits.csv')
-    print("...output file: %s" % outfile)
-    out_dir = outfile.replace(os.path.basename(outfile), "")
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    
-    (fields, traits) = ccCore.get_traits_table()
-    str_time = str(ccCore.get_localdatetime(metadata))
-    str_date = str_time[6:10]+'-'+str_time[:5]+'T'+str_time[11:]
-    traits['local_datetime'] = str_date.replace("/", '-')
-    traits['canopy_cover'] = str(ccVal)
-    traits['site'] = 'MAC Field Scanner Field Plot '+ str(plotNum)
-    trait_list = ccCore.generate_traits_list(traits)
-    ccCore.generate_cc_csv(outfile, fields, trait_list)
-    extractors.upload_file_to_dataset(outfile, parameters)
-    submitToBety(outfile)
-    
-    # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-    metadata = {
-        "@context": {
-            "@vocab": "https://clowder.ncsa.illinois.edu/clowder/assets/docs/api/index.html#!/files/uploadToDataset"
-        },
-        "dataset_id": parameters["datasetId"],
-        "content": {"status": "COMPLETED"},
-        "agent": {
-            "@type": "cat:extractor",
-            "extractor_id": parameters['host'] + "/api/extractors/" + extractorName
-        }
-    }
-    extractors.upload_dataset_metadata_jsonld(mdata=metadata, parameters=parameters)
-    
-def submitToBety(csvfile):
-    global betyAPI, betyKey
-
-    if betyAPI != "":
-        sess = requests.Session()
-        print(csvfile)
-        print("%s?key=%s" % (betyAPI, betyKey))
-        r = sess.post("%s?key=%s" % (betyAPI, betyKey),
-                  data=file(csvfile, 'rb').read(),
-                  headers={'Content-type': 'text/csv'})
-
-        if r.status_code == 200 or r.status_code == 201:
-            print("CSV successfully uploaded to BETYdb.")
+        if found_left and found_right and found_meta:
+            return CheckMessage.download
         else:
-            print("Error uploading CSV to BETYdb %s" % r.status_code)
-            print(r.text)
+            return CheckMessage.ignore
+
+    def process_message(self, connector, host, secret_key, resource, parameters):
+        metafile, img_left, img_right, metadata = None, None, None, None
+
+        # Get left/right files and metadata
+        for fname in resource['local_paths']:
+            # First check metadata attached to dataset in Clowder for item of interest
+            if fname.endswith('_dataset_metadata.json'):
+                all_dsmd = load_json(fname)
+                for curr_dsmd in all_dsmd:
+                    if 'content' in curr_dsmd and 'lemnatec_measurement_metadata' in curr_dsmd['content']:
+                        metafile = fname
+                        metadata = curr_dsmd['content']
+            # Otherwise, check if metadata was uploaded as a .json file
+            elif fname.endswith('_metadata.json') and fname.find('/_metadata.json') == -1 and metafile is None:
+                metafile = fname
+                metadata = load_json(metafile)
+            elif fname.endswith('_left.bin'):
+                img_left = fname
+            elif fname.endswith('_right.bin'):
+                img_right = fname
+        if None in [metafile, img_left, img_right, metadata]:
+            logging.error('could not find all 3 of left/right/metadata')
+            return
+
+        # Determine output directory
+        dsname = resource['dataset_info']['name']
+        if dsname.find(" - ") > -1:
+            timestamp = dsname.split(" - ")[1]
+        else:
+            timestamp = "dsname"
+        if timestamp.find("__") > -1:
+            datestamp = timestamp.split("__")[0]
+        else:
+            datestamp = ""
+        out_dir = os.path.join(self.output_dir, datestamp, timestamp)
+        logging.info("...writing outputs to: %s" % out_dir)
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        outfile = os.path.join(out_dir, 'CanopyCoverTraits.csv')
+
+        # Get information from input data
+        metadata = ccCore.lower_keys(metadata)
+        plotNum = ccCore.get_plot_num(metadata)
+        ccVal = ccCore.get_CC_from_bin(img_left)
+
+        # generate output CSV & send to Clowder + BETY
+        (fields, traits) = ccCore.get_traits_table()
+        str_time = str(ccCore.get_localdatetime(metadata))
+        str_date = str_time[6:10]+'-'+str_time[:5]+'T'+str_time[11:]
+        traits['local_datetime'] = str_date.replace("/", '-')
+        traits['canopy_cover'] = str(ccVal)
+        traits['site'] = 'MAC Field Scanner Field Plot '+ str(plotNum)
+        trait_list = ccCore.generate_traits_list(traits)
+        ccCore.generate_cc_csv(outfile, fields, trait_list)
+        logging.info("...uploading CSV to Clowder")
+        pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], outfile)
+        self.submitToBety(outfile)
+
+        # Tell Clowder this is completed so subsequent file updates don't daisy-chain
+        metadata = {
+            "@context": {
+                "@vocab": "https://clowder.ncsa.illinois.edu/clowder/assets/docs/api/index.html#!/files/uploadToDataset"
+            },
+            "dataset_id": resource['id'],
+            "content": {"status": "COMPLETED"},
+            "agent": {
+                "@type": "cat:extractor",
+                "extractor_id": host + "/api/extractors/" + self.extractor_info['name']
+            }
+        }
+        pyclowder.datasets.upload_metadata(connector, host, secret_key, resource['id'], metadata)
+
+    def submitToBety(self, csvfile):
+        if self.bety_url != "":
+            sess = requests.Session()
+
+            r = sess.post("%s?key=%s" % (self.bety_url, self.bety_key),
+                      data=file(csvfile, 'rb').read(),
+                      headers={'Content-type': 'text/csv'})
+
+            if r.status_code == 200 or r.status_code == 201:
+                logging.info("...CSV successfully uploaded to BETYdb.")
+            else:
+                print("Error uploading CSV to BETYdb %s" % r.status_code)
+                print(r.text)
+
+def load_json(meta_path):
+    try:
+        with open(meta_path, 'r') as fin:
+            return json.load(fin)
+    except Exception as ex:
+        logging.error('Corrupt metadata file, ' + str(ex))
 
 if __name__ == "__main__":
-    global getCanopyCoverScript
-
-    # Import canopyCover script from configured location
-    ccCore = imp.load_source('canopyCover', getCanopyCoverScript)
-
-    main()
+    extractor = CanopyCoverHeight()
+    extractor.start()

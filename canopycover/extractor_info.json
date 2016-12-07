@@ -6,7 +6,12 @@
   "author": "Zongyang Li",
   "contributors": [],
   "contexts": [],
-  "repository": {"repType": "git", "repUrl": ""},
+  "repository": {"repType": "git", "repUrl": "https://github.com/terraref/extractors-stereo-rgb.git"},
+  "process": {
+    "dataset": [
+      "file.added"
+    ]
+  },
   "external_services": [],
   "dependencies": [],
   "bibtex": []
