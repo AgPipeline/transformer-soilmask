@@ -7,7 +7,7 @@ User=extractor
 Group=users
 Restart=on-failure
 WorkingDirectory=/home/extractor/extractors-stereo-rgb/demosaic
-ExecStart=/usr/bin/python /home/extractor/extractors-stereo-rgb/demosaic/terra.demosaic.py
+ExecStart=/usr/bin/python /home/extractor/extractors-stereo-rgb/demosaic/terra_demosaic.py
 
 [Install]
 WantedBy=multi-user.target

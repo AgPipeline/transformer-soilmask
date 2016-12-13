@@ -31,4 +31,4 @@ CMD ["extractor"]
 ENV RABBITMQ_EXCHANGE="terra" \
     RABBITMQ_VHOST="%2F" \
     RABBITMQ_QUEUE="terra.demosaic" \
-    MAIN_SCRIPT="terra.demosaic.py"
+    MAIN_SCRIPT="terra_demosaic.py"
