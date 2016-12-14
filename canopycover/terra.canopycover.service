@@ -6,8 +6,8 @@ After=network.target
 User=extractor
 Group=users
 Restart=on-failure
-WorkingDirectory=/home/extractor/extractors-stereo-rgb/demosaic
-ExecStart=/usr/bin/python /home/extractor/extractors-stereo-rgb/demosaic/terra_canopycover.py
+WorkingDirectory=/home/extractor/extractors-stereo-rgb/canopycover
+ExecStart=/usr/bin/python /home/extractor/extractors-stereo-rgb/canopycover/terra_canopycover.py
 
 [Install]
 WantedBy=multi-user.target
