@@ -17,6 +17,19 @@ import pyclowder.datasets
 
 import canopyCover as ccCore
 
+
+def determineOutputDirectory(outputRoot, dsname):
+    if dsname.find(" - ") > -1:
+        timestamp = dsname.split(" - ")[1]
+    else:
+        timestamp = "dsname"
+    if timestamp.find("__") > -1:
+        datestamp = timestamp.split("__")[0]
+    else:
+        datestamp = ""
+
+    return os.path.join(outputRoot, datestamp, timestamp)
+
 class CanopyCoverHeight(Extractor):
     def __init__(self):
         Extractor.__init__(self)
@@ -61,6 +74,14 @@ class CanopyCoverHeight(Extractor):
         if not (found_left and found_right):
             return CheckMessage.ignore
 
+        # Check if output already exists
+        out_dir = determineOutputDirectory(self.output_dir, resource['dataset_info']['name'])
+        if not self.force_overwrite:
+            outfile = os.path.join(out_dir, 'CanopyCoverTraits.csv')
+            if os.path.isfile(outfile):
+                logging.info("skipping dataset %s, output already exists" % resource['id'])
+                return CheckMessage.ignore
+
         # fetch metadata from dataset to check if we should remove existing entry for this extractor first
         md = pyclowder.datasets.download_metadata(connector, host, secret_key,
                                                   resource['id'], self.extractor_info['name'])
@@ -68,7 +89,7 @@ class CanopyCoverHeight(Extractor):
         for m in md:
             if 'agent' in m and 'name' in m['agent']:
                 if m['agent']['name'].find(self.extractor_info['name']) > -1:
-                    logging.info("skipping dataset %s, already processed" % resource['id'])
+                    logging.info("skipping dataset %s, metadata already exists" % resource['id'])
                     return CheckMessage.ignore
             # Check for required metadata before beginning processing
             if 'content' in m and 'lemnatec_measurement_metadata' in m['content']:
@@ -104,16 +125,7 @@ class CanopyCoverHeight(Extractor):
             return
 
         # Determine output directory
-        dsname = resource['dataset_info']['name']
-        if dsname.find(" - ") > -1:
-            timestamp = dsname.split(" - ")[1]
-        else:
-            timestamp = "dsname"
-        if timestamp.find("__") > -1:
-            datestamp = timestamp.split("__")[0]
-        else:
-            datestamp = ""
-        out_dir = os.path.join(self.output_dir, datestamp, timestamp)
+        out_dir = determineOutputDirectory(self.output_dir, resource['dataset_info']['name'])
         logging.info("...writing outputs to: %s" % out_dir)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)

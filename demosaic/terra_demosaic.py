@@ -20,6 +20,18 @@ import pyclowder.datasets
 import bin_to_geotiff as bin2tiff
 
 
+def determineOutputDirectory(outputRoot, dsname):
+    if dsname.find(" - ") > -1:
+        timestamp = dsname.split(" - ")[1]
+    else:
+        timestamp = "dsname"
+    if timestamp.find("__") > -1:
+        datestamp = timestamp.split("__")[0]
+    else:
+        datestamp = ""
+
+    return os.path.join(outputRoot, datestamp, timestamp)
+
 class StereoBin2JpgTiff(Extractor):
     def __init__(self):
         Extractor.__init__(self)
@@ -48,14 +60,32 @@ class StereoBin2JpgTiff(Extractor):
         # Check for a left and right file before beginning processing
         found_left = False
         found_right = False
+        img_left, img_right = None, None
 
         for f in resource['files']:
             if 'filename' in f and f['filename'].endswith('_left.bin'):
                 found_left = True
+                img_left = f['filename']
             elif 'filename' in f and f['filename'].endswith('_right.bin'):
                 found_right = True
+                img_right = f['filename']
         if not (found_left and found_right):
             return CheckMessage.ignore
+
+        # Check if outputs already exist
+        out_dir = determineOutputDirectory(self.output_dir, resource['dataset_info']['name'])
+        if not self.force_overwrite:
+            lbase = os.path.basename(img_left)[:-4]
+            rbase = os.path.basename(img_right)[:-4]
+            left_jpg = os.path.join(out_dir, lbase+'.jpg')
+            right_jpg = os.path.join(out_dir, rbase+'.jpg')
+            left_tiff = os.path.join(out_dir, lbase+'.tif')
+            right_tiff = os.path.join(out_dir, rbase+'.tif')
+
+            if (os.path.isfile(left_jpg) and os.path.isfile(right_jpg) and
+                    os.path.isfile(left_tiff) and os.path.isfile(right_tiff)):
+                logging.info("skipping dataset %s, outputs already exist" % resource['id'])
+                return CheckMessage.ignore
 
         # fetch metadata from dataset to check if we should remove existing entry for this extractor first
         md = pyclowder.datasets.download_metadata(connector, host, secret_key,
@@ -64,7 +94,7 @@ class StereoBin2JpgTiff(Extractor):
         for m in md:
             if 'agent' in m and 'name' in m['agent']:
                 if m['agent']['name'].find(self.extractor_info['name']) > -1:
-                    logging.info("skipping dataset %s, already processed" % resource['id'])
+                    logging.info("skipping dataset %s, metadata already exists" % resource['id'])
                     return CheckMessage.ignore
             # Check for required metadata before beginning processing
             if 'content' in m and 'lemnatec_measurement_metadata' in m['content']:
@@ -99,17 +129,7 @@ class StereoBin2JpgTiff(Extractor):
             logging.error('could not find all 3 of left/right/metadata')
             return
 
-        # Determine output directory
-        dsname = resource['dataset_info']['name']
-        if dsname.find(" - ") > -1:
-            timestamp = dsname.split(" - ")[1]
-        else:
-            timestamp = "dsname"
-        if timestamp.find("__") > -1:
-            datestamp = timestamp.split("__")[0]
-        else:
-            datestamp = ""
-        out_dir = os.path.join(self.output_dir, datestamp, timestamp)
+        out_dir = determineOutputDirectory(self.output_dir, resource['dataset_info']['name'])
         logging.info("...writing outputs to: %s" % out_dir)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
