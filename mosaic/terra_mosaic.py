@@ -64,23 +64,25 @@ def main():
         except Exception as ex:
             fail("\tFailed to process folder %s: %s" % (in_path, str(ex)))
     print "Completed binary to image conversion..."
-    print "Found " + str(file_len(tif_file_list)) + " folders within GPS bounds."
-    
-    # Create VRT from every GeoTIFF
-    print "Starting VRT creation..."
-    createVrt(out_dir,tif_file_list)
-    print "Completed VRT creation..."
 
-    # Generate tiles from VRT
-    print "Starting map tile creation..."
-    TILE_FOLDER_NAME = 'tiles_' + args.date
-    createMapTiles(out_dir, TILE_FOLDER_NAME)
-    print "Completed map tile creation..."
-    
-    # Generate google map html template
-    print "Starting google map html creation..."
-    generate_googlemaps(out_dir, path.join(out_dir, TILE_FOLDER_NAME))
-    print "Completed google map html creation..."
+    if os.path.exists(tif_file_list):
+        print "Found " + str(file_len(tif_file_list)) + " folders within GPS bounds."
+
+        # Create VRT from every GeoTIFF
+        print "Starting VRT creation..."
+        createVrt(out_dir,tif_file_list)
+        print "Completed VRT creation..."
+
+        # Generate tiles from VRT
+        print "Starting map tile creation..."
+        TILE_FOLDER_NAME = 'tiles_' + args.date
+        createMapTiles(out_dir, TILE_FOLDER_NAME)
+        print "Completed map tile creation..."
+
+        # Generate google map html template
+        print "Starting google map html creation..."
+        generate_googlemaps(out_dir, path.join(out_dir, TILE_FOLDER_NAME))
+        print "Completed google map html creation..."
     
 def generate_googlemaps(base_dir, tiles_dir):
 
