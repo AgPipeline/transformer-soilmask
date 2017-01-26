@@ -33,3 +33,10 @@ _Output_
 
   - CSV with canopy coverage traits will be added to original dataset in Clowder
   - The configured BETYdb instance will have canopy coverage traits inserted
+
+### Full field mosaic stitching extractor
+This extractor takes a day of stereo BIN files and creates tiled JPG/TIFF images as well as a map HTML page.
+
+_Input_
+
+  - Currently this should be run on Roger as a job. Date is primary parameter.

@@ -3,11 +3,8 @@
 import bin_to_geotiff
 import sys, argparse
 from os import system, path, listdir, remove, makedirs
-import glob
-from PIL import Image
 from shutil import copyfile, rmtree
-import multiprocessing
-#from src import bin_to_geotiff_no_bounds
+
 
 # Define that GPS bounds of interest -- we'll ignore any data that are outside of these bounds
 # Order is: (SW_lat,SW_lng,NE_lat,NE_lng)
@@ -24,13 +21,17 @@ def options():
     parser = argparse.ArgumentParser(description='Full Field Stitching Extractor in Roger',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
-    parser.add_argument("-i", "--in_dir", help="input, stereo top bin files parent directory")
-    parser.add_argument("-o", "--out_dir", help="output parent directory")
-    parser.add_argument("-d", "--date", help="scan date")
+    parser.add_argument("-i", "--in_dir",
+                        default="/projects/arpae/terraref/sites/ua-mac/raw_data/stereoTop/",
+                        help="input, stereo top bin files parent directory")
+    parser.add_argument("-o", "--out_dir",
+                        default="/projects/arpae/terraref/sites/ua-mac/Level_1/stereoTop_mosaics/",
+                        help="output parent directory")
+    parser.add_argument("-d", "--date",
+                        default="2016-02-13",
+                        help="scan date (YYYY-MM-DD)")
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 def main():
     
@@ -39,20 +40,14 @@ def main():
     out_dir = path.join(args.out_dir, args.date)
     if not path.isdir(in_dir) or not path.isdir(args.out_dir):
         return
-    
-    subdirs = listdir(in_dir)
-    
-    TILE_FOLDER_NAME = 'tiles_' + args.date
 
-    # Create a file to write the paths for all of the TIFFs. This will be used create the VRT.
-    tif_file_list = path.join(out_dir,'tif_list.txt')
-    
     # If there is a pre-existing tiles folder with this name, delete it (failing to do so can result in some weirdness when you load tiles later)
     if path.exists(out_dir):
         rmtree(out_dir)
-    
     makedirs(out_dir)
-    
+
+    # Create a file to write the paths for all of the TIFFs. This will be used create the VRT.
+    tif_file_list = path.join(out_dir,'tif_list.txt')
     if path.exists(tif_file_list):
         try:
             remove(tif_file_list) # start from a fresh list of TIFFs for the day
@@ -61,7 +56,7 @@ def main():
 
     # Convert binary files that are within GPS bounds to JPGs and GeoTIFFs
     print "Starting binary to image conversion..."
-    for subdir in subdirs:
+    for subdir in listdir(in_dir):
         in_path = path.join(in_dir, subdir)
         out_path = path.join(out_dir, subdir)
         try:
@@ -78,6 +73,7 @@ def main():
 
     # Generate tiles from VRT
     print "Starting map tile creation..."
+    TILE_FOLDER_NAME = 'tiles_' + args.date
     createMapTiles(out_dir, TILE_FOLDER_NAME)
     print "Completed map tile creation..."
     
@@ -194,5 +190,4 @@ def fail(reason):
     print >> sys.stderr, reason
 
 if __name__ == '__main__':
-    
     main()
