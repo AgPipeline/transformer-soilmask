@@ -151,8 +151,8 @@ class StereoBin2JpgTiff(Extractor):
         fov = bin2tiff.get_fov(metadata, center_position[2], left_shape) # (fov_x, fov_y) in meters; need to pass in the camera height to get correct fov
         left_position = [center_position[0]+bin2tiff.STEREO_OFFSET, center_position[1], center_position[2]]
         right_position = [center_position[0]-bin2tiff.STEREO_OFFSET, center_position[1], center_position[2]]
-        left_gps_bounds = bin2tiff.get_bounding_box(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
-        right_gps_bounds = bin2tiff.get_bounding_box(right_position, fov)
+        left_gps_bounds = bin2tiff.get_bounding_box_fixed(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
+        right_gps_bounds = bin2tiff.get_bounding_box_fixed(right_position, fov)
 
         logging.info("...creating JPG images")
         left_image = bin2tiff.process_image(left_shape, img_left, left_jpg)
