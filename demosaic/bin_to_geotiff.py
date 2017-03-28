@@ -57,8 +57,8 @@ def main(in_dir, out_dir, tif_list_file, bounds):
         left_position = [center_position[0]+STEREO_OFFSET, center_position[1], center_position[2]]
         right_position = [center_position[0]-STEREO_OFFSET, center_position[1], center_position[2]]
 
-        left_gps_bounds = get_bounding_box(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
-        right_gps_bounds = get_bounding_box(right_position, fov)
+        left_gps_bounds = get_bounding_box_fixed(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
+        right_gps_bounds = get_bounding_box_fixed(right_position, fov)
 
         # check if this file is in the GPS bounds of interest
         #if left_gps_bounds[1] > bounds[0] and left_gps_bounds[0] < bounds[2] and left_gps_bounds[3] > bounds[1] and left_gps_bounds[2] < bounds[3]:
@@ -212,6 +212,28 @@ def get_bounding_box(center_position, fov):
     except Exception as ex:
         fail('Failed to get GPS bounds from center + FOV: ' + str(ex))
     return (lat_min, lat_max, lng_max, lng_min)
+
+def get_bounding_box_fixed(center_position, fov):
+    
+    SE_latlon = (33.0745, -111.97475)
+    SE_utm = utm.from_latlon(SE_latlon[0], SE_latlon[1])
+    SE_offset_x = 3.8
+    SE_offset_y = 0
+    
+    y_w = center_position[1] + fov[1]/2
+    y_e = center_position[1] - fov[1]/2
+    x_n = center_position[0] + fov[0]/2
+    x_s = center_position[0] - fov[0]/2
+    
+    fov_utm_x_nw = SE_utm[0] - (y_w - SE_offset_y)
+    fov_utm_y_nw = SE_utm[1] + (x_n - SE_offset_x)
+    fov_utm_x_se = SE_utm[0] - (y_e - SE_offset_y)
+    fov_utm_y_se = SE_utm[1] + (x_s - SE_offset_x)
+    
+    fov_nw_latlon = utm.to_latlon(fov_utm_x_nw, fov_utm_y_nw, SE_utm[2],SE_utm[3])
+    fov_se_latlon = utm.to_latlon(fov_utm_x_se, fov_utm_y_se, SE_utm[2],SE_utm[3])
+    
+    return (fov_nw_latlon[0], fov_se_latlon[0], fov_nw_latlon[1], fov_se_latlon[1])
 
 def process_image(shape, in_file, out_file):
     try:
