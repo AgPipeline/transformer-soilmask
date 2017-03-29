@@ -37,6 +37,17 @@ FOV_IN_2_METER_PARAM = 0.837 # since we don't have a true value of field of view
 # PARAMS FROM 5/25
 #HEIGHT_MAGIC_NUMBER = 1.3 # this is the value we have to add to our Z position to get the images in a column to line up.
 
+# Scanalyzer -> MAC formular @ https://terraref.gitbooks.io/terraref-documentation/content/user/geospatial-information.html
+# Mx = ax + bx * Gx + cx * Gy
+# My = ay + by * Gx + cy * Gy
+# Latitude: Uy = My - 0.000015258894
+# Longitude: Ux = Mx + 0.000020308287
+ay = 3659974.971; by = 1.0002; cy = 0.0078;
+ax = 409012.2032; bx = 0.009; cx = - 0.9986;
+lon_shift = 0.000020308287
+lat_shift = 0.000015258894
+SE_utm = utm.from_latlon(SE_latlon[0], SE_latlon[1])
+
 def main(in_dir, out_dir, tif_list_file, bounds):
     if not os.path.isdir(in_dir):
         fail('Could not find input directory: ' + in_dir)
@@ -57,8 +68,8 @@ def main(in_dir, out_dir, tif_list_file, bounds):
         left_position = [center_position[0]+STEREO_OFFSET, center_position[1], center_position[2]]
         right_position = [center_position[0]-STEREO_OFFSET, center_position[1], center_position[2]]
 
-        left_gps_bounds = get_bounding_box_fixed(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
-        right_gps_bounds = get_bounding_box_fixed(right_position, fov)
+        left_gps_bounds = get_bounding_box_with_formula(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
+        right_gps_bounds = get_bounding_box_with_formula(right_position, fov)
 
         # check if this file is in the GPS bounds of interest
         #if left_gps_bounds[1] > bounds[0] and left_gps_bounds[0] < bounds[2] and left_gps_bounds[3] > bounds[1] and left_gps_bounds[2] < bounds[3]:
@@ -234,6 +245,24 @@ def get_bounding_box_fixed(center_position, fov):
     fov_se_latlon = utm.to_latlon(fov_utm_x_se, fov_utm_y_se, SE_utm[2],SE_utm[3])
     
     return (fov_nw_latlon[0], fov_se_latlon[0], fov_nw_latlon[1], fov_se_latlon[1])
+
+def get_bounding_box_with_formula(center_position, fov):
+    
+    y_w = center_position[1] + fov[1]/2
+    y_e = center_position[1] - fov[1]/2
+    x_n = center_position[0] + fov[0]/2
+    x_s = center_position[0] - fov[0]/2
+    
+    Mx_nw = ax + bx * x_n + cx * y_w
+    My_nw = ay + by * x_n + cy * y_w
+    
+    Mx_se = ax + bx * x_s + cx * y_e
+    My_se = ay + by * x_s + cy * y_e
+    
+    fov_nw_latlon = utm.to_latlon(Mx_nw, My_nw, SE_utm[2],SE_utm[3])
+    fov_se_latlon = utm.to_latlon(Mx_se, My_se, SE_utm[2],SE_utm[3])
+    
+    return (fov_nw_latlon[0] - lat_shift, fov_se_latlon[0] - lat_shift, fov_nw_latlon[1] + lon_shift, fov_se_latlon[1] + lon_shift)
 
 def process_image(shape, in_file, out_file):
     try:
