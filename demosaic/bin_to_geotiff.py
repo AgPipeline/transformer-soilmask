@@ -14,7 +14,7 @@ input_folder        is the folder containing the metadata and binary stereo imag
 output_folder     is the folder where the output .jpg files and .tif files will be saved
 '''
 
-import sys, os.path, json
+import sys, os.path, json, utm
 from glob import glob
 from os.path import join
 import numpy as np
@@ -46,6 +46,7 @@ ay = 3659974.971; by = 1.0002; cy = 0.0078;
 ax = 409012.2032; bx = 0.009; cx = - 0.9986;
 lon_shift = 0.000020308287
 lat_shift = 0.000015258894
+SE_latlon = (33.0745, -111.97475)
 SE_utm = utm.from_latlon(SE_latlon[0], SE_latlon[1])
 
 def main(in_dir, out_dir, tif_list_file, bounds):

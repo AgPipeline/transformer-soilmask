@@ -88,8 +88,7 @@ class StereoBin2JpgTiff(Extractor):
                 return CheckMessage.ignore
 
         # fetch metadata from dataset to check if we should remove existing entry for this extractor first
-        md = pyclowder.datasets.download_metadata(connector, host, secret_key,
-                                                  resource['id'], self.extractor_info['name'])
+        md = pyclowder.datasets.download_metadata(connector, host, secret_key, resource['id'])
         found_meta = False
         for m in md:
             if 'agent' in m and 'name' in m['agent']:
