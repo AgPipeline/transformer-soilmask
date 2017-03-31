@@ -75,8 +75,8 @@ class StereoBin2JpgTiff(Extractor):
         # Check if outputs already exist
         out_dir = determineOutputDirectory(self.output_dir, resource['dataset_info']['name'])
         if not self.force_overwrite:
-            lbase = os.path.basename(img_left)[:-4]
-            rbase = os.path.basename(img_right)[:-4]
+            lbase = resource['dataset_info']['name']+" (Left)"
+            rbase = resource['dataset_info']['name']+" (Right)"
             left_jpg = os.path.join(out_dir, lbase+'.jpg')
             right_jpg = os.path.join(out_dir, rbase+'.jpg')
             left_tiff = os.path.join(out_dir, lbase+'.tif')
@@ -136,7 +136,7 @@ class StereoBin2JpgTiff(Extractor):
         metadata = bin2tiff.lower_keys(metadata)
         # Determine output files
         lbase = resource['dataset_info']['name']+" (Left)"
-        rbase = os.path.basename(img_right)[:-4]+" (Right)"
+        rbase = resource['dataset_info']['name']+" (Right)"
         left_jpg = os.path.join(out_dir, lbase+'.jpg')
         right_jpg = os.path.join(out_dir, rbase+'.jpg')
         left_tiff = os.path.join(out_dir, lbase+'.tif')
