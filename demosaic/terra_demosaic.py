@@ -60,15 +60,12 @@ class StereoBin2JpgTiff(Extractor):
         # Check for a left and right file before beginning processing
         found_left = False
         found_right = False
-        img_left, img_right = None, None
 
         for f in resource['files']:
             if 'filename' in f and f['filename'].endswith('_left.bin'):
                 found_left = True
-                img_left = f['filename']
             elif 'filename' in f and f['filename'].endswith('_right.bin'):
                 found_right = True
-                img_right = f['filename']
         if not (found_left and found_right):
             return CheckMessage.ignore
 
@@ -92,7 +89,7 @@ class StereoBin2JpgTiff(Extractor):
         found_meta = False
         for m in md:
             if 'agent' in m and 'name' in m['agent']:
-                if m['agent']['name'].find(self.extractor_info['name']) > -1:
+                if m['agent']['name'].endswith(self.extractor_info['name']):
                     logging.info("skipping dataset %s, metadata already exists" % resource['id'])
                     return CheckMessage.ignore
             # Check for required metadata before beginning processing
