@@ -135,8 +135,8 @@ class StereoBin2JpgTiff(Extractor):
 
         metadata = bin2tiff.lower_keys(metadata)
         # Determine output files
-        lbase = os.path.basename(img_left)[:-4]
-        rbase = os.path.basename(img_right)[:-4]
+        lbase = resource['dataset_info']['name']+" (Left)"
+        rbase = os.path.basename(img_right)[:-4]+" (Right)"
         left_jpg = os.path.join(out_dir, lbase+'.jpg')
         right_jpg = os.path.join(out_dir, rbase+'.jpg')
         left_tiff = os.path.join(out_dir, lbase+'.tif')
