@@ -182,6 +182,11 @@ def get_fov(metadata, camHeight, shape):
         fov_list = fov.replace("[","").replace("]","").split()
         fov_x = float(fov_list[0])
         fov_y = float(fov_list[1])
+
+        # TODO: Find a better solution once metadata files are fixed
+        # TODO: These values from https://github.com/terraref/computing-pipeline/issues/126#issuecomment-292027575
+        fov_x = 1.015
+        fov_y = 0.749
         
         # test by Baker
         gantry_meta = metadata['lemnatec_measurement_metadata']['gantry_system_variable_metadata']

@@ -341,6 +341,11 @@ def fetch_md_parts(metadata):
                     if not fov_y:
                         fov_y = parse_as_float(vals[1])
 
+            # TODO: Find a better solution once metadata files are fixed
+            # TODO: These values from https://github.com/terraref/computing-pipeline/issues/126#issuecomment-292027575
+            fov_x = 1.015
+            fov_y = 0.749
+
             # timestamp, e.g. "2016-05-15T00:30:00-05:00"
             val = check_field_variants(gantry_meta, 'time')
             if val:
