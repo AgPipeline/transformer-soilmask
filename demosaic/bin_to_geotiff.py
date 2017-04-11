@@ -172,37 +172,15 @@ def get_position(metadata):
     return (x, y, z)
 
 def get_fov(metadata, camHeight, shape):
-    try:
-        cam_meta = metadata['lemnatec_measurement_metadata']['sensor_fixed_metadata']
-        fov = cam_meta["field of view at 2m in x- y- direction [m]"]
-    except KeyError as err:
-        fail('Metadata file missing key: ' + err.args[0])
-
-    try:
-        fov_list = fov.replace("[","").replace("]","").split()
-        fov_x = float(fov_list[0])
-        fov_y = float(fov_list[1])
-
-        # TODO: Find a better solution once metadata files are fixed
-        # TODO: These values from https://github.com/terraref/computing-pipeline/issues/126#issuecomment-292027575
-        fov_x = 1.015
-        fov_y = 0.749
-        
-        # test by Baker
-        gantry_meta = metadata['lemnatec_measurement_metadata']['gantry_system_variable_metadata']
-        gantry_z = gantry_meta["position z [m]"]
-        fov_offset = (float(gantry_z) - 2) * FOV_MAGIC_NUMBER
-        fov_y = fov_y*(FOV_IN_2_METER_PARAM + fov_offset)
-        fov_x = (fov_y)/shape[1]*shape[0]
-
-        # given fov is at 2m, so need to convert for actual height
-        #fov_x = (camHeight * (fov_x/2))/2
-        #fov_y = (camHeight * (fov_y/2))/2
-        
-
-    except ValueError as err:
-        fail('Corrupt FOV inputs, ' + err.args[0])
-    return (fov_x, fov_y)
+    fov_x = 1.015
+    fov_y = 0.749
+    HEIGHT_MAGIC_NUMBER = 1.64
+    PREDICT_MAGIC_SLOPE = 0.574
+    predict_plant_height = PREDICT_MAGIC_SLOPE * camHeight
+    camH_fix = camHeight + HEIGHT_MAGIC_NUMBER - predict_plant_height
+    fix_fov_x = fov_x*(camH_fix/2)
+    fix_fov_y = fov_y*(camH_fix/2)
+    return (fix_fov_x, fix_fov_y)
 
 def get_bounding_box(center_position, fov):
     # NOTE: ZERO_ZERO is the southeast corner of the field. Position values increase to the northwest (so +y-position = +latitude, or more north and +x-position = -longitude, or more west)
