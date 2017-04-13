@@ -150,7 +150,7 @@ class CanopyCoverHeight(Extractor):
         str_date = str_time[6:10]+'-'+str_time[:5]+'T'+str_time[11:]
         traits['local_datetime'] = str_date.replace("/", '-')
         traits['canopy_cover'] = str(ccVal)
-        traits['site'] = 'MAC Field Scanner Field Plot '+ str(plotNum)
+        traits['site'] = 'MAC Field Scanner Field Plot '+ str(plotNum)+' Season 2'
         trait_list = ccCore.generate_traits_list(traits)
 
         # generate datapoint for geostreams
