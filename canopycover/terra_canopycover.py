@@ -16,6 +16,7 @@ from pyclowder.extractors import Extractor
 from pyclowder.utils import CheckMessage
 import pyclowder.files
 import pyclowder.datasets
+import pyclowder.geostreams
 
 import canopyCover as ccCore
 import plotid_by_latlon
@@ -212,15 +213,21 @@ class CanopyCoverHeight(Extractor):
             fileIdList.append(f['id'])
 
         # SENSOR is the plot
-        plot_info = plotid_by_latlon.plotQuery(self.plots_shp, sensor_latlon[1], sensor_latlon[0])
-        plot_name = "Range "+plot_info['plot'].replace("-", " Pass ")
-        logging.info("...found plot: "+str(plot_info))
-        sensor_id = get_sensor_id(host, secret_key, plot_name)
-        if not sensor_id:
-            sensor_id = create_sensor(host, secret_key, plot_name, {
-                "type": "Point",
-                "coordinates": [plot_info['point'][1], plot_info['point'][0], plot_info['point'][2]]
-            })
+        sensor_data = pyclowder.geostreams.get_sensors_by_circle(connector, host, secret_key, sensor_latlon[1], sensor_latlon[0], 0.01)
+
+        if not sensor_data:
+            plot_info = plotid_by_latlon.plotQuery(self.plots_shp, sensor_latlon[1], sensor_latlon[0])
+            plot_name = "Range "+plot_info['plot'].replace("-", " Pass ")
+            logging.info("...found plot: "+str(plot_info))
+            sensor_id = get_sensor_id(host, secret_key, plot_name)
+            if not sensor_id:
+                sensor_id = create_sensor(host, secret_key, plot_name, {
+                    "type": "Point",
+                    "coordinates": [plot_info['point'][1], plot_info['point'][0], plot_info['point'][2]]
+                })
+        else:
+            sensor_id = sensor_data['id']
+            plot_name = sensor_data['name']
 
         # STREAM is plot x instrument
         stream_name = "Canopy Cover" + " - " + plot_name
