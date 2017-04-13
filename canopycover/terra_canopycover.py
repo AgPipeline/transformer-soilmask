@@ -226,8 +226,12 @@ class CanopyCoverHeight(Extractor):
                     "coordinates": [plot_info['point'][1], plot_info['point'][0], plot_info['point'][2]]
                 })
         else:
-            sensor_id = sensor_data['id']
-            plot_name = sensor_data['name']
+            if len(sensor_data) > 1:
+                sensor_id = sensor_data[0]['id']
+                plot_name = sensor_data[0]['name']
+            else:
+                sensor_id = sensor_data['id']
+                plot_name = sensor_data['name']
 
         # STREAM is plot x instrument
         stream_name = "Canopy Cover" + " - " + plot_name
