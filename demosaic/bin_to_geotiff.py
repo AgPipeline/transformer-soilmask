@@ -259,7 +259,7 @@ def process_image(shape, in_file, out_file):
         Image.fromarray(im_color).save(out_file)
         return im_color
     except Exception as ex:
-        fail('Error processing image "%s": %s' % (str(ex)))
+        fail('Error processing image "%s": %s' % (in_file, str(ex)))
 
 def demosaic(im):
     # Assuming GBRG ordering.
