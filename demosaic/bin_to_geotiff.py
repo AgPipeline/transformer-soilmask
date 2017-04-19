@@ -293,9 +293,7 @@ def create_geotiff(which_im, np_arr, gps_bounds, out_file_path):
         yres = (gps_bounds[1] - gps_bounds[0])/float(nrows)
         geotransform = (gps_bounds[2],xres,0,gps_bounds[1],0,-yres) #(top left x, w-e pixel resolution, rotation (0 if North is up), top left y, rotation (0 if North is up), n-s pixel resolution)
 
-        output_path = out_file_path
-
-        output_raster = gdal.GetDriverByName('GTiff').Create(output_path, ncols, nrows, nz, gdal.GDT_Byte)
+        output_raster = gdal.GetDriverByName('GTiff').Create(out_file_path, ncols, nrows, nz, gdal.GDT_Byte)
 
         output_raster.SetGeoTransform(geotransform) # specify coordinates
         srs = osr.SpatialReference() # establish coordinate encoding

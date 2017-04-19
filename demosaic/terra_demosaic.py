@@ -11,6 +11,7 @@ import os
 import logging
 import tempfile
 import shutil
+import gc
 
 from pyclowder.extractors import Extractor
 from pyclowder.utils import CheckMessage
@@ -196,6 +197,9 @@ class StereoBin2JpgTiff(Extractor):
             }
         }
         pyclowder.datasets.upload_metadata(connector, host, secret_key, resource['id'], metadata)
+
+        # GDAL is leaky so try to force garbage collection, otherwise extractor eventually runs out of memory
+        gc.collect()
 
 if __name__ == "__main__":
     extractor = StereoBin2JpgTiff()
