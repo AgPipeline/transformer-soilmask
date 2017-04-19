@@ -85,9 +85,8 @@ def main(in_dir, out_dir, tif_list_file, bounds):
         right_tiff_out = join(out_dir,right_baseName[:-3]+'tif')
         create_geotiff('right', right_image, right_gps_bounds, right_tiff_out)
         # once we've saved the image, make sure to append this path to our list of TIFs
-        f = open(tif_list_file,'a+')
-        f.write(left_tiff_out + '\n')
-            
+        with open(tif_list_file,'a+') as f:
+            f.write(left_tiff_out + '\n')
 
 def lower_keys(in_dict):
     if type(in_dict) is dict:
@@ -316,9 +315,7 @@ def create_geotiff(which_im, np_arr, gps_bounds, out_file_path):
         output_raster.GetRasterBand(3).FlushCache()
         output_raster.GetRasterBand(3).SetNoDataValue(-99)
 
-        # once we've saved the image, make sure to append this path to our list of TIFs
-        #f = open(tif_list_file,'a+')
-        #f.write(output_path + '\n')
+        del output_raster
     except Exception as ex:
         fail('Error creating GeoTIFF: ' + str(ex))
 
