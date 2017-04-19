@@ -164,6 +164,7 @@ class StereoBin2JpgTiff(Extractor):
             if left_tiff not in resource['local_paths']:
                 fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], left_tiff)
                 uploaded_file_ids.append(fileid)
+        del left_image
 
         if (not os.path.isfile(right_tiff)) or self.force_overwrite:
             out_tmp_tiff = tempfile.mkstemp()
@@ -173,6 +174,7 @@ class StereoBin2JpgTiff(Extractor):
             if right_tiff not in resource['local_paths']:
                 fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'],right_tiff)
                 uploaded_file_ids.append(fileid)
+        del right_image
 
         # Remove existing metadata from this extractor before rewriting
         md = pyclowder.datasets.download_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
