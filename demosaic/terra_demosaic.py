@@ -237,25 +237,27 @@ class StereoBin2JpgTiff(Extractor):
         # GDAL is leaky so try to force garbage collection, otherwise extractor eventually runs out of memory
         gc.collect()
 
-    def logToInfluxDB(self, starttime, endtime, filecount):
+    def logToInfluxDB(self, starttime, endtime, filecount, bytecount):
         # Time of the format "2017-02-10T16:09:57+00:00"
         f_completed_ts = int(parse(endtime).strftime('%s'))
         f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))
 
-        influxDurations = [{
+        client = InfluxDBClient(self.influx_host, self.influx_port, self.influx_user, self.influx_pass, self.influx_db)
+        client.write_points([{
             "measurement": "file_processed",
             "time": f_completed_ts,
             "fields": {"value": f_duration}
-        }]
-        influxFileCounts = [{
+        }], tags={"extractor": self.extractor_info['name'], "type": "duration"})
+        client.write_points([{
             "measurement": "file_processed",
             "time": f_completed_ts,
             "fields": {"value": int(filecount)}
-        }]
-
-        client = InfluxDBClient(self.influx_host, self.influx_port, self.influx_user, self.influx_pass, self.influx_db)
-        client.write_points(influxDurations, tags={"extractor": self.extractor_info['name'], "type": "duration"})
-        client.write_points(influxFileCounts, tags={"extractor": self.extractor_info['name'], "type": "filecount"})
+        }], tags={"extractor": self.extractor_info['name'], "type": "filecount"})
+        client.write_points([{
+            "measurement": "file_processed",
+            "time": f_completed_ts,
+            "fields": {"value": int(bytecount)}
+        }], tags={"extractor": self.extractor_info['name'], "type": "bytes"})
 
 if __name__ == "__main__":
     extractor = StereoBin2JpgTiff()
