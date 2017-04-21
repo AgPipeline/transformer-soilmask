@@ -9,7 +9,6 @@ JPG and TIF formats.
 
 import os
 import logging
-import tempfile
 import shutil
 import gc
 import datetime
@@ -235,7 +234,6 @@ class StereoBin2JpgTiff(Extractor):
         self.logToInfluxDB(starttime, endtime, created)
 
         # GDAL is leaky so try to force garbage collection, otherwise extractor eventually runs out of memory
-        # TODO: This isn't actually solving the problem
         gc.collect()
 
     def logToInfluxDB(self, starttime, endtime, filecount, bytecount):
