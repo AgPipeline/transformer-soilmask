@@ -21,6 +21,7 @@ GPS_BOUNDS = (33.072616729424254, -111.97499111294746, 33.07404171941707, -111.9
 
 
 def options():
+    
     parser = argparse.ArgumentParser(description='Full Field Stitching Extractor in Roger',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     

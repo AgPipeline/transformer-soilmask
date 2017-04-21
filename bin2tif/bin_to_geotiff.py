@@ -313,7 +313,7 @@ def create_geotiff(which_im, np_arr, gps_bounds, out_file_path):
         output_raster.GetRasterBand(3).FlushCache()
         output_raster.GetRasterBand(3).SetNoDataValue(-99)
 
-        del output_raster
+        output_raster = None
     except Exception as ex:
         fail('Error creating GeoTIFF: ' + str(ex))
 
