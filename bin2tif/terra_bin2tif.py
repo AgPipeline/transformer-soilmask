@@ -9,7 +9,6 @@ JPG and TIF formats.
 
 import os
 import logging
-import tempfile
 import shutil
 import gc
 import datetime
@@ -43,7 +42,7 @@ class StereoBin2JpgTiff(Extractor):
 
         # add any additional arguments to parser
         self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
-                                 default="/home/extractor/sites/ua-mac/Level_1/demosaic",
+                                 default="/home/extractor/sites/ua-mac/Level_1/stereoTop_geotiff",
                                  help="root directory where timestamp & output directories will be created")
         self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
                                  help="whether to overwrite output file if it already exists in output directory")
@@ -162,8 +161,10 @@ class StereoBin2JpgTiff(Extractor):
         right_position = [center_position[0]-bin2tiff.STEREO_OFFSET, center_position[1], center_position[2]]
         left_gps_bounds = bin2tiff.get_bounding_box_with_formula(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
         right_gps_bounds = bin2tiff.get_bounding_box_with_formula(right_position, fov)
+        out_tmp_tiff = "output.tif"
 
-        logging.info("...creating & uploading JPG images")
+
+        logging.info("...creating & uploading left JPG & geoTIFF")
         if (not os.path.isfile(left_jpg)) or self.force_overwrite:
             left_image = bin2tiff.process_image(left_shape, img_left, left_jpg)
             # Only upload the newly generated file to Clowder if it isn't already in dataset
@@ -173,6 +174,19 @@ class StereoBin2JpgTiff(Extractor):
             created += 1
             bytes += os.path.getsize(left_jpg)
 
+        if (not os.path.isfile(left_tiff)) or self.force_overwrite:
+            # Rename output.tif after creation to avoid long path errors
+            bin2tiff.create_geotiff('left', left_image, left_gps_bounds, out_tmp_tiff)
+            shutil.move(out_tmp_tiff, left_tiff)
+            if left_tiff not in resource['local_paths']:
+                fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], left_tiff)
+                uploaded_file_ids.append(fileid)
+            created += 1
+            bytes += os.path.getsize(left_tiff)
+        del left_image
+
+
+        logging.info("...creating & uploading right JPG & geoTIFF")
         if (not os.path.isfile(right_jpg)) or self.force_overwrite:
             right_image = bin2tiff.process_image(right_shape, img_right, right_jpg)
             if right_jpg not in resource['local_paths']:
@@ -181,31 +195,16 @@ class StereoBin2JpgTiff(Extractor):
             created += 1
             bytes += os.path.getsize(right_jpg)
 
-        logging.info("...creating & uploading geoTIFF images")
-        if (not os.path.isfile(left_tiff)) or self.force_overwrite:
-            # Rename out.tif after creation to avoid long path errors
-            out_tmp_tiff = tempfile.mkstemp()
-            bin2tiff.create_geotiff('left', left_image, left_gps_bounds, out_tmp_tiff[1])
-            shutil.copyfile(out_tmp_tiff[1], left_tiff)
-            os.remove(out_tmp_tiff[1])
-            if left_tiff not in resource['local_paths']:
-                fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], left_tiff)
-                uploaded_file_ids.append(fileid)
-            created += 1
-            bytes += os.path.getsize(left_tiff)
-        del left_image
-
         if (not os.path.isfile(right_tiff)) or self.force_overwrite:
-            out_tmp_tiff = tempfile.mkstemp()
-            bin2tiff.create_geotiff('right', right_image, right_gps_bounds, out_tmp_tiff[1])
-            shutil.copyfile(out_tmp_tiff[1], right_tiff)
-            os.remove(out_tmp_tiff[1])
+            bin2tiff.create_geotiff('right', right_image, right_gps_bounds, out_tmp_tiff)
+            shutil.move(out_tmp_tiff, right_tiff)
             if right_tiff not in resource['local_paths']:
                 fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'],right_tiff)
                 uploaded_file_ids.append(fileid)
             created += 1
             bytes += os.path.getsize(right_tiff)
         del right_image
+
 
         # Remove existing metadata from this extractor before rewriting
         md = pyclowder.datasets.download_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])

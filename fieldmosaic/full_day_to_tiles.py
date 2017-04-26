@@ -21,6 +21,7 @@ GPS_BOUNDS = (33.072616729424254, -111.97499111294746, 33.07404171941707, -111.9
 
 
 def options():
+    
     parser = argparse.ArgumentParser(description='Full Field Stitching Extractor in Roger',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
@@ -172,6 +173,18 @@ def createVrt(base_dir,tif_file_list):
     print "\tCreating virtual TIF..."
     try:
         vrtPath = path.join(base_dir,'virtualTif.vrt')
+        cmd = 'gdalbuildvrt -srcnodata "-99 -99 -99" -overwrite -input_file_list ' + tif_file_list +' ' + vrtPath
+        print(cmd)
+        system(cmd)
+    except Exception as ex:
+        fail("\tFailed to create virtual tif: " + str(ex))
+
+def createVrtPermanent(base_dir, tif_file_list, out_vrt='virtualTif.vrt'):
+    # Create virtual tif for the files in this folder
+    # Build a virtual TIF that combines all of the tifs that we just created
+    print "\tCreating virtual TIF..."
+    try:
+        vrtPath = path.join(base_dir, out_vrt)
         cmd = 'gdalbuildvrt -srcnodata "-99 -99 -99" -overwrite -input_file_list ' + tif_file_list +' ' + vrtPath
         print(cmd)
         system(cmd)

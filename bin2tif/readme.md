@@ -1,6 +1,6 @@
-# Demosaic Extractor
+# Bin2Tif Extractor
 
-This extractor processes binary stereo images using metadata and outputs demosaicked JPG and TIFF images.
+This extractor processes binary stereo images using metadata and outputs JPG and TIFF images.
 
 _Input_
 
@@ -19,7 +19,7 @@ The Dockerfile included in this directory can be used to launch this extractor i
 
 _Building the Docker image_
 ```
-docker build -f Dockerfile -t terra-ext-demosaic .
+docker build -f Dockerfile -t terra-ext-bin2tif .
 ```
 
 _Running the image locally_
@@ -29,7 +29,7 @@ docker run \
   -e RABBITMQ_URI=amqp://{RMQ_USER}:{RMQ_PASSWORD}@localhost:5672/%2f \
   -e RABBITMQ_EXCHANGE=clowder \
   -e REGISTRATION_ENDPOINTS=http://localhost:9000/clowder/api/extractors?key={SECRET_KEY} \
-  terra-ext-demosaic
+  terra-ext-bin2tif
 ```
 Note that by default RabbitMQ will not allow "guest:guest" access to non-local addresses, which includes Docker. You may need to create an additional local RabbitMQ user for testing.
 
@@ -39,7 +39,7 @@ docker run \
   -e RABBITMQ_URI=amqp://{RMQ_USER}:{RMQ_PASSWORD}@rabbitmq.ncsa.illinois.edu/clowder \
   -e RABBITMQ_EXCHANGE=terra \
   -e REGISTRATION_ENDPOINTS=http://terraref.ncsa.illinosi.edu/clowder//api/extractors?key={SECRET_KEY} \
-  terra-ext-demosaic
+  terra-ext-bin2tif
 ```
 
 ### Dependencies
@@ -47,7 +47,3 @@ docker run \
 * All the Python scripts syntactically support Python 2.7 and above. Please make sure that the Python in the running environment is in appropriate version.
 
 * All the Python scripts also rely on the third-party library including: PIL, scipy, numpy and osgeo.
-
-### Notice
-
-* Since we don't have the true value of field of view in 2 meter, we use some parameters to estimate fov, once we get the true value of fov, we should update this code.

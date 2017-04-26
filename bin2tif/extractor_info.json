@@ -1,10 +1,10 @@
 {
   "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
-  "name": "terra.demosaic",
-  "version": "2.0",
-  "description": "Stereo Image Demosaic",
+  "name": "terra.bin2tif",
+  "version": "3.0",
+  "description": "Stereo RGB Image Bin to GeoTIFF Converter",
   "author": "Max Burnette <mburnet2@illinois.edu>",
-  "contributors": [],
+  "contributors": ["Zongyang Li"],
   "contexts": [],
   "repository": {"repType": "git", "repUrl": "https://github.com/terraref/extractors-stereo-rgb.git"},
   "process": {
