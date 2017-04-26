@@ -42,7 +42,7 @@ class StereoBin2JpgTiff(Extractor):
 
         # add any additional arguments to parser
         self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
-                                 default="/home/extractor/scratch",
+                                 default="/home/extractor/sites/ua-mac/Level_1/stereoTop_geotiff",
                                  help="root directory where timestamp & output directories will be created")
         self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
                                  help="whether to overwrite output file if it already exists in output directory")
