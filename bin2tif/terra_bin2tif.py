@@ -160,11 +160,11 @@ class StereoBin2JpgTiff(Extractor):
         right_position = [center_position[0]-bin2tiff.STEREO_OFFSET, center_position[1], center_position[2]]
         left_gps_bounds = bin2tiff.get_bounding_box_with_formula(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
         right_gps_bounds = bin2tiff.get_bounding_box_with_formula(right_position, fov)
-        out_tmp_tiff = "output.tif"
+        out_tmp_tiff = os.path.join(out_dir, "output.tif")
 
 
-        logging.info("...creating & uploading left JPG & geoTIFF")
         if (not os.path.isfile(left_jpg)) or self.force_overwrite:
+            logging.info("...creating & uploading left JPG")
             left_image = bin2tiff.process_image(left_shape, img_left, left_jpg)
             # Only upload the newly generated file to Clowder if it isn't already in dataset
             if left_jpg not in resource['local_paths']:
@@ -174,6 +174,9 @@ class StereoBin2JpgTiff(Extractor):
             bytes += os.path.getsize(left_jpg)
 
         if (not os.path.isfile(left_tiff)) or self.force_overwrite:
+            logging.info("...creating & uploading left geoTIFF")
+            if not left_image:
+                left_image = bin2tiff.process_image(left_shape, img_left, left_jpg)
             # Rename output.tif after creation to avoid long path errors
             bin2tiff.create_geotiff('left', left_image, left_gps_bounds, out_tmp_tiff)
             shutil.move(out_tmp_tiff, left_tiff)
@@ -184,9 +187,8 @@ class StereoBin2JpgTiff(Extractor):
             bytes += os.path.getsize(left_tiff)
         del left_image
 
-
-        logging.info("...creating & uploading right JPG & geoTIFF")
         if (not os.path.isfile(right_jpg)) or self.force_overwrite:
+            logging.info("...creating & uploading right JPG")
             right_image = bin2tiff.process_image(right_shape, img_right, right_jpg)
             if right_jpg not in resource['local_paths']:
                 fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], right_jpg)
@@ -195,6 +197,9 @@ class StereoBin2JpgTiff(Extractor):
             bytes += os.path.getsize(right_jpg)
 
         if (not os.path.isfile(right_tiff)) or self.force_overwrite:
+            logging.info("...creating & uploading right geoTIFF")
+            if not right_image:
+                right_image = bin2tiff.process_image(right_shape, img_right, right_jpg)
             bin2tiff.create_geotiff('right', right_image, right_gps_bounds, out_tmp_tiff)
             shutil.move(out_tmp_tiff, right_tiff)
             if right_tiff not in resource['local_paths']:
