@@ -39,7 +39,7 @@ def load_json(meta_path):
         logging.error('Corrupt metadata file, ' + str(ex))
 
 # Try several variations on each position field to get all required information
-def fetch_md_partsfetch_md_parts(metadata):
+def fetch_md_parts(metadata):
     gantry_x, gantry_y = None, None
     loc_cambox_x, loc_cambox_y = None, None
     fov_x, fov_y = None, None
