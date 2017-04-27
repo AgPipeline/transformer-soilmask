@@ -10,7 +10,6 @@ JPG and TIF formats.
 import os
 import logging
 import shutil
-import gc
 import datetime
 from dateutil.parser import parse
 
@@ -231,10 +230,7 @@ class StereoBin2JpgTiff(Extractor):
         pyclowder.datasets.upload_metadata(connector, host, secret_key, resource['id'], metadata)
 
         endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        self.logToInfluxDB(starttime, endtime, created)
-
-        # GDAL is leaky so try to force garbage collection, otherwise extractor eventually runs out of memory
-        gc.collect()
+        self.logToInfluxDB(starttime, endtime, created, bytes)
 
     def logToInfluxDB(self, starttime, endtime, filecount, bytecount):
         # Time of the format "2017-02-10T16:09:57+00:00"
