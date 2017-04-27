@@ -159,6 +159,16 @@ class CanopyCoverHeight(Extractor):
         self.parser.add_argument('--plots', dest="plots_shp", type=str, nargs='?',
                                  default="/home/extractor/extractors-metadata/sensorposition/shp/sorghumexpfall2016v5/sorghumexpfall2016v5_lblentry_1to7.shp",
                                  help=".shp file containing plots")
+        self.parser.add_argument('--influxHost', dest="influx_host", type=str, nargs='?',
+                                 default="terra-logging.ncsa.illinois.edu", help="InfluxDB URL for logging")
+        self.parser.add_argument('--influxPort', dest="influx_port", type=int, nargs='?',
+                                 default=8086, help="InfluxDB port")
+        self.parser.add_argument('--influxUser', dest="influx_user", type=str, nargs='?',
+                                 default="terra", help="InfluxDB username")
+        self.parser.add_argument('--influxPass', dest="influx_pass", type=str, nargs='?',
+                                 default="", help="InfluxDB password")
+        self.parser.add_argument('--influxDB', dest="influx_db", type=str, nargs='?',
+                                 default="extractor_db", help="InfluxDB databast")
 
         # parse command line and load default logging configuration
         self.setup()
@@ -173,6 +183,11 @@ class CanopyCoverHeight(Extractor):
         self.bety_url = self.args.bety_url
         self.bety_key = self.args.bety_key
         self.plots_shp = self.args.plots_shp
+        self.influx_host = self.args.influx_host
+        self.influx_port = self.args.influx_port
+        self.influx_user = self.args.influx_user
+        self.influx_pass = self.args.influx_pass
+        self.influx_db = self.args.influx_db
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         # Check for a left and right file before beginning processing
