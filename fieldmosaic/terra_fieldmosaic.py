@@ -63,7 +63,7 @@ class FullFieldMosaicStitcher(Extractor):
         out_file = "stereoTop_fullField.vrt"
         # Write input list to tmp file
         with open("tiflist.txt", "w") as tifftxt:
-            for t in parameters["file_list"]:
+            for t in parameters["file_ids"]:
                 tifftxt.write("%s/n" % t)
 
         # Create VRT from every GeoTIFF
@@ -90,7 +90,7 @@ class FullFieldMosaicStitcher(Extractor):
                 There are likely to be be small offsets near the boundary of two images anytime there are plants \
                 at the boundary (because those plants are higher than the ground plane), or where the dirt is \
                 slightly higher or lower than average.",
-                "file_source_ids": parameters["file_list"]
+                "file_source_ids": parameters["file_ids"]
             },
             "agent": {
                 "@type": "cat:extractor",
