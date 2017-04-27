@@ -9,6 +9,8 @@ import time
 import datetime
 from dateutil.parser import parse
 
+from influxdb import InfluxDBClient, SeriesHelper
+
 from pyclowder.extractors import Extractor
 from pyclowder.utils import CheckMessage
 import pyclowder.files
