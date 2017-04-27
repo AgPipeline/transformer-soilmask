@@ -162,7 +162,7 @@ class StereoBin2JpgTiff(Extractor):
         right_gps_bounds = bin2tiff.get_bounding_box_with_formula(right_position, fov)
         out_tmp_tiff = os.path.join(out_dir, "output.tif")
 
-
+        left_image = None
         if (not os.path.isfile(left_jpg)) or self.force_overwrite:
             logging.info("...creating & uploading left JPG")
             left_image = bin2tiff.process_image(left_shape, img_left, left_jpg)
@@ -175,7 +175,7 @@ class StereoBin2JpgTiff(Extractor):
 
         if (not os.path.isfile(left_tiff)) or self.force_overwrite:
             logging.info("...creating & uploading left geoTIFF")
-            if not left_image:
+            if left_image == None:
                 left_image = bin2tiff.process_image(left_shape, img_left, left_jpg)
             # Rename output.tif after creation to avoid long path errors
             bin2tiff.create_geotiff('left', left_image, left_gps_bounds, out_tmp_tiff)
@@ -187,6 +187,7 @@ class StereoBin2JpgTiff(Extractor):
             bytes += os.path.getsize(left_tiff)
         del left_image
 
+        right_image = None
         if (not os.path.isfile(right_jpg)) or self.force_overwrite:
             logging.info("...creating & uploading right JPG")
             right_image = bin2tiff.process_image(right_shape, img_right, right_jpg)
@@ -198,7 +199,7 @@ class StereoBin2JpgTiff(Extractor):
 
         if (not os.path.isfile(right_tiff)) or self.force_overwrite:
             logging.info("...creating & uploading right geoTIFF")
-            if not right_image:
+            if right_image == None:
                 right_image = bin2tiff.process_image(right_shape, img_right, right_jpg)
             bin2tiff.create_geotiff('right', right_image, right_gps_bounds, out_tmp_tiff)
             shutil.move(out_tmp_tiff, right_tiff)
