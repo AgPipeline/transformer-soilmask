@@ -1,6 +1,6 @@
 {
   "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
-  "name": "terra.canopycover",
+  "name": "terra.stereo-rgb.canopycover",
   "version": "1.0",
   "description": "Canopy Cover",
   "author": "Zongyang Li",

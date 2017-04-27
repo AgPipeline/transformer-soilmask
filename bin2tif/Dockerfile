@@ -30,5 +30,5 @@ CMD ["extractor"]
 # executed by entrypoint.sh
 ENV RABBITMQ_EXCHANGE="terra" \
     RABBITMQ_VHOST="%2F" \
-    RABBITMQ_QUEUE="terra.bin2tif" \
+    RABBITMQ_QUEUE="terra.stereo-rgb.bin2tif" \
     MAIN_SCRIPT="terra_bin2tif.py"

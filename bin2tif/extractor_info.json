@@ -1,6 +1,6 @@
 {
   "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
-  "name": "terra.bin2tif",
+  "name": "terra.stereo-rgb.bin2tif",
   "version": "3.0",
   "description": "Stereo RGB Image Bin to GeoTIFF Converter",
   "author": "Max Burnette <mburnet2@illinois.edu>",

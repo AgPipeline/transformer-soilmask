@@ -1,6 +1,6 @@
 {
   "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
-  "name": "terra.fieldmosaic",
+  "name": "terra.stereo-rgb.fieldmosaic",
   "version": "1.0",
   "description": "Stereo RGB GeoTIFF Field Mosaic Stitcher",
   "author": "Max Burnette <mburnet2@illinois.edu>",
