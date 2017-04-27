@@ -6,9 +6,9 @@ import logging
 import requests
 import utm
 import time
+
 import datetime
 from dateutil.parser import parse
-
 from influxdb import InfluxDBClient, SeriesHelper
 
 from pyclowder.extractors import Extractor

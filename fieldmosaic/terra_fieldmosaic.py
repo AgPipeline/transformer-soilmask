@@ -1,12 +1,13 @@
-'''
-Created on Aug 5, 2016
+#!/usr/bin/env python
 
-@author: Zongyang Li
-'''
 import os
 import logging
 import requests
 import full_day_to_tiles
+
+import datetime
+from dateutil.parser import parse
+from influxdb import InfluxDBClient, SeriesHelper
 
 from pyclowder.extractors import Extractor
 from pyclowder.utils import CheckMessage
@@ -59,16 +60,23 @@ class FullFieldMosaicStitcher(Extractor):
         return CheckMessage.bypass
 
     def process_message(self, connector, host, secret_key, resource, parameters):
+        starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        created_count = 0
+        bytes = 0
+
         out_dir = os.path.join(self.output_dir, parameters["output_dataset"].split(" - ")[1])
         out_file = "stereoTop_fullField.vrt"
-        # Write input list to tmp file
-        with open("tiflist.txt", "w") as tifftxt:
-            for t in parameters["file_ids"]:
-                tifftxt.write("%s/n" % t)
+        out_path = os.path.join(out_dir, out_file)
 
-        # Create VRT from every GeoTIFF
-        logging.info("Creating %s..." % out_file)
-        full_day_to_tiles.createVrtPermanent(out_dir, "tiflist.txt", out_file)
+        if (not os.path.isfile(out_path)) or self.force_overwrite:
+            # Write input list to tmp file
+            with open("tiflist.txt", "w") as tifftxt:
+                for t in parameters["file_ids"]:
+                    tifftxt.write("%s/n" % t)
+
+            # Create VRT from every GeoTIFF
+            logging.info("Creating %s..." % out_path)
+            full_day_to_tiles.createVrtPermanent(out_dir, "tiflist.txt", out_file)
 
         # Upload full field image to Clowder
         # parameters["output_dataset"] = "Full Field - 2017-01-01"
@@ -90,7 +98,8 @@ class FullFieldMosaicStitcher(Extractor):
                 There are likely to be be small offsets near the boundary of two images anytime there are plants \
                 at the boundary (because those plants are higher than the ground plane), or where the dirt is \
                 slightly higher or lower than average.",
-                "file_source_ids": parameters["file_ids"]
+                "file_ids": parameters["file_ids"],
+                "files_created": [os.path.join(out_dir, out_file)]
             },
             "agent": {
                 "@type": "cat:extractor",
@@ -101,6 +110,9 @@ class FullFieldMosaicStitcher(Extractor):
 
         # Cleanup
         os.remove("tiflist.txt")
+
+        endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        self.logToInfluxDB(starttime, endtime, created_count, bytes)
 
     # Fetch dataset from Clowder by name, or create it if not found
     def getCollectionOrCreate(self, connector, host, secret_key, cname, parent_colln=None, parent_space=None):
@@ -125,6 +137,29 @@ class FullFieldMosaicStitcher(Extractor):
                                                    parent_colln, parent_space)
         else:
             return result.json()[0]['id']
+
+    def logToInfluxDB(self, starttime, endtime, filecount, bytecount):
+        # Time of the format "2017-02-10T16:09:57+00:00"
+        f_completed_ts = int(parse(endtime).strftime('%s'))
+        f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))
+
+        client = InfluxDBClient(self.influx_host, self.influx_port, self.influx_user, self.influx_pass, self.influx_db)
+        client.write_points([{
+            "measurement": "file_processed",
+            "time": f_completed_ts,
+            "fields": {"value": f_duration}
+        }], tags={"extractor": self.extractor_info['name'], "type": "duration"})
+        client.write_points([{
+            "measurement": "file_processed",
+            "time": f_completed_ts,
+            "fields": {"value": int(filecount)}
+        }], tags={"extractor": self.extractor_info['name'], "type": "filecount"})
+        client.write_points([{
+            "measurement": "file_processed",
+            "time": f_completed_ts,
+            "fields": {"value": int(bytecount)}
+        }], tags={"extractor": self.extractor_info['name'], "type": "bytes"})
+
 
 if __name__ == "__main__":
     extractor = FullFieldMosaicStitcher()
