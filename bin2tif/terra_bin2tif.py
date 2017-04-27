@@ -160,7 +160,7 @@ class StereoBin2JpgTiff(Extractor):
         right_position = [center_position[0]-bin2tiff.STEREO_OFFSET, center_position[1], center_position[2]]
         left_gps_bounds = bin2tiff.get_bounding_box_with_formula(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
         right_gps_bounds = bin2tiff.get_bounding_box_with_formula(right_position, fov)
-        out_tmp_tiff = "/home/extractor/output.tif"
+        out_tmp_tiff = "/home/extractor/"+resource['dataset_info']['name']+".tif"
 
         skipped_jpg = False
         if (not os.path.isfile(left_jpg)) or self.force_overwrite:
