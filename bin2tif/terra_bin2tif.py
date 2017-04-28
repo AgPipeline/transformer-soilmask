@@ -77,8 +77,8 @@ class StereoBin2JpgTiff(Extractor):
         latest_file = ""
         latest_time = "Sun Jan 01 00:00:01 CDT 1920"
         for f in resource['files']:
-            create_time = datetime.datetime.strptime(f['date-created'], "%a %b %d %H:%M:%S %Z %Y")
-            if create_time > datetime.datetime.strptime(latest_time, "%a %b %d %H:%M:%S %Z %Y"):
+            create_time = datetime.datetime.strptime(f['date-created'].replace(" CDT",""), "%c")
+            if create_time > datetime.datetime.strptime(latest_time.replace(" CDT",""), "%c"):
                 latest_time = f['date-created']
                 latest_file = f['filename']
         if latest_file != resource['latest_file']:
