@@ -58,6 +58,16 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         else:
             progress['ids'] = [left_id]
 
+        if len(progress['ids']) < 6000:
+            # Not enough geotiffs for now.
+            logging.debug("%s geoTIFFs below basic threshold; skipping" % len(progress['ids']))
+            for extractor in rulemap["extractors"]:
+                results[extractor] = {
+                    "process": False,
+                    "parameters": {}
+                }
+            return results
+
         # Check to see if list of geotiffs is same length as list of raw datasets
         date_directory = "/home/extractor/sites/ua-mac/raw_data/stereoTop/%s" % date
         logging.debug("counting raw files in %s..." % date_directory)
@@ -66,10 +76,10 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         logging.debug("found %s raw files" % raw_file_count)
 
         # If we have all raw files accounted for and more than 6000 (typical daily magnitude) listed, trigger
-        if len(progress['ids']) == raw_file_count and len(progress['ids']) > 6000:
+        if len(progress['ids']) == raw_file_count:
             full_field_ready = True
         else:
-            logging.debug("only found %s/%s necessary geotiffs" % (len(progress['ids']), raw_file_count))
+            logging.into("found %s/%s necessary geotiffs" % (len(progress['ids']), raw_file_count))
 
         if full_field_ready:
             for extractor in rulemap["extractors"]:
