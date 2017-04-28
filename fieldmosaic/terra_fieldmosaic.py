@@ -21,7 +21,7 @@ class FullFieldMosaicStitcher(Extractor):
 
         # add any additional arguments to parser
         self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
-                                 default="/home/extractor/sites/ua-mac/Level_1/fullFieldMosaics",
+                                 default="/home/extractor/sites/ua-mac/Level_1/fullfield",
                                  help="root directory where timestamp & output directories will be created")
         self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
                                  help="whether to overwrite output file if it already exists in output directory")
@@ -67,6 +67,8 @@ class FullFieldMosaicStitcher(Extractor):
         out_dir = os.path.join(self.output_dir, parameters["output_dataset"].split(" - ")[1])
         out_file = "stereoTop_fullField.vrt"
         out_path = os.path.join(out_dir, out_file)
+
+        logging.info("processing %s TIFs into %s" % (len(parameters['file_ids']), out_path))
 
         if (not os.path.isfile(out_path)) or self.force_overwrite:
             # Write input list to tmp file
