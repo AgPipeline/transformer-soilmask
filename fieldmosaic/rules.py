@@ -27,11 +27,11 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         progress_key = "Full Field - " + sensor + " - " + date
 
         # Is there actually a new left geoTIFF to add to the stack?
-        left_id = []
+        left_id = None
         for f in resource['files']:
             if f['filename'].endswith(" (Left).tif"):
-                left_id = [f['id']]
-        if len(left_id) == 0:
+                left_id = f['id']
+        if not left_id:
             # If not, no need to trigger anything for now.
             logging.debug("no left geoTIFF found in %s" % dsname)
             for extractor in rulemap["extractors"]:
@@ -44,7 +44,17 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         # Fetch all existing file IDs that would be fed into this field mosaic
         progress = rule_utils.retrieveProgressFromDB(progress_key)
         if 'ids' in progress:
-            progress['ids'] += left_id
+            if left_id not in progress['ids']:
+                progress['ids'] += left_id
+            else:
+                # Already seen this geoTIFF, so skip for now.
+                logging.debug("already logged left geoTIFF in %s" % dsname)
+                for extractor in rulemap["extractors"]:
+                    results[extractor] = {
+                        "process": False,
+                        "parameters": {}
+                    }
+                return results
         else:
             progress['ids'] = left_id
 
