@@ -30,9 +30,10 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
 
     # Check to see if list of geotiffs is same length as list of raw datasets
     date_directory = "/home/extractor/sites/ua-mac/raw_data/stereoTop/%s" % date
+    logging.debug("counting raw files in %s..." % date_directory)
     raw_file_count = int(subprocess.check_output("find %s -maxdepth 1 | wc -l" % date_directory,
                                              shell=True).strip())
-    logging.debug("found %s raw files in %s" % (raw_file_count, date_directory))
+    logging.debug("found %s raw files" % raw_file_count)
 
     # If we have all raw files accounted for and more than 6000 (typical daily magnitude) listed, trigger
     if len(progress['ids']) == raw_file_count and len(progress['ids']) > 6000:

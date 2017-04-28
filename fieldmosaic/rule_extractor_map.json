@@ -1,0 +1,10 @@
+{
+  "fullFieldMosaicStitcher": {
+    "extractors": {
+      "terra.stereo-rgb.fieldmosaic": {
+        "download_files": false,
+        "extract_level": "dataset"
+      }
+    }
+  }
+}
