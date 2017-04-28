@@ -191,16 +191,17 @@ class CanopyCoverHeight(Extractor):
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         # Most basic check - is this most recent file for this dataset?
-        latest_file = ""
-        latest_time = "Sun Jan 01 00:00:01 CDT 1920"
-        for f in resource['files']:
-            create_time = datetime.datetime.strptime(f['date-created'].replace(" CDT",""), "%c")
-            if create_time > datetime.datetime.strptime(latest_time.replace(" CDT",""), "%c"):
-                latest_time = f['date-created']
-                latest_file = f['filename']
-        if latest_file != resource['latest_file']:
-            # This message is not for most recently added file; skip dataset for now
-            return CheckMessage.ignore
+        if resource['latest_file']:
+            latest_file = ""
+            latest_time = "Sun Jan 01 00:00:01 CDT 1920"
+            for f in resource['files']:
+                create_time = datetime.datetime.strptime(f['date-created'].replace(" CDT",""), "%c")
+                if create_time > datetime.datetime.strptime(latest_time.replace(" CDT",""), "%c"):
+                    latest_time = f['date-created']
+                    latest_file = f['filename']
+            if latest_file != resource['latest_file']:
+                # This message is not for most recently added file; skip dataset for now
+                return CheckMessage.ignore
 
         # Check for a left and right file before beginning processing
         found_left = False
