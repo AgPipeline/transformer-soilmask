@@ -28,7 +28,10 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
 
         # Fetch all existing file IDs that would be fed into this field mosaic
         progress = rule_utils.retrieveProgressFromDB(progress_key)
-        progress['ids'] += resource['ids']
+        if 'ids' in progress:
+            progress['ids'] += resource['ids']
+        else:
+            progress['ids'] = resource['ids']
 
         # Check to see if list of geotiffs is same length as list of raw datasets
         date_directory = "/home/extractor/sites/ua-mac/raw_data/stereoTop/%s" % date
