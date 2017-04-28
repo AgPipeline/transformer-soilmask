@@ -73,6 +73,18 @@ class StereoBin2JpgTiff(Extractor):
         self.influx_db = self.args.influx_db
 
     def check_message(self, connector, host, secret_key, resource, parameters):
+        # Most basic check - is this most recent file for this dataset?
+        latest_file = ""
+        latest_time = "Sun Jan 01 00:00:01 CDT 1920"
+        for f in resource['files']:
+            create_time = datetime.datetime.strptime(f['date-created'], "%a %b %d %H:%M:%S %Z %Y")
+            if create_time > datetime.datetime.strptime(latest_time, "%a %b %d %H:%M:%S %Z %Y"):
+                latest_time = f['date-created']
+                latest_file = f['filename']
+        if latest_file != resource['latest_file']:
+            # This message is not for most recently added file; skip dataset for now
+            return CheckMessage.ignore
+
         # Check for a left and right BIN file - skip if not found
         found_left = False
         found_right = False
