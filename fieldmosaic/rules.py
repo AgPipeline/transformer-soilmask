@@ -45,7 +45,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         progress = rule_utils.retrieveProgressFromDB(progress_key)
         if 'ids' in progress:
             if left_id not in progress['ids']:
-                progress['ids'] += left_id
+                progress['ids'] += [left_id]
             else:
                 # Already seen this geoTIFF, so skip for now.
                 logging.debug("already logged left geoTIFF in %s" % dsname)
@@ -56,7 +56,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                     }
                 return results
         else:
-            progress['ids'] = left_id
+            progress['ids'] = [left_id]
 
         # Check to see if list of geotiffs is same length as list of raw datasets
         date_directory = "/home/extractor/sites/ua-mac/raw_data/stereoTop/%s" % date
