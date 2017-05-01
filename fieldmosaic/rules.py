@@ -60,7 +60,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         else:
             progress['ids'] = [left_id]
 
-        if len(progress['ids']) > 6000:
+        if len(progress['ids']) > 30: # TODO: Determine why the variance in image count to not use 6000:
             # Check to see if list of geotiffs is same length as list of raw datasets
             date_directory = "/home/extractor/sites/ua-mac/raw_data/stereoTop/%s" % date
             logging.debug("counting raw files in %s..." % date_directory)
