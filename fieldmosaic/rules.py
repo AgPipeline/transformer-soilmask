@@ -72,7 +72,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
             if len(progress['ids']) == raw_file_count:
                 full_field_ready = True
             else:
-                logging.into("found %s/%s necessary geotiffs" % (len(progress['ids']), raw_file_count))
+                logging.info("found %s/%s necessary geotiffs" % (len(progress['ids']), raw_file_count))
 
         if full_field_ready:
             for extractor in rulemap["extractors"]:
