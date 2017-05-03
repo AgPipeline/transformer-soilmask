@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-import sys, argparse
-from os import system, path, listdir, remove, makedirs
+import os, sys, argparse
 from glob import glob
 
 # Example usage: python full_day_to_VRT.py -d "2017-04-27"
@@ -24,23 +23,23 @@ def options():
 
 def main():
     args = options()
-    in_dir = path.join(args.in_dir, args.date)
-    out_dir = path.join(args.out_dir, args.date)
+    in_dir = os.path.join(args.in_dir, args.date)
+    out_dir = os.path.join(args.out_dir, args.date)
 
-    if not path.isdir(in_dir) or not path.isdir(args.out_dir):
+    if not os.path.isdir(in_dir) or not os.path.isdir(args.out_dir):
         return
-    makedirs(out_dir)
+    os.makedirs(out_dir)
 
     # Create a file to write the paths for all of the TIFFs. This will be used create the VRT.
-    tif_file_list = path.join(out_dir, args.date, 'stereoTop_tifList.txt')
-    if path.exists(tif_file_list):
+    tif_file_list = os.path.join(out_dir, args.date, 'stereoTop_tifList.txt')
+    if os.path.exists(tif_file_list):
         try:
-            remove(tif_file_list) # start from a fresh list of TIFFs for the day
+            os.remove(tif_file_list) # start from a fresh list of TIFFs for the day
         except OSError:
             pass
 
     print "Fetching list of GeoTIFFs..."
-    subdirs = listdir(in_dir)
+    subdirs = os.listdir(in_dir)
     for subdir in subdirs:
         buildTifList(subdir, out_dir, tif_file_list)
     
@@ -81,10 +80,10 @@ def createVrtPermanent(base_dir, tif_file_list, out_vrt="stereoTop_fullfield.VRT
     # Build a virtual TIF that combines all of the tifs that we just created
     print "\tCreating virtual TIF..."
     try:
-        vrtPath = path.join(base_dir, out_vrt)
+        vrtPath = os.path.join(base_dir, out_vrt)
         cmd = 'gdalbuildvrt -srcnodata "-99 -99 -99" -overwrite -input_file_list ' + tif_file_list +' ' + vrtPath
         print(cmd)
-        system(cmd)
+        os.system(cmd)
     except Exception as ex:
         fail("\tFailed to create virtual tif: " + str(ex))
 
