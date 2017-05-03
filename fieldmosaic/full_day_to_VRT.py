@@ -41,8 +41,10 @@ def main():
 
     print "Fetching list of GeoTIFFs..."
     subdirs = os.listdir(in_dir)
+    f = open(tif_file_list,'w')
     for subdir in subdirs:
-        buildTifList(subdir, out_dir, tif_file_list)
+        buildTifList(subdir, out_dir, f)
+    f.close()
     
     # Create VRT from every GeoTIFF
     print "Starting VRT creation..."
@@ -57,7 +59,7 @@ def find_input_files(in_dir):
 
     return lefts
 
-def buildTifList(in_dir, out_dir, tif_list_file):
+def buildTifList(in_dir, out_dir, tif_list_obj):
     if not os.path.isdir(in_dir):
         fail('Could not find input directory: ' + in_dir)
     if not os.path.isdir(out_dir):
@@ -65,10 +67,8 @@ def buildTifList(in_dir, out_dir, tif_list_file):
 
     ims_left = find_input_files(in_dir)
 
-    f = open(tif_list_file,'a+')
     for im_left in ims_left:
-        f.write(im_left + '\n')
-    f.close()
+        tif_list_obj.write(im_left + '\n')
 
 def file_len(fname):
     with open(fname) as f:
