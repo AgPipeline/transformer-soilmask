@@ -43,7 +43,7 @@ def main():
     subdirs = os.listdir(in_dir)
     f = open(tif_file_list,'w')
     for subdir in subdirs:
-        buildTifList(subdir, out_dir, f)
+        buildTifList(os.path.join(in_dir,subdir), out_dir, f)
     f.close()
     
     # Create VRT from every GeoTIFF
