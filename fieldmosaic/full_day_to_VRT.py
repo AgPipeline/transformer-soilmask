@@ -32,7 +32,7 @@ def main():
         os.makedirs(out_dir)
 
     # Create a file to write the paths for all of the TIFFs. This will be used create the VRT.
-    tif_file_list = os.path.join(out_dir, args.date, 'stereoTop_tifList.txt')
+    tif_file_list = os.path.join(out_dir, 'stereoTop_tifList.txt')
     if os.path.exists(tif_file_list):
         try:
             os.remove(tif_file_list) # start from a fresh list of TIFFs for the day
