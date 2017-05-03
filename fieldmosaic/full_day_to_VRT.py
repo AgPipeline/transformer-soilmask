@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import bin_to_geotiff
 import sys, argparse
 from os import system, path, listdir, remove, makedirs
 from glob import glob
-from shutil import copyfile, rmtree
+
+# Example usage: python full_day_to_VRT.py -d "2017-04-27"
 
 
 def options():
@@ -12,8 +12,10 @@ def options():
     parser = argparse.ArgumentParser(description='Full Field Stitching Extractor in Roger',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
-    parser.add_argument("-i", "--in_dir", help="input, stereo top bin files parent directory")
-    parser.add_argument("-o", "--out_dir", help="output parent directory")
+    parser.add_argument("-i", "--in_dir", help="input, stereo top bin files parent directory",
+                        default="/home/extractor/sites/ua-mac/Level_1/stereoTop_geotiff/")
+    parser.add_argument("-o", "--out_dir", help="output parent directory",
+                        default="/home/extractor/sites/ua-mac/Level_1/fullfield/")
     parser.add_argument("-d", "--date", help="scan date")
 
     args = parser.parse_args()
@@ -24,12 +26,13 @@ def main():
     args = options()
     in_dir = path.join(args.in_dir, args.date)
     out_dir = path.join(args.out_dir, args.date)
+
     if not path.isdir(in_dir) or not path.isdir(args.out_dir):
         return
     makedirs(out_dir)
 
     # Create a file to write the paths for all of the TIFFs. This will be used create the VRT.
-    tif_file_list = path.join(out_dir,'tif_list.txt')
+    tif_file_list = path.join(out_dir, args.date, 'stereoTop_tifList.txt')
     if path.exists(tif_file_list):
         try:
             remove(tif_file_list) # start from a fresh list of TIFFs for the day
@@ -73,7 +76,7 @@ def file_len(fname):
             pass
     return i+1
 
-def createVrtPermanent(base_dir, tif_file_list, out_vrt='virtualTif.vrt'):
+def createVrtPermanent(base_dir, tif_file_list, out_vrt="stereoTop_fullfield.VRT"):
     # Create virtual tif for the files in this folder
     # Build a virtual TIF that combines all of the tifs that we just created
     print "\tCreating virtual TIF..."
