@@ -26,9 +26,10 @@ def main():
     in_dir = os.path.join(args.in_dir, args.date)
     out_dir = os.path.join(args.out_dir, args.date)
 
-    if not os.path.isdir(in_dir) or not os.path.isdir(args.out_dir):
+    if not os.path.isdir(in_dir):
         return
-    os.makedirs(out_dir)
+    if not os.path.isdir(out_dir):
+        os.makedirs(out_dir)
 
     # Create a file to write the paths for all of the TIFFs. This will be used create the VRT.
     tif_file_list = os.path.join(out_dir, args.date, 'stereoTop_tifList.txt')
