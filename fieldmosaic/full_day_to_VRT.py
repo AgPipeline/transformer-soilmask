@@ -27,7 +27,7 @@ def options():
 
 def main():
     args = options()
-    if os.path.exist(os.path.join(args.in_root, args.sensor+"_geotiff")):
+    if os.path.exists(os.path.join(args.in_root, args.sensor+"_geotiff")):
         in_dir = os.path.join(args.in_root, args.sensor+"_geotiff", args.date)
     else:
         in_dir = os.path.join(args.in_root, args.sensor, args.date)
