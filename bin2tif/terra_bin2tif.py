@@ -25,7 +25,11 @@ class StereoBin2JpgTiff(Extractor):
     def __init__(self):
         Extractor.__init__(self)
 
-        influx_pass = os.getenv('INFLUXDB_PASSWORD', "")
+        influx_host = os.getenv("INFLUXDB_HOST", "terra-logging.ncsa.illinois.edu")
+        influx_port = os.getenv("INFLUXDB_PORT", 8086)
+        influx_db = os.getenv("INFLUXDB_DB", "extractor_db")
+        influx_user = os.getenv("INFLUXDB_USER", "terra")
+        influx_pass = os.getenv("INFLUXDB_PASSWORD", "")
 
         # add any additional arguments to parser
         self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
@@ -54,11 +58,13 @@ class StereoBin2JpgTiff(Extractor):
         # assign other arguments
         self.output_dir = self.args.output_dir
         self.force_overwrite = self.args.force_overwrite
-        self.influx_host = self.args.influx_host
-        self.influx_port = self.args.influx_port
-        self.influx_user = self.args.influx_user
-        self.influx_pass = self.args.influx_pass
-        self.influx_db = self.args.influx_db
+        self.influx_params = {
+            "host": influx_host,
+            "port": influx_port,
+            "db": influx_db,
+            "user": influx_user,
+            "pass": influx_pass
+        }
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         if not terrautils.extractors.is_latest_file(resource):
@@ -223,7 +229,8 @@ class StereoBin2JpgTiff(Extractor):
         pyclowder.datasets.upload_metadata(connector, host, secret_key, resource['id'], metadata)
 
         endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        terrautils.extractors.log_to_influxdb(self.extractor_info['name'], starttime, endtime, created, bytes)
+        terrautils.extractors.log_to_influxdb(self.extractor_info['name'], self.influx_params,
+                                              starttime, endtime, created, bytes)
 
 if __name__ == "__main__":
     extractor = StereoBin2JpgTiff()
