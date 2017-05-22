@@ -3,9 +3,6 @@ MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
 # Install any programs needed
 RUN useradd -u 49044 extractor \
-    && apt-get install -y -q gfortran \
-    # && usr/bin/yes | apt-get build-dep python-matplotlib \
-    && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /home/extractor/sites/ua-mac/raw_data \
     && mkdir -p /home/extractor/sites/ua-mac/Level_1/stereoTop_geotiff \
     && chown -R extractor /home/extractor
@@ -23,5 +20,5 @@ CMD ["extractor"]
 # executed by entrypoint.sh
 ENV RABBITMQ_EXCHANGE="terra" \
     RABBITMQ_VHOST="%2F" \
-    RABBITMQ_QUEUE="terra.stereo-rgb.bin2tif" \
-    MAIN_SCRIPT="terra_bin2tif.py"
+    RABBITMQ_QUEUE="terra.stereo-rgb.canopycover" \
+    MAIN_SCRIPT="terra_canopycover.py"

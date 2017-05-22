@@ -20,6 +20,8 @@ def options():
     parser.add_argument("-s", "--sensor", help="sensor name", default="stereoTop")
     parser.add_argument("-p", "--pattern", help="file pattern to match",
                         default='*(Left).tif')
+    parser.add_argument("--relative", help="store relative path names in VRT",
+                        default=True)
 
     args = parser.parse_args()
 
@@ -50,7 +52,7 @@ def main():
     subdirs = os.listdir(in_dir)
     f = open(file_list,'w')
     for subdir in subdirs:
-        buildFileList(os.path.join(in_dir,subdir), out_dir, f, args.pattern)
+        buildFileList(os.path.join(in_dir,subdir), out_dir, f, args.pattern, args.relative, args.sensor, args.date)
     f.close()
     
     # Create VRT from every GeoTIFF
@@ -66,7 +68,7 @@ def find_input_files(in_dir, pattern):
 
     return files
 
-def buildFileList(in_dir, out_dir, list_obj, pattern):
+def buildFileList(in_dir, out_dir, list_obj, pattern, relative, sensor, date):
     if not os.path.isdir(in_dir):
         fail('Could not find input directory: ' + in_dir)
     if not os.path.isdir(out_dir):
@@ -75,6 +77,9 @@ def buildFileList(in_dir, out_dir, list_obj, pattern):
     files = find_input_files(in_dir, pattern)
 
     for fname in files:
+        if relative:
+            # <up from date>/<up from fullfield>/
+            fname = "../../"+sensor+"_geotiff/"+date+"/"+os.path.basename(fname)
         list_obj.write(fname + '\n')
 
 def file_len(fname):
