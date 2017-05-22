@@ -250,12 +250,13 @@ def get_bounding_box_with_formula(center_position, fov):
     
     return (fov_se_latlon[0] - lat_shift, fov_nw_latlon[0] - lat_shift, fov_nw_latlon[1] + lon_shift, fov_se_latlon[1] + lon_shift)
 
-def process_image(shape, in_file, out_file):
+def process_image(shape, in_file, out_file=None):
     try:
         im = np.fromfile(in_file, dtype='uint8').reshape(shape[::-1])
         im_color = demosaic(im)
         im_color = (np.rot90(im_color))
-        Image.fromarray(im_color).save(out_file)
+        if out_file:
+            Image.fromarray(im_color).save(out_file)
         return im_color
     except Exception as ex:
         fail('Error processing image "%s": %s' % (in_file, str(ex)))

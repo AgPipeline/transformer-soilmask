@@ -10,34 +10,22 @@ JPG and TIF formats.
 import os
 import logging
 import shutil
-
 import datetime
-from dateutil.parser import parse
-from influxdb import InfluxDBClient, SeriesHelper
 
 from pyclowder.extractors import Extractor
 from pyclowder.utils import CheckMessage
 import pyclowder.files
 import pyclowder.datasets
+import terrautils.extractors
 
 import bin_to_geotiff as bin2tiff
 
 
-def determineOutputDirectory(outputRoot, dsname):
-    if dsname.find(" - ") > -1:
-        timestamp = dsname.split(" - ")[1]
-    else:
-        timestamp = "dsname"
-    if timestamp.find("__") > -1:
-        datestamp = timestamp.split("__")[0]
-    else:
-        datestamp = ""
-
-    return os.path.join(outputRoot, datestamp, timestamp)
-
 class StereoBin2JpgTiff(Extractor):
     def __init__(self):
         Extractor.__init__(self)
+
+        influx_pass = os.getenv('INFLUXDB_PASSWORD', "")
 
         # add any additional arguments to parser
         self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
@@ -52,9 +40,9 @@ class StereoBin2JpgTiff(Extractor):
         self.parser.add_argument('--influxUser', dest="influx_user", type=str, nargs='?',
                                  default="terra", help="InfluxDB username")
         self.parser.add_argument('--influxPass', dest="influx_pass", type=str, nargs='?',
-                                 default="", help="InfluxDB password")
+                                 default=influx_pass, help="InfluxDB password")
         self.parser.add_argument('--influxDB', dest="influx_db", type=str, nargs='?',
-                                 default="extractor_db", help="InfluxDB databast")
+                                 default="extractor_db", help="InfluxDB database")
 
         # parse command line and load default logging configuration
         self.setup()
@@ -73,18 +61,8 @@ class StereoBin2JpgTiff(Extractor):
         self.influx_db = self.args.influx_db
 
     def check_message(self, connector, host, secret_key, resource, parameters):
-        # Most basic check - is this most recent file for this dataset?
-        if resource['latest_file']:
-            latest_file = ""
-            latest_time = "Sun Jan 01 00:00:01 CDT 1920"
-            for f in resource['files']:
-                create_time = datetime.datetime.strptime(f['date-created'].replace(" CDT",""), "%c")
-                if create_time > datetime.datetime.strptime(latest_time.replace(" CDT",""), "%c"):
-                    latest_time = f['date-created']
-                    latest_file = f['filename']
-            if latest_file != resource['latest_file']:
-                # This message is not for most recently added file; skip dataset for now
-                return CheckMessage.ignore
+        if not terrautils.extractors.is_latest_file(resource):
+            return CheckMessage.ignore
 
         # Check for a left and right BIN file - skip if not found
         found_left = False
@@ -99,12 +77,14 @@ class StereoBin2JpgTiff(Extractor):
             return CheckMessage.ignore
 
         # Check if outputs already exist unless overwrite is forced - skip if found
-        out_dir = determineOutputDirectory(self.output_dir, resource['dataset_info']['name'])
+        out_dir = terrautils.extractors.get_output_directory(self.output_dir, resource['dataset_info']['name'])
         if not self.force_overwrite:
-            lbase = os.path.join(out_dir, resource['dataset_info']['name']+" (Left)")
-            rbase = os.path.join(out_dir, resource['dataset_info']['name']+" (Right)")
-            if (os.path.isfile(lbase+'.jpg') and os.path.isfile(rbase+'.jpg') and
-                    os.path.isfile(lbase+'.tif') and os.path.isfile(rbase+'.tif')):
+            lbase = os.path.join(out_dir, terrautils.extractors.get_output_filename(
+                    resource['dataset_info']['name'], '', opts=['left']))
+            rbase = os.path.join(out_dir, terrautils.extractors.get_output_filename(
+                    resource['dataset_info']['name'], '', opts=['right']))
+            if (os.path.isfile(lbase+'jpg') and os.path.isfile(rbase+'jpg') and
+                    os.path.isfile(lbase+'tif') and os.path.isfile(rbase+'tif')):
                 logging.info("skipping dataset %s; outputs found in %s" % (resource['id'], out_dir))
                 return CheckMessage.ignore
 
@@ -136,16 +116,18 @@ class StereoBin2JpgTiff(Extractor):
         metadata = None
 
         # Determine output location & filenames
-        out_dir = determineOutputDirectory(self.output_dir, resource['dataset_info']['name'])
+        out_dir = terrautils.extractors.get_output_directory(self.output_dir, resource['dataset_info']['name'])
         logging.info("...output directory: %s" % out_dir)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
-        lbase = os.path.join(out_dir, resource['dataset_info']['name']+" (Left)")
-        rbase = os.path.join(out_dir, resource['dataset_info']['name']+" (Right)")
-        left_jpg = lbase+'.jpg'
-        right_jpg = rbase+'.jpg'
-        left_tiff = lbase+'.tif'
-        right_tiff = rbase+'.tif'
+        lbase = os.path.join(out_dir, terrautils.extractors.get_output_filename(
+                resource['dataset_info']['name'], '', opts=['left']))
+        rbase = os.path.join(out_dir, terrautils.extractors.get_output_filename(
+                resource['dataset_info']['name'], '', opts=['right']))
+        left_jpg = lbase+'jpg'
+        right_jpg = rbase+'jpg'
+        left_tiff = lbase+'tif'
+        right_tiff = rbase+'tif'
 
         # Get left/right files and metadata
         for fname in resource['local_paths']:
@@ -167,18 +149,14 @@ class StereoBin2JpgTiff(Extractor):
         logging.info("...determining image shapes")
         left_shape = bin2tiff.get_image_shape(metadata, 'left')
         right_shape = bin2tiff.get_image_shape(metadata, 'right')
-        center_position = bin2tiff.get_position(metadata) # (x, y, z) in meters
-        fov = bin2tiff.get_fov(metadata, center_position[2], left_shape) # (fov_x, fov_y) in meters; need to pass in the camera height to get correct fov
-        left_position = [center_position[0]+bin2tiff.STEREO_OFFSET, center_position[1], center_position[2]]
-        right_position = [center_position[0]-bin2tiff.STEREO_OFFSET, center_position[1], center_position[2]]
-        left_gps_bounds = bin2tiff.get_bounding_box_with_formula(left_position, fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
-        right_gps_bounds = bin2tiff.get_bounding_box_with_formula(right_position, fov)
+        (left_gps_bounds, right_gps_bounds) = terrautils.extractors.calculate_gps_bounds(metadata)
         out_tmp_tiff = "/home/extractor/"+resource['dataset_info']['name']+".tif"
 
         skipped_jpg = False
         if (not os.path.isfile(left_jpg)) or self.force_overwrite:
             logging.info("...creating & uploading left JPG")
-            left_image = bin2tiff.process_image(left_shape, img_left, left_jpg)
+            left_image = bin2tiff.process_image(left_shape, img_left, None)
+            terrautils.extractors.create_image(left_image, left_jpg)
             # Only upload the newly generated file to Clowder if it isn't already in dataset
             if left_jpg not in resource['local_paths']:
                 fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], left_jpg)
@@ -191,9 +169,9 @@ class StereoBin2JpgTiff(Extractor):
         if (not os.path.isfile(left_tiff)) or self.force_overwrite:
             logging.info("...creating & uploading left geoTIFF")
             if skipped_jpg:
-                left_image = bin2tiff.process_image(left_shape, img_left, left_jpg)
+                left_image = bin2tiff.process_image(left_shape, img_left, None)
             # Rename output.tif after creation to avoid long path errors
-            bin2tiff.create_geotiff('left', left_image, left_gps_bounds, out_tmp_tiff)
+            terrautils.extractors.create_geotiff(left_image, left_gps_bounds, out_tmp_tiff)
             shutil.move(out_tmp_tiff, left_tiff)
             if left_tiff not in resource['local_paths']:
                 fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], left_tiff)
@@ -205,7 +183,8 @@ class StereoBin2JpgTiff(Extractor):
         skipped_jpg = False
         if (not os.path.isfile(right_jpg)) or self.force_overwrite:
             logging.info("...creating & uploading right JPG")
-            right_image = bin2tiff.process_image(right_shape, img_right, right_jpg)
+            right_image = bin2tiff.process_image(right_shape, img_right, None)
+            terrautils.extractors.create_image(right_image, right_jpg)
             if right_jpg not in resource['local_paths']:
                 fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], right_jpg)
                 uploaded_file_ids.append(fileid)
@@ -217,8 +196,8 @@ class StereoBin2JpgTiff(Extractor):
         if (not os.path.isfile(right_tiff)) or self.force_overwrite:
             logging.info("...creating & uploading right geoTIFF")
             if skipped_jpg:
-                right_image = bin2tiff.process_image(right_shape, img_right, right_jpg)
-            bin2tiff.create_geotiff('right', right_image, right_gps_bounds, out_tmp_tiff)
+                right_image = bin2tiff.process_image(right_shape, img_right, None)
+            terrautils.extractors.create_geotiff(right_image, right_gps_bounds, out_tmp_tiff)
             shutil.move(out_tmp_tiff, right_tiff)
             if right_tiff not in resource['local_paths']:
                 fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'],right_tiff)
@@ -238,44 +217,13 @@ class StereoBin2JpgTiff(Extractor):
                     pyclowder.datasets.remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        metadata = {
-            # TODO: Generate JSON-LD context for additional fields
-            "@context": ["https://clowder.ncsa.illinois.edu/contexts/metadata.jsonld"],
-            "dataset_id": resource['id'],
-            "content": {
+        metadata = terrautils.extractors.build_metadata(host, self.extractor_info['name'], resource['id'], {
                 "files_created": uploaded_file_ids
-            },
-            "agent": {
-                "@type": "cat:extractor",
-                "extractor_id": host + "/api/extractors/" + self.extractor_info['name']
-            }
-        }
+            }, 'dataset')
         pyclowder.datasets.upload_metadata(connector, host, secret_key, resource['id'], metadata)
 
         endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        self.logToInfluxDB(starttime, endtime, created, bytes)
-
-    def logToInfluxDB(self, starttime, endtime, filecount, bytecount):
-        # Time of the format "2017-02-10T16:09:57+00:00"
-        f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
-        f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
-
-        client = InfluxDBClient(self.influx_host, self.influx_port, self.influx_user, self.influx_pass, self.influx_db)
-        client.write_points([{
-            "measurement": "file_processed",
-            "time": f_completed_ts,
-            "fields": {"value": f_duration}
-        }], tags={"extractor": self.extractor_info['name'], "type": "duration"})
-        client.write_points([{
-            "measurement": "file_processed",
-            "time": f_completed_ts,
-            "fields": {"value": int(filecount)}
-        }], tags={"extractor": self.extractor_info['name'], "type": "filecount"})
-        client.write_points([{
-            "measurement": "file_processed",
-            "time": f_completed_ts,
-            "fields": {"value": int(bytecount)}
-        }], tags={"extractor": self.extractor_info['name'], "type": "bytes"})
+        terrautils.extractors.log_to_influxdb(self.extractor_info['name'], starttime, endtime, created, bytes)
 
 if __name__ == "__main__":
     extractor = StereoBin2JpgTiff()
