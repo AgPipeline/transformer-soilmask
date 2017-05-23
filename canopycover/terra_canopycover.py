@@ -21,6 +21,7 @@ class CanopyCoverHeight(Extractor):
     def __init__(self):
         Extractor.__init__(self)
 
+        bety_key = os.getenv("BETYDB_KEY", False)
         influx_host = os.getenv("INFLUXDB_HOST", "terra-logging.ncsa.illinois.edu")
         influx_port = os.getenv("INFLUXDB_PORT", 8086)
         influx_db = os.getenv("INFLUXDB_DB", "extractor_db")
@@ -38,7 +39,7 @@ class CanopyCoverHeight(Extractor):
         self.parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
                                  default="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv",
                                  help="traits API endpoint of BETY instance that outputs should be posted to")
-        self.parser.add_argument('--betyKey', dest="bety_key", type=str, nargs='?', default=False,
+        self.parser.add_argument('--betyKey', dest="bety_key", type=str, nargs='?', default=bety_key,
                                  help="API key for BETY instance specified by betyURL")
         self.parser.add_argument('--plots', dest="plots_shp", type=str, nargs='?',
                                  default="/home/extractor/extractors-metadata/sensorposition/shp/sorghumexpfall2016v5/sorghumexpfall2016v5_lblentry_1to7.shp",
@@ -122,7 +123,7 @@ class CanopyCoverHeight(Extractor):
         bytes = 0
 
         # Get left/right files and metadata
-        img_left, img_right, metadata = None, None, None, None
+        img_left, img_right, metadata = None, None, None
         for fname in resource['local_paths']:
             # First check metadata attached to dataset in Clowder for item of interest
             if fname.endswith('_dataset_metadata.json'):

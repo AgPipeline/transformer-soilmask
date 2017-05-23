@@ -118,7 +118,7 @@ class StereoBin2JpgTiff(Extractor):
         bytes = 0
 
         # Get left/right files and metadata
-        img_left, img_right, metadata = None, None, None, None
+        img_left, img_right, metadata = None, None, None
         for fname in resource['local_paths']:
             if fname.endswith('_dataset_metadata.json'):
                 all_dsmd = terrautils.extractors.load_json_file(fname)
