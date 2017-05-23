@@ -2,6 +2,7 @@ FROM terraref/terrautils
 MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
 # Install any programs needed
+# TODO: Can we remove this user ID and mount files as Max?
 RUN useradd -u 49044 extractor \
     && apt-get install -y -q gfortran \
     # && usr/bin/yes | apt-get build-dep python-matplotlib \
