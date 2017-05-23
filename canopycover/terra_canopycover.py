@@ -247,6 +247,7 @@ class CanopyCoverHeight(Extractor):
         metadata["file_ids"] = ",".join(fileIdList)
 
         # Format time properly, adding UTC if missing from Danforth timestamp
+        ctime = terrautils.extractors.calculate_scan_time(metadata)
         time_obj = time.strptime(ctime, "%m/%d/%Y %H:%M:%S")
         time_fmt = time.strftime('%Y-%m-%dT%H:%M:%S', time_obj)
         if len(time_fmt) == 19:
