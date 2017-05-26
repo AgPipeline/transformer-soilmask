@@ -5,6 +5,7 @@ MAINTAINER Max Burnette <mburnet2@illinois.edu>
 RUN useradd -u 49044 extractor \
     && mkdir -p /home/extractor/sites/ua-mac/raw_data \
     && mkdir -p /home/extractor/sites/ua-mac/Level_1/stereoTop_geotiff \
+    && mkdir -p /home/extractor/sites/ua-mac/Level_1/stereoTop_canopyCover \
     && chown -R extractor /home/extractor
 
 # command to run when starting docker
