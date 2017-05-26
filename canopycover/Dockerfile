@@ -11,6 +11,9 @@ RUN useradd -u 49044 extractor \
 # command to run when starting docker
 COPY entrypoint.sh extractor_info.json *.py /home/extractor/
 
+# TODO: Remove this once BETYdb hooks are completed
+ADD shp /home/extractor/shp
+
 USER extractor
 ENTRYPOINT ["/home/extractor/entrypoint.sh"]
 CMD ["extractor"]

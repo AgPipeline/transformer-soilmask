@@ -42,7 +42,7 @@ class CanopyCoverHeight(Extractor):
         self.parser.add_argument('--betyKey', dest="bety_key", type=str, nargs='?', default=bety_key,
                                  help="API key for BETY instance specified by betyURL")
         self.parser.add_argument('--plots', dest="plots_shp", type=str, nargs='?',
-                                 default="/home/extractor/extractors-metadata/sensorposition/shp/sorghumexpfall2016v5/sorghumexpfall2016v5_lblentry_1to7.shp",
+                                 default="/home/extractor/shp/sorghumexpfall2016v5/sorghumexpfall2016v5_lblentry_1to7.shp",
                                  help=".shp file containing plots")
         self.parser.add_argument('--influxHost', dest="influx_host", type=str, nargs='?',
                                  default=influx_host, help="InfluxDB URL for logging")
