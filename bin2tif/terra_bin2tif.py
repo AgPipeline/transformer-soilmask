@@ -143,10 +143,10 @@ class StereoBin2JpgTiff(Extractor):
                 resource['dataset_info']['name'], '', opts=['left']))
         rbase = os.path.join(out_dir, terrautils.extractors.get_output_filename(
                 resource['dataset_info']['name'], '', opts=['right']))
-        left_jpg = lbase+'jpg'
-        right_jpg = rbase+'jpg'
-        left_tiff = lbase+'tif'
-        right_tiff = rbase+'tif'
+        left_jpg = lbase+'.jpg'
+        right_jpg = rbase+'.jpg'
+        left_tiff = lbase+'.tif'
+        right_tiff = rbase+'.tif'
         uploaded_file_ids = []
 
         logging.info("...determining image shapes")
