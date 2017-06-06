@@ -59,7 +59,7 @@ def main():
     
     # Create VRT from every GeoTIFF
     print "Starting VRT creation..."
-    createVrtPermanent(out_dir,file_list, args.out+"_fullfield.VRT")
+    createVrtPermanent(out_dir,file_list, args.out+"_fullfield.VRT", args.relative)
     print "Completed VRT creation..."
 
 def find_input_files(in_dir, pattern):
@@ -90,11 +90,13 @@ def file_len(fname):
             pass
     return i+1
 
-def createVrtPermanent(base_dir, file_list, out_vrt):
+def createVrtPermanent(base_dir, file_list, out_vrt, relative):
     # Create virtual tif for the files in this folder
     # Build a virtual TIF that combines all of the tifs that we just created
     print "\tCreating virtual TIF..."
     try:
+        if relative:
+            os.chdir(base_dir)
         vrtPath = os.path.join(base_dir, out_vrt)
         cmd = 'gdalbuildvrt -srcnodata "-99 -99 -99" -overwrite -input_file_list ' + file_list +' ' + vrtPath
         print(cmd)
