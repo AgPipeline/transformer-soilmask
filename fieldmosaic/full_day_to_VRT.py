@@ -6,6 +6,7 @@ from glob import glob
 # Example usage:
 #   python full_day_to_VRT.py -d "2017-04-27"
 #   python full_day_to_VRT.py -d "2017-04-15" -s "hyperspectral" -p "*.nc"
+#   python full_day_to_VRT.py -d "2017-05-20" -s "flir2tif" -o "flirIrCamera"
 
 
 
@@ -17,7 +18,8 @@ def options():
     parser.add_argument("-i", "--in_root", help="input, stereo top bin files parent directory",
                         default="/home/extractor/sites/ua-mac/Level_1/")
     parser.add_argument("-d", "--date", help="scan date")
-    parser.add_argument("-s", "--sensor", help="sensor name", default="stereoTop")
+    parser.add_argument("-s", "--source", help="name of input geotiff directory", default="stereoTop_geotiff")
+    parser.add_argument("-o", "--out", help="name of output prefix (fullfield/date/prefix_fullfield)", default="stereoTop")
     parser.add_argument("-p", "--pattern", help="file pattern to match",
                         default='*(Left).tif')
     parser.add_argument("--relative", help="store relative path names in VRT",
@@ -29,10 +31,10 @@ def options():
 
 def main():
     args = options()
-    if os.path.exists(os.path.join(args.in_root, args.sensor+"_geotiff")):
-        in_dir = os.path.join(args.in_root, args.sensor+"_geotiff", args.date)
+    if os.path.exists(os.path.join(args.in_root, args.source)):
+        in_dir = os.path.join(args.in_root, args.source, args.date)
     else:
-        in_dir = os.path.join(args.in_root, args.sensor, args.date)
+        in_dir = os.path.join(args.in_root, args.source, args.date)
     out_dir = os.path.join(args.in_root, "fullfield", args.date)
 
     if not os.path.isdir(in_dir):
@@ -41,7 +43,7 @@ def main():
         os.makedirs(out_dir)
 
     # Create a file to write the paths for all of the TIFFs. This will be used create the VRT.
-    file_list = os.path.join(out_dir, args.sensor+'_fileList.txt')
+    file_list = os.path.join(out_dir, args.out+'_fileList.txt')
     if os.path.exists(file_list):
         try:
             os.remove(file_list) # start from a fresh list of TIFFs for the day
@@ -52,12 +54,12 @@ def main():
     subdirs = os.listdir(in_dir)
     f = open(file_list,'w')
     for subdir in subdirs:
-        buildFileList(os.path.join(in_dir,subdir), out_dir, f, args.pattern, args.relative, args.sensor, args.date)
+        buildFileList(os.path.join(in_dir,subdir), out_dir, f, args.pattern, args.relative, args.source, args.date)
     f.close()
     
     # Create VRT from every GeoTIFF
     print "Starting VRT creation..."
-    createVrtPermanent(out_dir,file_list, args.sensor+"_fullfield.VRT")
+    createVrtPermanent(out_dir,file_list, args.out+"_fullfield.VRT")
     print "Completed VRT creation..."
 
 def find_input_files(in_dir, pattern):
@@ -79,7 +81,7 @@ def buildFileList(in_dir, out_dir, list_obj, pattern, relative, sensor, date):
     for fname in files:
         if relative:
             # <up from date>/<up from fullfield>/
-            fname = "../../"+sensor+"_geotiff/"+date+"/"+os.path.basename(fname)
+            fname = "../../"+sensor+"/"+date+"/"+os.path.basename(fname)
         list_obj.write(fname + '\n')
 
 def file_len(fname):
