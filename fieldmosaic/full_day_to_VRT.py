@@ -56,8 +56,17 @@ def main():
     print "Fetching list of GeoTIFFs..."
     subdirs = os.listdir(in_dir)
     f = open(file_list,'w')
+    total_listed = 0
+    tot_wrong = {}
     for subdir in subdirs:
-        buildFileList(os.path.join(in_dir,subdir), out_dir, f, args.pattern, args.relative, args.source, args.date, args.type)
+        (listed, wrong_types) = buildFileList(os.path.join(in_dir,subdir), out_dir, f, args.pattern, args.relative, args.source, args.date, args.type)
+        total_listed += listed
+        for k in wrong_types:
+            if k not in tot_wrong:
+                tot_wrong[k] = 0
+            tot_wrong[k] += wrong_types[k]
+    print("Found %s files. Skipped wrong data types:" % total_listed)
+    print(tot_wrong)
     f.close()
     
     # Create VRT from every GeoTIFF
@@ -98,8 +107,7 @@ def buildFileList(in_dir, out_dir, list_obj, pattern, relative, sensor, date, dt
             else:
                 wrong_types[dt] += 1
         ds = None
-    print("Found %s files. Skipped wrong data types:" % listed)
-    print(wrong_types)
+    return (listed, wrong_types)
 
 def file_len(fname):
     with open(fname) as f:
