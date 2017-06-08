@@ -81,6 +81,8 @@ def buildFileList(in_dir, out_dir, list_obj, pattern, relative, sensor, date, dt
 
     files = find_input_files(in_dir, pattern)
 
+    wrong_types = {}
+    listed = 0
     for fname in files:
         ds = gdal.Open(fname, GA_ReadOnly)
         dt = gdal.GetDataTypeName(ds.GetRasterBand(1).DataType)
@@ -89,9 +91,15 @@ def buildFileList(in_dir, out_dir, list_obj, pattern, relative, sensor, date, dt
                 # <up from date>/<up from fullfield>/
                 fname = "../../"+sensor+"/"+date+"/"+os.path.basename(fname)
             list_obj.write(fname + '\n')
+            listed += 1
         else:
-            print("Skipping %s (wrong data type: %s)" % (fname, dt))
+            if dt not in wrong_types:
+                wrong_types[dt] = 1
+            else:
+                wrong_types[dt] += 1
         ds = None
+    print("Found %s files. Skipped wrong data types:" % listed)
+    print(wrong_types)
 
 def file_len(fname):
     with open(fname) as f:
