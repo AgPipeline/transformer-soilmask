@@ -2,11 +2,13 @@
 
 import os, sys, argparse
 from glob import glob
+import gdal
+from gdalconst import *
 
 # Example usage:
 #   python full_day_to_VRT.py -d "2017-04-27"
 #   python full_day_to_VRT.py -d "2017-04-15" -s "hyperspectral" -p "*.nc"
-#   python full_day_to_VRT.py -d "2017-05-20" -s "flir2tif" -o "flirIrCamera"
+#   python full_day_to_VRT.py -d "2017-05-20" -s "flir2tif" -o "flirIrCamera" -p *.tif -t "Float32"
 
 
 
@@ -22,8 +24,9 @@ def options():
     parser.add_argument("-o", "--out", help="name of output prefix (fullfield/date/prefix_fullfield)", default="stereoTop")
     parser.add_argument("-p", "--pattern", help="file pattern to match",
                         default='*(Left).tif')
-    parser.add_argument("--relative", help="store relative path names in VRT",
-                        default=True)
+    parser.add_argument("--relative", help="store relative path names in VRT", type=bool,
+                        default=False)
+    parser.add_argument("-t", "--type", help="GDAL data type to force", default="Byte")
 
     args = parser.parse_args()
 
@@ -54,7 +57,7 @@ def main():
     subdirs = os.listdir(in_dir)
     f = open(file_list,'w')
     for subdir in subdirs:
-        buildFileList(os.path.join(in_dir,subdir), out_dir, f, args.pattern, args.relative, args.source, args.date)
+        buildFileList(os.path.join(in_dir,subdir), out_dir, f, args.pattern, args.relative, args.source, args.date, args.type)
     f.close()
     
     # Create VRT from every GeoTIFF
@@ -70,7 +73,7 @@ def find_input_files(in_dir, pattern):
 
     return files
 
-def buildFileList(in_dir, out_dir, list_obj, pattern, relative, sensor, date):
+def buildFileList(in_dir, out_dir, list_obj, pattern, relative, sensor, date, dtype):
     if not os.path.isdir(in_dir):
         fail('Could not find input directory: ' + in_dir)
     if not os.path.isdir(out_dir):
@@ -79,10 +82,16 @@ def buildFileList(in_dir, out_dir, list_obj, pattern, relative, sensor, date):
     files = find_input_files(in_dir, pattern)
 
     for fname in files:
-        if relative:
-            # <up from date>/<up from fullfield>/
-            fname = "../../"+sensor+"/"+date+"/"+os.path.basename(fname)
-        list_obj.write(fname + '\n')
+        ds = gdal.Open(fname, GA_ReadOnly)
+        dt = gdal.GetDataTypeName(ds.GetRasterBand(1).DataType)
+        if dt == dtype:
+            if relative:
+                # <up from date>/<up from fullfield>/
+                fname = "../../"+sensor+"/"+date+"/"+os.path.basename(fname)
+            list_obj.write(fname + '\n')
+        else:
+            print("Skipping %s (wrong data type: %s)" % (fname, dt))
+        ds = None
 
 def file_len(fname):
     with open(fname) as f:
