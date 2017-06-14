@@ -23,7 +23,7 @@ def options():
     parser.add_argument("-s", "--source", help="name of input geotiff directory", default="stereoTop_geotiff")
     parser.add_argument("-o", "--out", help="name of output prefix (fullfield/date/prefix_fullfield)", default="stereoTop")
     parser.add_argument("-p", "--pattern", help="file pattern to match",
-                        default='*(Left).tif')
+                        default='*_left.tif')
     parser.add_argument("--relative", help="store relative path names in VRT", type=bool,
                         default=False)
     parser.add_argument("-t", "--type", help="GDAL data type to force", default="Byte")
