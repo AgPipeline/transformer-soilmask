@@ -1,32 +1,22 @@
-FROM  ubuntu
+FROM terraref/terrautils
 MAINTAINER Solmaz Hajmohammadi <Solmaz.hajmohammadi@lemanatec.de>
 
 # Install any programs needed
-RUN useradd -u 1000 extractor \
-    && apt-get -y update \
-    && apt-get install -y -q build-essential git python python-dev python-pip \
-    && apt-get install -y netcat \
-    && pip install --upgrade pip \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install pika requests numpy urllib3 enum pyyaml \
-    && mkdir /home/extractor \
-    && chown -R extractor /home/extractor \
-    && cd /home/extractor \
-    && git clone https://opensource.ncsa.illinois.edu/bitbucket/scm/cats/pyclowder2.git \
-    && cd pyclowder2 \
-    && python setup.py install 
-
+RUN useradd -u 49044 extractor \
+    && mkdir -p /home/extractor/sites/ua-mac/raw_data \
+    && mkdir -p /home/extractor/sites/ua-mac/Level_1/stereoTop_geotiff \
+    && mkdir -p /home/extractor/sites/ua-mac/Level_1/texture_analysis \
+    && chown -R extractor /home/extractor
 
 RUN apt-get update \ 
     && apt-get install -y  ed \
-    && apt-get install -y less\
-    && apt-get install -y locales\
-    && apt-get install -y vim-tiny\
-    && apt-get install -y wget\
-    && apt-get install -y ca-certificates\
-    && apt-get install -y fonts-texgyre\
+        less \
+        locales \
+        vim-tiny \
+        wget \
+        ca-certificates \
+        fonts-texgyre \
     && rm -rf /var/lib/apt/lists/*
-
 
 RUN apt-get update && apt-get install -y --no-install-recommends  \
         bzip2 \
@@ -45,21 +35,16 @@ RUN apt-get update && apt-get install -y \
     libssh2-1-dev \
     libssl1.0.0
 
-RUN apt-get install -y python-pip git
-RUN apt-get install -y python-dev
+RUN apt-get install -y python-pip git python-dev
 RUN pip install cython
 RUN pip install numpy
 
 
 # system library dependency for the euler app
 RUN apt-get update && apt-get install -y \
-    libmpfr-dev 
-
+    libmpfr-dev
 RUN sudo apt-get install -y \
-    r-base r-base-dev 
-
-
-RUN apt-get -y install libcurl4-openssl-dev
+    r-base r-base-dev libcurl4-openssl-dev
 
 # basic shiny functionality
 RUN R -e "install.packages(c('shiny', 'rmarkdown'), repos='https://cloud.r-project.org/')"
@@ -68,7 +53,6 @@ RUN R -e "install.packages(c('shiny', 'rmarkdown'), repos='https://cloud.r-proje
 RUN R -e "install.packages('Rmpfr', repos='https://cloud.r-project.org/')"
 
 # Special Package for EBImage
-
 RUN apt-get update -y
 RUN apt-get install -y libfftw3-dev --fix-missing
 RUN apt-get install -y libtiff5-dev --fix-missing
@@ -111,7 +95,7 @@ RUN apt-get install libgtk-3-dev -y
 RUN  apt-get install imagemagick --fix-missing -y
 
 # command to run when starting docker
-COPY entrypoint.sh extractor_info.json *.py /home/extractor/
+COPY entrypoint.sh extractor_info.json *.py gift.R bayer2rgb-master /home/extractor/
 
 USER extractor
 ENTRYPOINT ["/home/extractor/entrypoint.sh"]

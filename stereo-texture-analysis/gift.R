@@ -15,14 +15,29 @@ option_list = list(
               type="character",
               default=NULL,
               help="The RGB image file as INPUT in [png|tif|jpg] format"),
-  make_option(c("-o", "--output"),
+
+  make_option(c("-ot", "--outputtable"),
               type="character",
-              default="./",
+              default="./table.csv",
               help="The output directory (ODIR); default='./'"),
+  make_option(c("-od", "--outputdgci"),
+              type="character",
+              default="./dgci.png",
+              help="The output directory (ODIR); default='./'"),
+  make_option(c("-oe", "--outputedge"),
+              type="character",
+              default="./edge.png",
+              help="The output directory (ODIR); default='./'"),
+  make_option(c("-ol", "--outputlabel"),
+              type="character",
+              default="./label.png",
+              help="The output directory (ODIR); default='./'"),
+
   make_option(c("-r", "--roi"),
               type="character",
               default=NULL,
               help="The region of interest image file (white indicates ROI)"),
+
   make_option(c("-t", "--table"),
               type="logical",
               action="store_true",
@@ -124,25 +139,25 @@ df = data.frame(d=as.vector(dgci), e=as.vector(edge), roi=as.vector(roi)) %>%
 name=gsub("[.]...$", "", basename(opt$f))
 if(opt$t == T)
 {
-    write.table(df, file=paste0(opt$o, name, "-table.csv"), sep=";", dec=".", row.names=F, quote=F)
+    write.table(df, file=opt$ot, sep=";", dec=".", row.names=F, quote=F)
 }
 
 
 if(opt$d == T)
 {
   dgci[roi == 0] = 0
-  writeImage(dgci, paste0(opt$o, name, "-dgci.png"))
+  writeImage(dgci, opt$od)
 }
 
 if(opt$e == T)
 {
   edge[roi == 0] = 0
-  writeImage(edge, paste0(opt$o, name, "-edge.png"))
+  writeImage(edge, opt$oe)
 }
 
 if(opt$l == T)
 {
-  writeImage(colorLabels(roi), paste0(opt$o, name, "-label.png"))
+  writeImage(colorLabels(roi),opt$ol)
 }
 
 

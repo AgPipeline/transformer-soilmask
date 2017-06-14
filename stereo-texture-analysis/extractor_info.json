@@ -1,15 +1,15 @@
 {
     "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
-    "name": "terra.heightmap",
-    "version": "2.0",
+    "name": "terra.stereo-rgb.texture",
+    "version": "1.0",
     "description": "R texture analysis extractor",
     "author": "Solmaz Hajmohammadi <solmaz.hajmohammadi@lemnatec.de>",
     "contributors": [],
     "contexts": [],
-    "repository": {"repType": "git", "repUrl": "https://github.com/terraref/extractors-R.git"},
+    "repository": {"repType": "git", "repUrl": "https://github.com/terraref/extractors-stereo-rgb.git"},
     "process": {
-        "dataset": [
-            "file.added"
+        "file": [
+            "image.jpeg"
         ]
     },
     "external_services": [],
