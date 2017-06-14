@@ -95,7 +95,8 @@ RUN apt-get install libgtk-3-dev -y
 RUN  apt-get install imagemagick --fix-missing -y
 
 # command to run when starting docker
-COPY entrypoint.sh extractor_info.json *.py gift.R bayer2rgb-master /home/extractor/
+COPY entrypoint.sh extractor_info.json *.py gift.R /home/extractor/
+ADD bayer2rgb-master /home/extractor/bayer2rgb-master
 
 USER extractor
 ENTRYPOINT ["/home/extractor/entrypoint.sh"]

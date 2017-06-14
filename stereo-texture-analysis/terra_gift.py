@@ -90,7 +90,7 @@ class gift(Extractor):
         out_fname = terrautils.extractors.get_output_filename(ds_md['name'], '.csv', opts=['texture'])
         out_csv =  os.path.join(out_dir, out_fname)
 
-        subprocess.call(["Rscript", "gift.R",  "-f", input_image, "-t", "-o", out_csv])
+        subprocess.call(["Rscript", "gift.R",  "-f", input_image, "--table", "--outputtable", out_csv])
 
         if os.path.isfile(out_csv):
             if out_csv not in resource['local_paths']:
