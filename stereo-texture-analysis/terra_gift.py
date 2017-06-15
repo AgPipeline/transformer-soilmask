@@ -67,7 +67,7 @@ class gift(Extractor):
         ds_md = pyclowder.datasets.get_info(connector, host, secret_key, resource['parent']['id'])
 
         if ds_md['name'].find("stereoTop") > -1:
-            out_dir = terrautils.extractors.get_output_directory(self.output_dir, ds_md['name'], True)
+            out_dir = terrautils.extractors.get_output_directory(self.output_dir, ds_md['name'])
             out_fname = terrautils.extractors.get_output_filename(ds_md['name'], '.csv', opts=['texture'])
             out_csv =  os.path.join(out_dir, out_fname)
             if not os.path.exists(out_csv) or self.force_overwrite:
@@ -86,11 +86,14 @@ class gift(Extractor):
 
         # Create output in same directory as input, but check name
         ds_md = pyclowder.datasets.get_info(connector, host, secret_key, resource['parent']['id'])
-        out_dir = terrautils.extractors.get_output_directory(self.output_dir, ds_md['name'], True)
+        out_dir = terrautils.extractors.get_output_directory(self.output_dir, ds_md['name'])
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
         out_fname = terrautils.extractors.get_output_filename(ds_md['name'], '.csv', opts=['texture'])
         out_csv =  os.path.join(out_dir, out_fname)
 
-        subprocess.call(["Rscript", "gift.R",  "-f", input_image, "--table", "--outputtable", out_csv])
+        logging.info("Rscript gift.R -f %s --table -o %s" % (input_image, out_csv))
+        subprocess.call(["Rscript gift.R -f %s --table -o %s" % (input_image, out_csv)], shell=True)
 
         if os.path.isfile(out_csv):
             if out_csv not in resource['local_paths']:

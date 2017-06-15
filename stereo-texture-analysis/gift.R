@@ -6,7 +6,7 @@
 suppressPackageStartupMessages(library(optparse))
 suppressPackageStartupMessages(library(EBImage))
 suppressPackageStartupMessages(library(dplyr))
-
+suppressPackageStartupMessages(library(tidyr))
 
 
 ### Define command line arguments
@@ -16,19 +16,19 @@ option_list = list(
               default=NULL,
               help="The RGB image file as INPUT in [png|tif|jpg] format"),
 
-  make_option(c("-ot", "--outputtable"),
+  make_option(c("-o", "--outputtable"),
               type="character",
               default="./table.csv",
               help="The output directory (ODIR); default='./'"),
-  make_option(c("-od", "--outputdgci"),
+  make_option(c("--outputdgci"),
               type="character",
               default="./dgci.png",
               help="The output directory (ODIR); default='./'"),
-  make_option(c("-oe", "--outputedge"),
+  make_option(c("--outputedge"),
               type="character",
               default="./edge.png",
               help="The output directory (ODIR); default='./'"),
-  make_option(c("-ol", "--outputlabel"),
+  make_option(c("--outputlabel"),
               type="character",
               default="./label.png",
               help="The output directory (ODIR); default='./'"),
@@ -139,25 +139,25 @@ df = data.frame(d=as.vector(dgci), e=as.vector(edge), roi=as.vector(roi)) %>%
 name=gsub("[.]...$", "", basename(opt$f))
 if(opt$t == T)
 {
-    write.table(df, file=opt$ot, sep=";", dec=".", row.names=F, quote=F)
+    write.table(df, file=opt$outputtable, sep=";", dec=".", row.names=F, quote=F)
 }
 
 
 if(opt$d == T)
 {
   dgci[roi == 0] = 0
-  writeImage(dgci, opt$od)
+  writeImage(dgci, opt$outputdgci)
 }
 
 if(opt$e == T)
 {
   edge[roi == 0] = 0
-  writeImage(edge, opt$oe)
+  writeImage(edge, opt$outputedge)
 }
 
 if(opt$l == T)
 {
-  writeImage(colorLabels(roi),opt$ol)
+  writeImage(colorLabels(roi),opt$outputlabel)
 }
 
 
