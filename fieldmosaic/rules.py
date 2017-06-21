@@ -31,7 +31,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         # Is there actually a new left geoTIFF to add to the stack?
         left_id = None
         for f in resource['files']:
-            if f['filename'].endswith(" (Left).tif"):
+            if f['filename'].endswith(" (Left).tif") or f['filename'].endswith("_left.tif"):
                 left_id = f['id']
         if not left_id:
             # If not, no need to trigger anything for now.
