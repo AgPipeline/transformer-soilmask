@@ -9,7 +9,7 @@ from pyclowder.extractors import Extractor
 from pyclowder.utils import CheckMessage
 import pyclowder.files
 import pyclowder.datasets
-import pyclowder.geostreams
+import terrautils.geostreams
 import terrautils.extractors
 import terrautils.betydb
 
@@ -205,15 +205,15 @@ class CanopyCoverHeight(Extractor):
             fileIdList.append(f['id'])
 
         # SENSOR is the plot - try by location first
-        sensor_data = pyclowder.geostreams.get_sensors_by_circle(connector, host, secret_key, sensor_latlon[1], sensor_latlon[0], 0.01)
+        sensor_data = terrautils.geostreams.get_sensors_by_circle(connector, host, secret_key, sensor_latlon[1], sensor_latlon[0], 0.01)
         if not sensor_data:
             # TODO: Replace with calls to BETYdb
             plot_info = plotid_by_latlon.plotQuery(self.plots_shp, sensor_latlon[1], sensor_latlon[0])
             plot_name = "Range "+plot_info['plot'].replace("-", " Pass ")
             logging.info("...found plot: "+str(plot_info))
-            sensor_data = pyclowder.geostreams.get_sensor_by_name(connector, host, secret_key, plot_name)
+            sensor_data = terrautils.geostreams.get_sensor_by_name(connector, host, secret_key, plot_name)
             if not sensor_data:
-                sensor_id = pyclowder.geostreams.create_sensor(connector, host, secret_key, plot_name, {
+                sensor_id = terrautils.geostreams.create_sensor(connector, host, secret_key, plot_name, {
                     "type": "Point",
                     "coordinates": [plot_info['point'][1], plot_info['point'][0], plot_info['point'][2]]
                 }, {
@@ -233,9 +233,9 @@ class CanopyCoverHeight(Extractor):
 
         # STREAM is plot x instrument
         stream_name = "Canopy Cover" + " - " + plot_name
-        stream_data = pyclowder.geostreams.get_stream_by_name(connector, host, secret_key, stream_name)
+        stream_data = terrautils.geostreams.get_stream_by_name(connector, host, secret_key, stream_name)
         if not stream_data:
-            stream_id = pyclowder.geostreams.create_stream(connector, host, secret_key, stream_name, sensor_id, {
+            stream_id = terrautils.geostreams.create_stream(connector, host, secret_key, stream_name, sensor_id, {
                 "type": "Point",
                 "coordinates": [sensor_latlon[1], sensor_latlon[0], 0]
             })
@@ -253,7 +253,7 @@ class CanopyCoverHeight(Extractor):
         if len(time_fmt) == 19:
             time_fmt += "-06:00"
 
-        pyclowder.geostreams.create_datapoint(connector, host, secret_key, stream_id, {
+        terrautils.geostreams.create_datapoint(connector, host, secret_key, stream_id, {
             "type": "Point",
             "coordinates": [sensor_latlon[1], sensor_latlon[0], 0]
         }, time_fmt, time_fmt, metadata)
