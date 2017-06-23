@@ -3,7 +3,7 @@
 import os
 import logging
 import requests
-import full_day_to_tiles
+import subprocess
 
 import datetime
 from dateutil.parser import parse
@@ -13,11 +13,20 @@ from pyclowder.extractors import Extractor
 from pyclowder.utils import CheckMessage
 import pyclowder.files
 import pyclowder.datasets
+import terrautils.extractors
+
+import full_day_to_tiles
 
 
 class FullFieldMosaicStitcher(Extractor):
     def __init__(self):
         Extractor.__init__(self)
+
+        influx_host = os.getenv("INFLUXDB_HOST", "terra-logging.ncsa.illinois.edu")
+        influx_port = os.getenv("INFLUXDB_PORT", 8086)
+        influx_db = os.getenv("INFLUXDB_DB", "extractor_db")
+        influx_user = os.getenv("INFLUXDB_USER", "terra")
+        influx_pass = os.getenv("INFLUXDB_PASSWORD", "")
 
         # add any additional arguments to parser
         self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
@@ -28,16 +37,15 @@ class FullFieldMosaicStitcher(Extractor):
         self.parser.add_argument('--mainspace', dest="mainspace", type=str, nargs='?',
                                  default="58da6b924f0c430e2baa823f", help="Space UUID in Clowder to store results")
         self.parser.add_argument('--influxHost', dest="influx_host", type=str, nargs='?',
-                                 default="terra-logging.ncsa.illinois.edu", help="InfluxDB URL for logging")
+                                 default=influx_host, help="InfluxDB URL for logging")
         self.parser.add_argument('--influxPort', dest="influx_port", type=int, nargs='?',
-                                 default=8086, help="InfluxDB port")
+                                 default=influx_port, help="InfluxDB port")
         self.parser.add_argument('--influxUser', dest="influx_user", type=str, nargs='?',
-                                 default="terra", help="InfluxDB username")
+                                 default=influx_user, help="InfluxDB username")
         self.parser.add_argument('--influxPass', dest="influx_pass", type=str, nargs='?',
-                                 default="", help="InfluxDB password")
+                                 default=influx_pass, help="InfluxDB password")
         self.parser.add_argument('--influxDB', dest="influx_db", type=str, nargs='?',
-                                 default="extractor_db", help="InfluxDB databast")
-
+                                 default=influx_db, help="InfluxDB database")
 
         # parse command line and load default logging configuration
         self.setup()
@@ -50,38 +58,61 @@ class FullFieldMosaicStitcher(Extractor):
         self.output_dir = self.args.output_dir
         self.force_overwrite = self.args.force_overwrite
         self.mainspace = self.args.mainspace
-        self.influx_host = self.args.influx_host
-        self.influx_port = self.args.influx_port
-        self.influx_user = self.args.influx_user
-        self.influx_pass = self.args.influx_pass
-        self.influx_db = self.args.influx_db
+        self.influx_params = {
+            "host": self.args.influx_host,
+            "port": self.args.influx_port,
+            "db": self.args.influx_db,
+            "user": self.args.influx_user,
+            "pass": self.args.influx_pass
+        }
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         return CheckMessage.bypass
 
     def process_message(self, connector, host, secret_key, resource, parameters):
         starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        created_count = 0
+        created = 0
         bytes = 0
 
-        out_dir = os.path.join(self.output_dir, parameters["output_dataset"].split(" - ")[1])
-        out_file = "stereoTop_fullField.vrt"
-        out_path = os.path.join(out_dir, out_file)
+        # parameters["output_dataset"] = "Full Field - 2017-01-01"
+        out_dir = terrautils.extractors.get_output_directory(self.soutput_dir, parameters["output_dataset"])
+        out_root = terrautils.extractors.get_output_filename(parameters["output_dataset"], opts=["fullField"])
+        out_vrt = os.path.join(out_dir, out_root+".vrt")
+        out_tif_full = os.path.join(out_dir, out_root+".tif")
+        out_tif_thumb = os.path.join(out_dir, out_root+"_thumb.tif")
 
-        logging.info("processing %s TIFs into %s" % (len(parameters['file_ids']), out_path))
+        if (not os.path.isfile(out_vrt)) or self.force_overwrite:
+            logging.info("processing %s TIFs" % len(parameters['file_ids']))
 
-        if (not os.path.isfile(out_path)) or self.force_overwrite:
             # Write input list to tmp file
             with open("tiflist.txt", "w") as tifftxt:
                 for t in parameters["file_ids"]:
                     tifftxt.write("%s/n" % t)
 
             # Create VRT from every GeoTIFF
-            logging.info("Creating %s..." % out_path)
-            full_day_to_tiles.createVrtPermanent(out_dir, "tiflist.txt", out_file)
+            logging.info("Creating %s..." % out_vrt)
+            full_day_to_tiles.createVrtPermanent(out_dir, "tiflist.txt", out_vrt)
+            os.remove("tiflist.txt")
+            created += 1
+            bytes += os.path.getsize(out_vrt)
+
+        if (not os.path.isfile(out_tif_thumb)) or self.force_overwrite:
+            # Convert VRT to full-field GeoTIFF (low-res then high-res)
+            logging.info("Converting VRT to %s..." % out_tif_thumb)
+            subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
+                             "-outsize 10% 10% %s %s" % (out_vrt, out_tif_thumb)])
+            created += 1
+            bytes += os.path.getsize(out_tif_thumb)
+
+        if (not os.path.isfile(out_tif_full)) or self.force_overwrite:
+            logging.info("Converting VRT to %s..." % out_tif_full)
+            subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
+                             "%s %s" % (out_vrt, out_tif_full)])
+            created += 1
+            bytes += os.path.getsize(out_tif_full)
+
 
         # Upload full field image to Clowder
-        # parameters["output_dataset"] = "Full Field - 2017-01-01"
         parent_collect = self.getCollectionOrCreate(connector, host, secret_key, "Full Field Stitched Mosaics",
                                                     parent_space=self.mainspace)
         year_collect = self.getCollectionOrCreate(connector, host, secret_key, parameters["output_dataset"][:17],
@@ -91,30 +122,25 @@ class FullFieldMosaicStitcher(Extractor):
         target_dsid = self.getDatasetOrCreate(connector, host, secret_key, parameters["output_dataset"],
                                               month_collect, self.mainspace)
 
-        fileid = pyclowder.files.upload_to_dataset(connector, host, secret_key, target_dsid, out_file)
-        pyclowder.files.upload_metadata(connector, host, secret_key, fileid, {
-            "@context": ["https://clowder.ncsa.illinois.edu/contexts/metadata.jsonld"],
-            "file_id": fileid,
-            "content": {
-                "comment": "This stitched image is computed based on an assumption that the scene is planar. \
+        thumbid = pyclowder.files.upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_thumb)
+        fullid = pyclowder.files.upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_full)
+
+
+        content = {
+            "comment": "This stitched image is computed based on an assumption that the scene is planar. \
                 There are likely to be be small offsets near the boundary of two images anytime there are plants \
                 at the boundary (because those plants are higher than the ground plane), or where the dirt is \
                 slightly higher or lower than average.",
-                "file_ids": parameters["file_ids"],
-                "files_created": [os.path.join(out_dir, out_file)]
-            },
-            "agent": {
-                "@type": "cat:extractor",
-                "extractor_id": host + "/api/extractors/" + self.extractor_info['name']
-            }
-        })
-        logging.info("Uploaded VRT to Clowder [%s]" % fileid)
-
-        # Cleanup
-        os.remove("tiflist.txt")
+            "file_ids": parameters["file_ids"]
+        }
+        thumbmeta = terrautils.extractors.build_metadata(host, self.extractor_info['name'], thumbid, content, 'file')
+        pyclowder.files.upload_metadata(connector, host, secret_key, thumbid, thumbmeta)
+        fullmeta = terrautils.extractors.build_metadata(host, self.extractor_info['name'], fullid, content, 'file')
+        pyclowder.files.upload_metadata(connector, host, secret_key, thumbid, fullmeta)
 
         endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        self.logToInfluxDB(starttime, endtime, created_count, bytes)
+        terrautils.extractors.log_to_influxdb(self.extractor_info['name'], self.influx_params,
+                                              starttime, endtime, created, bytes)
 
     # Fetch dataset from Clowder by name, or create it if not found
     def getCollectionOrCreate(self, connector, host, secret_key, cname, parent_colln=None, parent_space=None):
@@ -139,29 +165,6 @@ class FullFieldMosaicStitcher(Extractor):
                                                    parent_colln, parent_space)
         else:
             return result.json()[0]['id']
-
-    def logToInfluxDB(self, starttime, endtime, filecount, bytecount):
-        # Time of the format "2017-02-10T16:09:57+00:00"
-        f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
-        f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
-
-        client = InfluxDBClient(self.influx_host, self.influx_port, self.influx_user, self.influx_pass, self.influx_db)
-        client.write_points([{
-            "measurement": "file_processed",
-            "time": f_completed_ts,
-            "fields": {"value": f_duration}
-        }], tags={"extractor": self.extractor_info['name'], "type": "duration"})
-        client.write_points([{
-            "measurement": "file_processed",
-            "time": f_completed_ts,
-            "fields": {"value": int(filecount)}
-        }], tags={"extractor": self.extractor_info['name'], "type": "filecount"})
-        client.write_points([{
-            "measurement": "file_processed",
-            "time": f_completed_ts,
-            "fields": {"value": int(bytecount)}
-        }], tags={"extractor": self.extractor_info['name'], "type": "bytes"})
-
 
 if __name__ == "__main__":
     extractor = FullFieldMosaicStitcher()
