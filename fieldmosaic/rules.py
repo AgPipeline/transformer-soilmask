@@ -31,7 +31,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         date = timestamp.split("__")[0]
         progress_key = "Full Field - " + sensor + " - " + date
 
-        logging.info("evaluating %s" % progress_key)
+        logging.info("dataset queue: %s" % progress_key)
 
         # Is there actually a new left geoTIFF to add to the stack?
         left_id = None
@@ -76,7 +76,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
             if prog_pct >= tolerance_pct:
                 full_field_ready = True
             else:
-                logging.info("found %s/%s necessary geotiffs (%s %%)" % (len(progress['ids']), raw_file_count,
+                logging.info("found %s/%s necessary geotiffs (%s%%)" % (len(progress['ids']), int(raw_file_count),
                                                                           "{0:.2f}".format(prog_pct)))
 
         for extractor in rulemap["extractors"]:
