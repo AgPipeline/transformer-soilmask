@@ -17,8 +17,10 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
     results = {}
     full_field_ready = False
 
-    # full-field queues must have at most this percent of the raw datasets present to trigger
+    # full-field queues must have at least this percent of the raw datasets present to trigger
     tolerance_pct = 98
+    # full-field queues must have at least this many datasets to trigger
+    min_datasets = 100
 
     # Determine output dataset
     dsname = resource["dataset_info"]["name"]
@@ -63,39 +65,32 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         else:
             progress['ids'] = [left_id]
 
-        if len(progress['ids']) > 30: # TODO: Determine why the variance in image count to not use 6000:
+        if len(progress['ids']) > min_datasets:
             # Check to see if list of geotiffs is same length as list of raw datasets
             date_directory = "/home/clowder/sites/ua-mac/raw_data/stereoTop/%s" % date
-            logging.debug("counting raw files in %s..." % date_directory)
-            raw_file_count = int(subprocess.check_output("ls %s | wc -l" % date_directory,
+            raw_file_count = float(subprocess.check_output("ls %s | wc -l" % date_directory,
                                                      shell=True).strip())
-            logging.debug("found %s raw files" % raw_file_count)
 
             # If we have all raw files accounted for and more than 6000 (typical daily magnitude) listed, trigger
             prog_pct = (len(progress['ids'])/raw_file_count)*100
             if prog_pct >= tolerance_pct:
                 full_field_ready = True
             else:
-                logging.info("found %s/%s necessary geotiffs (%s%)" % (len(progress['ids']), raw_file_count, prog_pct))
+                logging.info("found %s/%s necessary geotiffs (%s %%)" % (len(progress['ids']), raw_file_count,
+                                                                          "{0:.2f}".format(prog_pct)))
 
-        if full_field_ready:
-            for extractor in rulemap["extractors"]:
-                results[extractor] = {
-                    "process": True,
-                    "parameters": {
-                        "file_ids": progress["ids"],
-                        "output_dataset": "Full Field - "+date
-                    }
+        for extractor in rulemap["extractors"]:
+            results[extractor] = {
+                "process": full_field_ready,
+                "parameters": {
+                    "file_ids": progress["ids"]
                 }
-        else:
-            for extractor in rulemap["extractors"]:
-                results[extractor] = {
-                    "process": False,
-                    "parameters": {
-                        "file_ids": progress["ids"]
-                    }
-                }
-                rule_utils.submitProgressToDB("fullFieldMosaicStitcher", extractor, progress_key, progress["ids"])
+            }
+            if full_field_ready:
+                results[extractor]["parameters"]["output_dataset"] = "Full Field - "+date
+
+            rule_utils.submitProgressToDB("fullFieldMosaicStitcher", extractor, progress_key, progress["ids"])
+
     else:
         for extractor in rulemap["extractors"]:
             results[extractor] = {
