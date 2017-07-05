@@ -17,6 +17,9 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
     results = {}
     full_field_ready = False
 
+    # full-field queues must have at most this percent of the raw datasets present to trigger
+    tolerance_pct = 98
+
     # Determine output dataset
     dsname = resource["dataset_info"]["name"]
     sensor = dsname.split(" - ")[0]
@@ -56,7 +59,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                         "process": False,
                         "parameters": {}
                     }
-                return results
+                #return results
         else:
             progress['ids'] = [left_id]
 
@@ -64,15 +67,16 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
             # Check to see if list of geotiffs is same length as list of raw datasets
             date_directory = "/home/clowder/sites/ua-mac/raw_data/stereoTop/%s" % date
             logging.debug("counting raw files in %s..." % date_directory)
-            raw_file_count = int(subprocess.check_output("find %s -maxdepth 1 | wc -l" % date_directory,
+            raw_file_count = int(subprocess.check_output("ls %s | wc -l" % date_directory,
                                                      shell=True).strip())
             logging.debug("found %s raw files" % raw_file_count)
 
             # If we have all raw files accounted for and more than 6000 (typical daily magnitude) listed, trigger
-            if len(progress['ids']) == raw_file_count:
+            prog_pct = (len(progress['ids'])/raw_file_count)*100
+            if prog_pct >= tolerance_pct:
                 full_field_ready = True
             else:
-                logging.info("found %s/%s necessary geotiffs" % (len(progress['ids']), raw_file_count))
+                logging.info("found %s/%s necessary geotiffs (%s%)" % (len(progress['ids']), raw_file_count, prog_pct))
 
         if full_field_ready:
             for extractor in rulemap["extractors"]:
