@@ -207,15 +207,16 @@ class CanopyCoverHeight(Extractor):
         # SENSOR is the plot - try by location first
         sensor_data = terrautils.geostreams.get_sensors_by_circle(connector, host, secret_key, sensor_latlon[1], sensor_latlon[0], 0.01)
         if not sensor_data:
-            # TODO: Replace with calls to BETYdb
-            plot_info = plotid_by_latlon.plotQuery(self.plots_shp, sensor_latlon[1], sensor_latlon[0])
-            plot_name = "Range "+plot_info['plot'].replace("-", " Pass ")
-            logging.info("...found plot: "+str(plot_info))
+            
+            plot_info = terrautils.betydb.get_sites_by_latlon(sensor_latlon[1], sensor_latlon[0])
+            plot_name = plot_info['sitename']
+            plot_centroid = terrautils.extractors.calculate_centroid_from_wkt(plot_info['geometry'])
+            logging.info("...found plot: "+plot_name)
             sensor_data = terrautils.geostreams.get_sensor_by_name(connector, host, secret_key, plot_name)
             if not sensor_data:
                 sensor_id = terrautils.geostreams.create_sensor(connector, host, secret_key, plot_name, {
                     "type": "Point",
-                    "coordinates": [plot_info['point'][1], plot_info['point'][0], plot_info['point'][2]]
+                    "coordinates": [plot_centroid[0], plot_centroid[1], 0]
                 }, {
                     "id": "MAC Field Scanner",
                     "title": "MAC Field Scanner",
