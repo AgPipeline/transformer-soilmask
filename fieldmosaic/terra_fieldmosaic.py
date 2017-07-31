@@ -82,6 +82,9 @@ class FullFieldMosaicStitcher(Extractor):
                                                                  "fullfield", 'vrt', opts=['fullField'])
         out_tif_full = out_vrt.replace(".vrt", ".tif")
         out_tif_thumb = out_vrt.replace(".vrt", "_thumb.tif")
+        out_dir = os.path.dirname(out_vrt)
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
 
         nu_created, nu_bytes = 0, 0
         if not self.generate_darker:

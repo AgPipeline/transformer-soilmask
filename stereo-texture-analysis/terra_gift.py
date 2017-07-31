@@ -29,9 +29,6 @@ class gift(Extractor):
         influx_pass = os.getenv("INFLUXDB_PASSWORD", "")
 
         # add any additional arguments to parser
-        self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
-                                 default="/home/extractor/sites/ua-mac/Level_1/texture_analysis",
-                                 help="root directory where timestamp & output directories will be created")
         self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
                                  help="whether to overwrite output file if it already exists in output directory")
         self.parser.add_argument('--influxHost', dest="influx_host", type=str, nargs='?',
@@ -53,7 +50,6 @@ class gift(Extractor):
         logging.getLogger('__main__').setLevel(logging.DEBUG)
 
         # assign other arguments
-        self.output_dir = self.args.output_dir
         self.force_overwrite = self.args.force_overwrite
         self.influx_params = {
             "host": self.args.influx_host,
@@ -67,9 +63,9 @@ class gift(Extractor):
         ds_md = pyclowder.datasets.get_info(connector, host, secret_key, resource['parent']['id'])
 
         if ds_md['name'].find("stereoTop") > -1:
-            out_dir = terrautils.extractors.get_output_directory(self.output_dir, ds_md['name'])
-            out_fname = terrautils.extractors.get_output_filename(ds_md['name'], '.csv', opts=['texture'])
-            out_csv =  os.path.join(out_dir, out_fname)
+            out_csv = terrautils.sensors.get_sensor_path_by_dataset("ua-mac", "Level_1", ds_md['name'],
+                                                                    "texture_analysis", 'csv', opts=['texture'])
+
             if not os.path.exists(out_csv) or self.force_overwrite:
                 return CheckMessage.download
             else:
@@ -86,11 +82,11 @@ class gift(Extractor):
 
         # Create output in same directory as input, but check name
         ds_md = pyclowder.datasets.get_info(connector, host, secret_key, resource['parent']['id'])
-        out_dir = terrautils.extractors.get_output_directory(self.output_dir, ds_md['name'])
+        out_csv = terrautils.sensors.get_sensor_path_by_dataset("ua-mac", "Level_1", ds_md['name'],
+                                                                "texture_analysis", 'csv', opts=['texture'])
+        out_dir = os.path.dirname(out_csv)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
-        out_fname = terrautils.extractors.get_output_filename(ds_md['name'], '.csv', opts=['texture'])
-        out_csv =  os.path.join(out_dir, out_fname)
 
         logging.info("Rscript gift.R -f %s --table -o %s" % (input_image, out_csv))
         subprocess.call(["Rscript gift.R -f %s --table -o %s" % (input_image, out_csv)], shell=True)
