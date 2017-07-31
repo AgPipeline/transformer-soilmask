@@ -30,9 +30,6 @@ class FullFieldMosaicStitcher(Extractor):
         influx_pass = os.getenv("INFLUXDB_PASSWORD", "")
 
         # add any additional arguments to parser
-        self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
-                                 default="/home/extractor/sites/ua-mac/Level_1/fullfield",
-                                 help="root directory where timestamp & output directories will be created")
         self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
                                  help="whether to overwrite output file if it already exists in output directory")
         self.parser.add_argument('--mainspace', dest="mainspace", type=str, nargs='?',
@@ -60,7 +57,6 @@ class FullFieldMosaicStitcher(Extractor):
         logging.getLogger('__main__').setLevel(logging.DEBUG)
 
         # assign other arguments
-        self.output_dir = self.args.output_dir
         self.force_overwrite = self.args.force_overwrite
         self.mainspace = self.args.mainspace
         self.generate_darker = self.args.generate_darker
@@ -82,11 +78,10 @@ class FullFieldMosaicStitcher(Extractor):
         bytes = 0
 
         # parameters["output_dataset"] = "Full Field - 2017-01-01"
-        out_dir = terrautils.extractors.get_output_directory(self.soutput_dir, parameters["output_dataset"])
-        out_root = terrautils.extractors.get_output_filename(parameters["output_dataset"], opts=["fullField"])
-        out_vrt = os.path.join(out_dir, out_root+".vrt")
-        out_tif_full = os.path.join(out_dir, out_root+".tif")
-        out_tif_thumb = os.path.join(out_dir, out_root+"_thumb.tif")
+        out_vrt = terrautils.sensors.get_sensor_path_by_dataset("ua-mac", "Level_1", parameters["output_dataset"],
+                                                                 "fullfield", 'vrt', opts=['fullField'])
+        out_tif_full = out_vrt.replace(".vrt", ".tif")
+        out_tif_thumb = out_vrt.replace(".vrt", "_thumb.tif")
 
         nu_created, nu_bytes = 0, 0
         if not self.generate_darker:
