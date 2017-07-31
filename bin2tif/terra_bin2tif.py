@@ -32,9 +32,6 @@ class StereoBin2JpgTiff(Extractor):
         influx_pass = os.getenv("INFLUXDB_PASSWORD", "")
 
         # add any additional arguments to parser
-        self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
-                                 default="/home/extractor/sites/ua-mac/Level_1/stereoTop_geotiff",
-                                 help="root directory where timestamp & output directories will be created")
         self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
                                  help="whether to overwrite output file if it already exists in output directory")
         self.parser.add_argument('--influxHost', dest="influx_host", type=str, nargs='?',
@@ -56,7 +53,6 @@ class StereoBin2JpgTiff(Extractor):
         logging.getLogger('__main__').setLevel(logging.DEBUG)
 
         # assign other arguments
-        self.output_dir = self.args.output_dir
         self.force_overwrite = self.args.force_overwrite
         self.influx_params = {
             "host": self.args.influx_host,
@@ -83,12 +79,12 @@ class StereoBin2JpgTiff(Extractor):
             return CheckMessage.ignore
 
         # Check if outputs already exist unless overwrite is forced - skip if found
-        out_dir = terrautils.extractors.get_output_directory(self.output_dir, resource['dataset_info']['name'])
         if not self.force_overwrite:
-            lbase = os.path.join(out_dir, terrautils.extractors.get_output_filename(
-                    resource['dataset_info']['name'], '', opts=['left']))
-            rbase = os.path.join(out_dir, terrautils.extractors.get_output_filename(
-                    resource['dataset_info']['name'], '', opts=['right']))
+            lbase = terrautils.sensors.get_sensor_path_by_dataset("ua-mac", "Level_1", resource['dataset_info']['name'],
+                                                                  "stereoTop_geotiff", '', opts=['left'])
+            rbase = terrautils.sensors.get_sensor_path_by_dataset("ua-mac", "Level_1", resource['dataset_info']['name'],
+                                                                  "stereoTop_geotiff", '', opts=['right'])
+            out_dir = os.path.dirname(lbase)
             if (os.path.isfile(lbase+'jpg') and os.path.isfile(rbase+'jpg') and
                     os.path.isfile(lbase+'tif') and os.path.isfile(rbase+'tif')):
                 logging.info("skipping dataset %s; outputs found in %s" % (resource['id'], out_dir))
@@ -135,14 +131,14 @@ class StereoBin2JpgTiff(Extractor):
             raise ValueError("could not locate each of left+right+metadata in processing")
 
         # Determine output location & filenames
-        out_dir = terrautils.extractors.get_output_directory(self.output_dir, resource['dataset_info']['name'])
+        lbase = terrautils.sensors.get_sensor_path_by_dataset("ua-mac", "Level_1", resource['dataset_info']['name'],
+                                                              "stereoTop_geotiff", '', opts=['left'])
+        rbase = terrautils.sensors.get_sensor_path_by_dataset("ua-mac", "Level_1", resource['dataset_info']['name'],
+                                                              "stereoTop_geotiff", '', opts=['right'])
+        out_dir = os.path.dirname(lbase)
         logging.info("...output directory: %s" % out_dir)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
-        lbase = os.path.join(out_dir, terrautils.extractors.get_output_filename(
-                resource['dataset_info']['name'], '', opts=['left']))
-        rbase = os.path.join(out_dir, terrautils.extractors.get_output_filename(
-                resource['dataset_info']['name'], '', opts=['right']))
         left_jpg = lbase+'.jpg'
         right_jpg = rbase+'.jpg'
         left_tiff = lbase+'.tif'
