@@ -28,8 +28,6 @@ class CanopyCoverHeight(Extractor):
         influx_pass = os.getenv("INFLUXDB_PASSWORD", "")
 
         # add any additional arguments to parser
-        # self.parser.add_argument('--max', '-m', type=int, nargs='?', default=-1,
-        #                          help='maximum number (default=-1)')
         self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
                                  help="whether to overwrite output file if it already exists in output directory")
         self.parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
@@ -73,7 +71,7 @@ class CanopyCoverHeight(Extractor):
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         # TODO: Consider if this should be run on a fullfield mosaic and iterate across all plots to clip + analyze
-        
+
         if not terrautils.extractors.is_latest_file(resource):
             return CheckMessage.ignore
 
@@ -98,20 +96,12 @@ class CanopyCoverHeight(Extractor):
 
         # fetch metadata from dataset to check if we should remove existing entry for this extractor first
         md = pyclowder.datasets.download_metadata(connector, host, secret_key, resource['id'])
-        found_meta = False
-        for m in md:
-            if 'agent' in m and 'name' in m['agent']:
-                if m['agent']['name'].find(self.extractor_info['name']) > -1:
-                    logging.info("skipping dataset %s, metadata already exists" % resource['id'])
-                    return CheckMessage.ignore
-            # Check for required metadata before beginning processing
-            if 'content' in m and 'lemnatec_measurement_metadata' in m['content']:
-                found_meta = True
-
-        if found_left and found_right and found_meta:
-            return CheckMessage.download
-        else:
+        if terrautils.metadata.get_extractor_metadata(md, self.extractor_info['name']) and not self.force_overwrite:
+            logging.info("skipping dataset %s, metadata already exists" % resource['id'])
             return CheckMessage.ignore
+        if terrautils.metadata.get_terraref_metadata(md) and found_left and found_right:
+            return CheckMessage.download
+        return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
         starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
@@ -124,9 +114,7 @@ class CanopyCoverHeight(Extractor):
             # First check metadata attached to dataset in Clowder for item of interest
             if fname.endswith('_dataset_metadata.json'):
                 all_dsmd = terrautils.extractors.load_json_file(fname)
-                for curr_dsmd in all_dsmd:
-                    if 'content' in curr_dsmd and 'lemnatec_measurement_metadata' in curr_dsmd['content']:
-                        metadata = curr_dsmd['content']
+                metadata = terrautils.metadata.get_extractor_metadata(all_dsmd)
             # Otherwise, check if metadata was uploaded as a .json file
             elif fname.endswith('_metadata.json') and fname.find('/_metadata.json') == -1 and metadata is None:
                 metadata = terrautils.extractors.load_json_file(fname)

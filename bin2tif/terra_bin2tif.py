@@ -92,21 +92,12 @@ class StereoBin2JpgTiff(Extractor):
 
         # Check metadata to verify we have what we need
         md = pyclowder.datasets.download_metadata(connector, host, secret_key, resource['id'])
-        found_meta = False
-        for m in md:
-            # If there is metadata from this extractor, assume it was previously processed
-            if not self.force_overwrite:
-                if 'agent' in m and 'name' in m['agent']:
-                    if m['agent']['name'].endswith(self.extractor_info['name']):
-                        logging.info("skipping dataset %s; metadata indicates it was already processed" % resource['id'])
-                        return CheckMessage.ignore
-            if 'content' in m and 'lemnatec_measurement_metadata' in m['content']:
-                found_meta = True
-
-        if found_left and found_right and found_meta:
-            return CheckMessage.download
-        else:
+        if terrautils.metadata.get_extractor_metadata(md, self.extractor_info['name']) and not self.force_overwrite:
+            logging.info("skipping dataset %s; metadata indicates it was already processed" % resource['id'])
             return CheckMessage.ignore
+        if terrautils.metadata.get_terraref_metadata(md) and found_left and found_right:
+            return CheckMessage.download
+        return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
         starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
@@ -118,11 +109,8 @@ class StereoBin2JpgTiff(Extractor):
         for fname in resource['local_paths']:
             if fname.endswith('_dataset_metadata.json'):
                 all_dsmd = terrautils.extractors.load_json_file(fname)
-                for curr_dsmd in all_dsmd:
-                    if 'content' in curr_dsmd and 'lemnatec_measurement_metadata' in curr_dsmd['content']:
-                        # TODO: Remove this lowercase requirement for downstream
-                        metadata = bin2tiff.lower_keys(curr_dsmd['content'])
-                        break
+                # TODO: Remove this lowercase requirement for downstream
+                metadata = bin2tiff.lower_keys(terrautils.metadata.get_extractor_metadata(all_dsmd))
             elif fname.endswith('_left.bin'):
                 img_left = fname
             elif fname.endswith('_right.bin'):
