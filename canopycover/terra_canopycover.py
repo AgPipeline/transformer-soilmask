@@ -14,7 +14,6 @@ import terrautils.extractors
 import terrautils.betydb
 
 import canopyCover as ccCore
-import plotid_by_latlon
 
 
 class CanopyCoverHeight(Extractor):
@@ -31,9 +30,6 @@ class CanopyCoverHeight(Extractor):
         # add any additional arguments to parser
         # self.parser.add_argument('--max', '-m', type=int, nargs='?', default=-1,
         #                          help='maximum number (default=-1)')
-        self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
-                                 default="/home/extractor/sites/ua-mac/Level_1/stereoTop_canopyCover",
-                                 help="root directory where timestamp & output directories will be created")
         self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
                                  help="whether to overwrite output file if it already exists in output directory")
         self.parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
@@ -63,7 +59,6 @@ class CanopyCoverHeight(Extractor):
         logging.getLogger('__main__').setLevel(logging.DEBUG)
 
         # assign other arguments
-        self.output_dir = self.args.output_dir
         self.force_overwrite = self.args.force_overwrite
         self.bety_url = self.args.bety_url
         self.bety_key = self.args.bety_key
@@ -77,6 +72,8 @@ class CanopyCoverHeight(Extractor):
         }
 
     def check_message(self, connector, host, secret_key, resource, parameters):
+        # TODO: Consider if this should be run on a fullfield mosaic and iterate across all plots to clip + analyze
+        
         if not terrautils.extractors.is_latest_file(resource):
             return CheckMessage.ignore
 
@@ -92,11 +89,10 @@ class CanopyCoverHeight(Extractor):
             return CheckMessage.ignore
 
         # Check if output already exists
-        out_dir = terrautils.extractors.get_output_directory(self.output_dir, resource['dataset_info']['name'])
         if not self.force_overwrite:
-            outfile = os.path.join(out_dir, terrautils.extractors.get_output_filename(
-                    resource['dataset_info']['name'], 'csv', opts=['canopycover']))
-            if os.path.isfile(outfile):
+            out_csv = terrautils.sensors.get_sensor_path_by_dataset("ua-mac", "Level_1", resource['dataset_info']['name'],
+                                                                    "stereoTop_canopyCover", 'csv', opts=['canopycover'])
+            if os.path.isfile(out_csv):
                 logging.info("skipping dataset %s, output already exists" % resource['id'])
                 return CheckMessage.ignore
 
@@ -142,111 +138,55 @@ class CanopyCoverHeight(Extractor):
             raise ValueError("could not locate each of left+right+metadata in processing")
 
         # Determine output directory
-        out_dir = terrautils.extractors.get_output_directory(self.output_dir, resource['dataset_info']['name'])
+        out_csv = terrautils.sensors.get_sensor_path_by_dataset("ua-mac", "Level_1", resource['dataset_info']['name'],
+                                                                "stereoTop_canopyCover", 'csv', opts=['canopycover'])
+        out_dir = os.path.dirname(out_csv)
         logging.info("...writing outputs to: %s" % out_dir)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
-        outfile = os.path.join(out_dir, terrautils.extractors.get_output_filename(
-                resource['dataset_info']['name'], 'csv', opts=['canopycover']))
 
-        if (not os.path.isfile(outfile)) or self.force_overwrite:
-            # Get information from input data
-            metadata = ccCore.lower_keys(metadata)
-            # TODO: Replace this with BETYdb query
-            plotNum = ccCore.get_plot_num(metadata)
-            ccVal = ccCore.get_CC_from_bin(img_left)
-
-            # get traits and values & generate output CSV
-            (fields, traits) = ccCore.get_traits_table()
-            str_time = str(ccCore.get_localdatetime(metadata))
-            str_date = str_time[6:10]+'-'+str_time[:5]+'T'+str_time[11:]
-            traits['local_datetime'] = str_date.replace("/", '-')
-            traits['canopy_cover'] = str(ccVal)
-            # TODO: Replace with results from BETYdb
-            traits['site'] = 'MAC Field Scanner Field Plot '+ str(plotNum)+' Season 2'
-            trait_list = ccCore.generate_traits_list(traits)
-            ccCore.generate_cc_csv(outfile, fields, trait_list)
-
-            created += 1
-            bytes += os.path.getsize(outfile)
-
-        # Only upload the newly generated CSV to Clowder if it isn't already in dataset
-        if outfile not in resource['local_paths']:
-            csv_id = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], outfile)
-        else:
-            csv_id = ""
-
-        # submit CSV to BETY
-        terrautils.betydb.submit_traits(outfile, self.bety_key)
-
-        # generate datapoint for geostreams
-        self.submitDatapoint(connector, host, secret_key, resource, metadata, fields, trait_list)
-
-        # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        metadata = terrautils.extractors.build_metadata(host, self.extractor_info['name'], resource['id'], {
-            "files_created": [csv_id]
-        }, 'dataset')
-        pyclowder.datasets.upload_metadata(connector, host, secret_key, resource['id'], metadata)
-
-        endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        terrautils.extractors.log_to_influxdb(self.extractor_info['name'], self.influx_params,
-                                              starttime, endtime, created, bytes)
-
-    def submitDatapoint(self, connector, host, secret_key, resource, metadata, trait_names, trait_values):
-        logging.info("...submitting datapoint to geostreams")
-
+        # Get location information from input data
+        metadata = ccCore.lower_keys(metadata)
         left_bounds = terrautils.extractors.calculate_gps_bounds(metadata)[0]
         sensor_latlon = terrautils.extractors.calculate_centroid(left_bounds)
         logging.info("sensor lat/lon: %s" % str(sensor_latlon))
 
-        # Upload data into Geostreams API -----------------------------------------------------
+        if (not os.path.isfile(out_csv)) or self.force_overwrite:
+            # TODO: Get plot from BETYdb filtered by season
+            plots = terrautils.betydb.get_sites_by_latlon(sensor_latlon)
+            plot_name = "Unknown"
+            for p in plots:
+                plot_name = p['sitename']
+                continue
+
+            # get traits and values & generate output CSV
+            ccVal = ccCore.get_CC_from_bin(img_left)
+            (fields, traits) = ccCore.get_traits_table()
+            traits['canopy_cover'] = str(ccVal)
+
+            str_time = str(ccCore.get_localdatetime(metadata))
+            str_date = str_time[6:10]+'-'+str_time[:5]+'T'+str_time[11:]
+            traits['local_datetime'] = str_date.replace("/", '-')
+            traits['site'] = plot_name
+            trait_list = ccCore.generate_traits_list(traits)
+            ccCore.generate_cc_csv(out_csv, fields, trait_list)
+
+            created += 1
+            bytes += os.path.getsize(out_csv)
+
+        # Only upload the newly generated CSV to Clowder if it isn't already in dataset
+        if out_csv not in resource['local_paths']:
+            csv_id = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], out_csv)
+        else:
+            csv_id = ""
+
+        # submit CSV to BETY
+        terrautils.betydb.submit_traits(out_csv, self.bety_key)
+
+        # Prepare and submit datapoint
         fileIdList = []
         for f in resource['files']:
             fileIdList.append(f['id'])
-
-        # SENSOR is the plot - try by location first
-        sensor_data = terrautils.geostreams.get_sensors_by_circle(connector, host, secret_key, sensor_latlon[1], sensor_latlon[0], 0.01)
-        if not sensor_data:
-            
-            plot_info = terrautils.betydb.get_sites_by_latlon(sensor_latlon[1], sensor_latlon[0])
-            plot_name = plot_info['sitename']
-            plot_centroid = terrautils.extractors.calculate_centroid_from_wkt(plot_info['geometry'])
-            logging.info("...found plot: "+plot_name)
-            sensor_data = terrautils.geostreams.get_sensor_by_name(connector, host, secret_key, plot_name)
-            if not sensor_data:
-                sensor_id = terrautils.geostreams.create_sensor(connector, host, secret_key, plot_name, {
-                    "type": "Point",
-                    "coordinates": [plot_centroid[0], plot_centroid[1], 0]
-                }, {
-                    "id": "MAC Field Scanner",
-                    "title": "MAC Field Scanner",
-                    "sensorType": 4
-                }, "Maricopa")
-            else:
-                sensor_id = sensor_data['id']
-        else:
-            if len(sensor_data) > 1:
-                sensor_id = sensor_data[0]['id']
-                plot_name = sensor_data[0]['name']
-            else:
-                sensor_id = sensor_data['id']
-                plot_name = sensor_data['name']
-
-        # STREAM is plot x instrument
-        stream_name = "Canopy Cover" + " - " + plot_name
-        stream_data = terrautils.geostreams.get_stream_by_name(connector, host, secret_key, stream_name)
-        if not stream_data:
-            stream_id = terrautils.geostreams.create_stream(connector, host, secret_key, stream_name, sensor_id, {
-                "type": "Point",
-                "coordinates": [sensor_latlon[1], sensor_latlon[0], 0]
-            })
-        else:
-            stream_id = stream_data['id']
-
-        logging.info("posting datapoint to stream %s" % stream_id)
-        metadata["source"] = host+"datasets/"+resource['id']
-        metadata["file_ids"] = ",".join(fileIdList)
-
         # Format time properly, adding UTC if missing from Danforth timestamp
         ctime = terrautils.extractors.calculate_scan_time(metadata)
         time_obj = time.strptime(ctime, "%m/%d/%Y %H:%M:%S")
@@ -254,10 +194,25 @@ class CanopyCoverHeight(Extractor):
         if len(time_fmt) == 19:
             time_fmt += "-06:00"
 
-        terrautils.geostreams.create_datapoint(connector, host, secret_key, stream_id, {
-            "type": "Point",
-            "coordinates": [sensor_latlon[1], sensor_latlon[0], 0]
-        }, time_fmt, time_fmt, metadata)
+        dpmetadata = {
+            "source": host+"datasets/"+resource['id'],
+            "file_ids": ",".join(fileIdList),
+            "canopy_cover": ccVal
+        }
+        terrautils.geostreams.create_datapoint_with_dependencies(connector, host, secret_key,
+                                                                 "Canopy Cover", sensor_latlon,
+                                                                 time_fmt, time_fmt, dpmetadata)
+
+        # Tell Clowder this is completed so subsequent file updates don't daisy-chain
+        metadata = terrautils.extractors.build_metadata(host, self.extractor_info['name'], resource['id'], {
+            "files_created": [csv_id],
+            "canopy_cover": ccVal
+        }, 'dataset')
+        pyclowder.datasets.upload_metadata(connector, host, secret_key, resource['id'], metadata)
+
+        endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        terrautils.extractors.log_to_influxdb(self.extractor_info['name'], self.influx_params,
+                                              starttime, endtime, created, bytes)
 
 
 if __name__ == "__main__":
