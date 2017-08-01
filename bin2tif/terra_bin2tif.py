@@ -17,6 +17,8 @@ from pyclowder.utils import CheckMessage
 import pyclowder.files
 import pyclowder.datasets
 import terrautils.extractors
+import terrautils.sensors
+import terrautils.metadata
 
 import bin_to_geotiff as bin2tiff
 

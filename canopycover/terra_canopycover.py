@@ -12,6 +12,8 @@ import pyclowder.datasets
 import terrautils.geostreams
 import terrautils.extractors
 import terrautils.betydb
+import terrautils.sensors
+import terrautils.metadata
 
 import canopyCover as ccCore
 
