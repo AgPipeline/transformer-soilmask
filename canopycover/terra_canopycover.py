@@ -11,7 +11,7 @@ from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
     create_geotiff, create_image, calculate_gps_bounds, calculate_centroid, \
     calculate_scan_time, build_metadata
-from terrautils.betydb import get_sites_by_latlon, submit_traits
+from terrautils.betydb import add_arguments, get_sites_by_latlon, submit_traits
 from terrautils.geostreams import create_datapoint_with_dependencies
 
 import canopyCover as ccCore
@@ -19,12 +19,7 @@ import canopyCover as ccCore
 
 def add_local_arguments(parser):
     # add any additional arguments to parser
-
-    self.parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
-                             default="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv",
-                             help="traits API endpoint of BETY instance that outputs should be posted to")
-    self.parser.add_argument('--betyKey', dest="bety_key", type=str, nargs='?', default=bety_key,
-                             help="API key for BETY instance specified by betyURL")
+    add_arguments()
 
 class CanopyCoverHeight(TerrarefExtractor):
     def __init__(self):
