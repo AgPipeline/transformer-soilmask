@@ -25,6 +25,8 @@ class CanopyCoverHeight(TerrarefExtractor):
     def __init__(self):
         super(CanopyCoverHeight, self).__init__()
 
+        add_local_arguments(self.parser)
+
         # parse command line and load default logging configuration
         self.setup(sensor='stereoTop_canopyCover')
 
