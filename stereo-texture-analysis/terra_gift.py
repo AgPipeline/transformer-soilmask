@@ -14,8 +14,10 @@ from pyclowder.utils import CheckMessage
 from pyclowder.datasets import get_info
 from pyclowder.files import upload_to_dataset
 
+from terrautils.extractors import TerrarefExtractor, build_dataset_hierarchy
 
-class gift(Extractor):
+
+class gift(TerrarefExtractor):
     def __init__(self):
         super(gift, self).__init__()
 
@@ -43,7 +45,8 @@ class gift(Extractor):
 
         # Create output in same directory as input, but check name
         ds_md = get_info(connector, host, secret_key, resource['parent']['id'])
-        timestamp = ds_md['name'].split(" - ")[1]
+        dataset_name = ds_md['name']
+        timestamp = dataset_name.split(" - ")[1]
         out_csv = self.sensors.get_sensor_path(timestamp, opts=['texture'], ext='csv')
         self.sensors.create_sensor_path(out_csv)
 
@@ -52,8 +55,13 @@ class gift(Extractor):
 
         if os.path.isfile(out_csv):
             if out_csv not in resource['local_paths']:
+                # TODO: Store root collection name in sensors.py?
+                target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
+                                                      "R Texture Analysis", timestamp[:4], timestamp[:7],
+                                                      timestamp[:10], leaf_ds_name=dataset_name)
+
                 # Send bmp output to Clowder source dataset
-                upload_to_dataset(connector, host, secret_key, resource['parent']['id'], out_csv)
+                upload_to_dataset(connector, host, secret_key, target_dsid, out_csv)
             self.created += 1
             self.bytes += os.path.getsize(out_csv)
 

@@ -9,7 +9,7 @@ from pyclowder.utils import CheckMessage
 from pyclowder.files import upload_to_dataset, upload_metadata
 from pyclowder.collections import create_empty as create_empty_collection
 from pyclowder.datasets import create_empty as create_empty_dataset
-from terrautils.extractors import TerrarefExtractor, build_metadata
+from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy
 
 import full_day_to_tiles
 import shadeRemoval as shade
@@ -42,8 +42,10 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
     def process_message(self, connector, host, secret_key, resource, parameters):
         self.start_message()
 
-        # parameters["output_dataset"] = "Full Field - 2017-01-01"
-        timestamp = parameters["output_dataset"].split(" - ")[1]
+        # dataset_name = "Full Field - 2017-01-01"
+        dataset_name = parameters["output_dataset"]
+
+        timestamp = dataset_name.split(" - ")[1]
         out_tif_full = self.sensors.get_sensor_path(timestamp, opts=['fullField'])
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
         out_vrt = out_tif_full.replace(".tif", ".vrt")
@@ -57,16 +59,15 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         self.created += nu_created
         self.bytes += nu_bytes
 
-        # Upload full field image to Clowder
-        parent_collect = self.getCollectionOrCreate(connector, host, secret_key, "Full Field Stitched Mosaics",
-                                                    parent_space=self.clowderspace)
-        year_collect = self.getCollectionOrCreate(connector, host, secret_key, parameters["output_dataset"][:17],
-                                                  parent_collect, self.clowderspace)
-        month_collect = self.getCollectionOrCreate(connector, host, secret_key, parameters["output_dataset"][:20],
-                                                   year_collect, self.clowderspace)
-        target_dsid = self.getDatasetOrCreate(connector, host, secret_key, parameters["output_dataset"],
-                                              month_collect, self.clowderspace)
+        # Get dataset ID or create it, creating parent collections as needed
+        year = dataset_name.split(" - ")[1][:4]
+        month = dataset_name.split(" - ")[1][:7]
+        # TODO: Store root collection name in sensors.py?
+        target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
+                                              "Full Field Stitched Mosaics", year, month,
+                                              leaf_ds_name=dataset_name)
 
+        # Upload full field image to Clowder
         thumbid = upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_thumb)
         fullid = upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_full)
 

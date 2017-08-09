@@ -16,7 +16,7 @@ from pyclowder.files import upload_to_dataset
 from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
-    create_geotiff, create_image, calculate_gps_bounds, build_metadata
+    create_geotiff, create_image, calculate_gps_bounds, build_metadata, build_dataset_hierarchy
 
 import bin_to_geotiff as bin2tiff
 
@@ -99,6 +99,11 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         right_shape = bin2tiff.get_image_shape(metadata, 'right')
         (left_gps_bounds, right_gps_bounds) = calculate_gps_bounds(metadata)
         out_tmp_tiff = "/home/extractor/"+resource['dataset_info']['name']+".tif"
+
+        # TODO: Store root collection name in sensors.py?
+        target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
+                                              "stereoTop GeoTIFFs", timestamp[:4], timestamp[:7],
+                                              timestamp[:10], leaf_ds_name=resource['dataset_info']['name'])
 
         skipped_jpg = False
         if (not os.path.isfile(left_jpg)) or self.force_overwrite:
