@@ -123,13 +123,13 @@ class CanopyCoverHeight(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(out_csv)
 
+        # TODO: Store root collection name in sensors.py?
+        target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
+                                              "Canopy Cover", timestamp[:4], timestamp[:7],
+                                              timestamp[:10], leaf_ds_name=resource['dataset_info']['name'])
+
         # Only upload the newly generated CSV to Clowder if it isn't already in dataset
         if out_csv not in resource['local_paths']:
-            # TODO: Store root collection name in sensors.py?
-            target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
-                                                  "Canopy Cover", timestamp[:4], timestamp[:7],
-                                                  timestamp[:10], leaf_ds_name=resource['dataset_info']['name'])
-
             csv_id = upload_to_dataset(connector, host, secret_key, target_dsid, out_csv)
         else:
             csv_id = ""
@@ -157,11 +157,11 @@ class CanopyCoverHeight(TerrarefExtractor):
                                            sensor_latlon, time_fmt, time_fmt, dpmetadata)
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        metadata = build_metadata(host, self.extractor_info['name'], resource['id'], {
+        metadata = build_metadata(host, self.extractor_info['name'], target_dsid, {
             "files_created": [csv_id],
             "canopy_cover": ccVal
         }, 'dataset')
-        upload_metadata(connector, host, secret_key, resource['id'], metadata)
+        upload_metadata(connector, host, secret_key, target_dsid, metadata)
 
         self.end_message()
 

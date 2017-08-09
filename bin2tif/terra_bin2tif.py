@@ -112,7 +112,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             create_image(left_image, left_jpg)
             # Only upload the newly generated file to Clowder if it isn't already in dataset
             if left_jpg not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, secret_key, resource['id'], left_jpg)
+                fileid = upload_to_dataset(connector, host, secret_key, target_dsid, left_jpg)
                 uploaded_file_ids.append(fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_jpg)
@@ -127,7 +127,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             create_geotiff(left_image, left_gps_bounds, out_tmp_tiff)
             shutil.move(out_tmp_tiff, left_tiff)
             if left_tiff not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, secret_key, resource['id'], left_tiff)
+                fileid = upload_to_dataset(connector, host, secret_key, target_dsid, left_tiff)
                 uploaded_file_ids.append(fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
@@ -139,7 +139,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             right_image = bin2tiff.process_image(right_shape, img_right, None)
             create_image(right_image, right_jpg)
             if right_jpg not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, secret_key, resource['id'], right_jpg)
+                fileid = upload_to_dataset(connector, host, secret_key, target_dsid, right_jpg)
                 uploaded_file_ids.append(fileid)
             self.created += 1
             self.bytes += os.path.getsize(right_jpg)
@@ -153,27 +153,17 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             create_geotiff(right_image, right_gps_bounds, out_tmp_tiff)
             shutil.move(out_tmp_tiff, right_tiff)
             if right_tiff not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, secret_key, resource['id'],right_tiff)
+                fileid = upload_to_dataset(connector, host, secret_key, target_dsid,right_tiff)
                 uploaded_file_ids.append(fileid)
             self.created += 1
             self.bytes += os.path.getsize(right_tiff)
         del right_image
 
-
-        # Remove existing metadata from this extractor before rewriting
-        md = download_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
-        for m in md:
-            if 'agent' in m and 'name' in m['agent']:
-                if m['agent']['name'].endswith(self.extractor_info['name']):
-                    if 'files_created' in m['content']:
-                        uploaded_file_ids += m['content']['files_created']
-                    remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
-
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        metadata = build_metadata(host, self.extractor_info['name'], resource['id'], {
+        metadata = build_metadata(host, self.extractor_info['name'], target_dsid, {
                 "files_created": uploaded_file_ids
             }, 'dataset')
-        upload_metadata(connector, host, secret_key, resource['id'], metadata)
+        upload_metadata(connector, host, secret_key, target_dsid, metadata)
 
         self.end_message()
 
