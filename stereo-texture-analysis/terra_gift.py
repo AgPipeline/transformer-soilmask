@@ -57,7 +57,7 @@ class gift(TerrarefExtractor):
             if out_csv not in resource['local_paths']:
                 # TODO: Store root collection name in sensors.py?
                 target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
-                                                      "R Texture Analysis", timestamp[:4], timestamp[:7],
+                                                      self.sensors.get_display_name(), timestamp[:4], timestamp[:7],
                                                       timestamp[:10], leaf_ds_name=dataset_name)
 
                 # Send bmp output to Clowder source dataset

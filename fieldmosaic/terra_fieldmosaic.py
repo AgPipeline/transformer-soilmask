@@ -64,7 +64,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         month = dataset_name.split(" - ")[1][:7]
         # TODO: Store root collection name in sensors.py?
         target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
-                                              "Full Field Stitched Mosaics", year, month,
+                                              self.sensors.get_display_name(), year, month,
                                               leaf_ds_name=dataset_name)
 
         # Upload full field image to Clowder

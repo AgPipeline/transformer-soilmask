@@ -83,8 +83,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
 
         # Determine output location & filenames
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
-        lbase = self.sensors.get_sensor_path(timestamp, opts=['left'], ext='')
-        rbase = self.sensors.get_sensor_path(timestamp, opts=['right'], ext='')
+        lbase = self.sensors.create_sensor_path(timestamp, opts=['left'], ext='')
+        rbase = self.sensors.create_sensor_path(timestamp, opts=['right'], ext='')
         out_dir = os.path.dirname(lbase)
         self.sensors.create_sensor_path(out_dir)
 
@@ -102,7 +102,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
 
         # TODO: Store root collection name in sensors.py?
         target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
-                                              "stereoTop GeoTIFFs", timestamp[:4], timestamp[:7],
+                                              self.sensors.get_display_name(), timestamp[:4], timestamp[:7],
                                               timestamp[:10], leaf_ds_name=resource['dataset_info']['name'])
 
         skipped_jpg = False

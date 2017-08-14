@@ -90,6 +90,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
         # Determine output directory
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
+        # TODO: write this to tmp csv and remove after
         out_csv = self.sensors.get_sensor_path(timestamp, opts=['canopycover'], ext='csv')
         out_dir = os.path.dirname(out_csv)
         self.sensors.create_sensor_path(out_dir)
@@ -125,10 +126,11 @@ class CanopyCoverHeight(TerrarefExtractor):
 
         # TODO: Store root collection name in sensors.py?
         target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
-                                              "Canopy Cover", timestamp[:4], timestamp[:7],
+                                              self.sensors.get_display_name(), timestamp[:4], timestamp[:7],
                                               timestamp[:10], leaf_ds_name=resource['dataset_info']['name'])
 
         # Only upload the newly generated CSV to Clowder if it isn't already in dataset
+        # TODO: Omit this part
         if out_csv not in resource['local_paths']:
             csv_id = upload_to_dataset(connector, host, secret_key, target_dsid, out_csv)
         else:
