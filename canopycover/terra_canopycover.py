@@ -52,7 +52,7 @@ class CanopyCoverHeight(TerrarefExtractor):
             return CheckMessage.ignore
 
         # Check if output already exists
-        if not self.force_overwrite:
+        if not self.overwrite:
             timestamp = resource['dataset_info']['name'].split(" - ")[1]
             out_csv = self.sensors.get_sensor_path(timestamp, opts=['canopycover'], ext='csv')
             if os.path.isfile(out_csv):
@@ -61,7 +61,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
         # fetch metadata from dataset to check if we should remove existing entry for this extractor first
         md = download_metadata(connector, host, secret_key, resource['id'])
-        if get_extractor_metadata(md, self.extractor_info['name']) and not self.force_overwrite:
+        if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
             logging.info("skipping dataset %s, metadata already exists" % resource['id'])
             return CheckMessage.ignore
         if get_terraref_metadata(md) and found_left and found_right:
@@ -101,7 +101,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         sensor_latlon = calculate_centroid(left_bounds)
         logging.info("sensor lat/lon: %s" % str(sensor_latlon))
 
-        if (not os.path.isfile(out_csv)) or self.force_overwrite:
+        if (not os.path.isfile(out_csv)) or self.overwrite:
             # TODO: Get plot from BETYdb filtered by season
             plots = get_sites_by_latlon(sensor_latlon)
             plot_name = "Unknown"

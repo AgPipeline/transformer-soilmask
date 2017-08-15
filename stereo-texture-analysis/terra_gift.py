@@ -31,7 +31,7 @@ class gift(TerrarefExtractor):
             timestamp = ds_md['name'].split(" - ")[1]
             out_csv = self.sensors.get_sensor_path(timestamp, opts=['texture'], ext='csv')
 
-            if not os.path.exists(out_csv) or self.force_overwrite:
+            if not os.path.exists(out_csv) or self.overwrite:
                 return CheckMessage.download
             else:
                 logging.info("output file already exists; skipping %s" % resource['id'])

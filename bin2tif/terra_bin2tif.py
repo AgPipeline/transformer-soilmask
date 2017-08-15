@@ -45,7 +45,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             return CheckMessage.ignore
 
         # Check if outputs already exist unless overwrite is forced - skip if found
-        if not self.force_overwrite:
+        if not self.overwrite:
             timestamp = resource['dataset_info']['name'].split(" - ")[1]
             lbase = self.sensors.get_sensor_path(timestamp, opts=['left'], ext='')
             rbase = self.sensors.get_sensor_path(timestamp, opts=['right'], ext='')
@@ -57,7 +57,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
 
         # Check metadata to verify we have what we need
         md = download_metadata(connector, host, secret_key, resource['id'])
-        if get_extractor_metadata(md, self.extractor_info['name']) and not self.force_overwrite:
+        if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
             logging.info("skipping dataset %s; metadata indicates it was already processed" % resource['id'])
             return CheckMessage.ignore
         if get_terraref_metadata(md) and found_left and found_right:
@@ -106,7 +106,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                                               timestamp[:10], leaf_ds_name=resource['dataset_info']['name'])
 
         skipped_jpg = False
-        if (not os.path.isfile(left_jpg)) or self.force_overwrite:
+        if (not os.path.isfile(left_jpg)) or self.overwrite:
             logging.info("...creating & uploading left JPG")
             left_image = bin2tiff.process_image(left_shape, img_left, None)
             create_image(left_image, left_jpg)
@@ -119,7 +119,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         else:
             skipped_jpg = True
 
-        if (not os.path.isfile(left_tiff)) or self.force_overwrite:
+        if (not os.path.isfile(left_tiff)) or self.overwrite:
             logging.info("...creating & uploading left geoTIFF")
             if skipped_jpg:
                 left_image = bin2tiff.process_image(left_shape, img_left, None)
@@ -134,7 +134,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         del left_image
 
         skipped_jpg = False
-        if (not os.path.isfile(right_jpg)) or self.force_overwrite:
+        if (not os.path.isfile(right_jpg)) or self.overwrite:
             logging.info("...creating & uploading right JPG")
             right_image = bin2tiff.process_image(right_shape, img_right, None)
             create_image(right_image, right_jpg)
@@ -146,7 +146,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         else:
             skipped_jpg = True
 
-        if (not os.path.isfile(right_tiff)) or self.force_overwrite:
+        if (not os.path.isfile(right_tiff)) or self.overwrite:
             logging.info("...creating & uploading right geoTIFF")
             if skipped_jpg:
                 right_image = bin2tiff.process_image(right_shape, img_right, None)

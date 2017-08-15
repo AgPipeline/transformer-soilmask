@@ -113,7 +113,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         # Create simple mosaic from geotiff list
         created, bytes = 0, 0
 
-        if (not os.path.isfile(out_vrt)) or self.force_overwrite:
+        if (not os.path.isfile(out_vrt)) or self.overwrite:
             logging.info("processing %s TIFs" % len(parameters['file_ids']))
 
             # Write input list to tmp file
@@ -128,7 +128,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_vrt)
 
-        if (not os.path.isfile(out_tif_thumb)) or self.force_overwrite:
+        if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
             # Convert VRT to full-field GeoTIFF (low-res then high-res)
             logging.info("Converting VRT to %s..." % out_tif_thumb)
             subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
@@ -136,7 +136,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        if (not os.path.isfile(out_tif_full)) or self.force_overwrite:
+        if (not os.path.isfile(out_tif_full)) or self.overwrite:
             logging.info("Converting VRT to %s..." % out_tif_full)
             subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
                              "%s %s" % (out_vrt, out_tif_full)])
@@ -149,7 +149,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         # Create dark-pixel mosaic from geotiff list using multipass for darker pixel selection
         created, bytes = 0, 0
 
-        if (not os.path.isfile(out_vrt)) or self.force_overwrite:
+        if (not os.path.isfile(out_vrt)) or self.overwrite:
             # Write input list to tmp file
             with open("tiflist.txt", "w") as tifftxt:
                 for t in parameters["file_ids"]:
@@ -175,7 +175,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_vrt)
 
-        if (not os.path.isfile(out_tif_thumb)) or self.force_overwrite:
+        if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
             # Convert VRT to full-field GeoTIFF (low-res then high-res)
             logging.info("Converting VRT to %s..." % out_tif_thumb)
             subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
@@ -183,7 +183,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        if (not os.path.isfile(out_tif_full)) or self.force_overwrite:
+        if (not os.path.isfile(out_tif_full)) or self.overwrite:
             logging.info("Converting VRT to %s..." % out_tif_full)
             subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
                              "%s %s" % (out_vrt, out_tif_full)])
