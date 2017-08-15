@@ -13,7 +13,6 @@ import subprocess
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import get_info
 from pyclowder.files import upload_to_dataset
-
 from terrautils.extractors import TerrarefExtractor, build_dataset_hierarchy
 
 
@@ -47,8 +46,7 @@ class gift(TerrarefExtractor):
         ds_md = get_info(connector, host, secret_key, resource['parent']['id'])
         dataset_name = ds_md['name']
         timestamp = dataset_name.split(" - ")[1]
-        out_csv = self.sensors.get_sensor_path(timestamp, opts=['texture'], ext='csv')
-        self.sensors.create_sensor_path(out_csv)
+        out_csv = self.sensors.create_sensor_path(timestamp, opts=['texture'], ext='csv')
 
         logging.info("Rscript gift.R -f %s --table -o %s" % (input_image, out_csv))
         subprocess.call(["Rscript gift.R -f %s --table -o %s" % (input_image, out_csv)], shell=True)
