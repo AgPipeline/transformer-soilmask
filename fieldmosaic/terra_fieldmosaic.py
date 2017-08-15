@@ -6,7 +6,7 @@ import requests
 import subprocess
 
 from pyclowder.utils import CheckMessage
-from pyclowder.files import upload_to_dataset, upload_metadata
+from pyclowder.files import upload_to_dataset, upload_metadata, download_info
 from pyclowder.collections import create_empty as create_empty_collection
 from pyclowder.datasets import create_empty as create_empty_dataset
 from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy
@@ -17,7 +17,6 @@ import shadeRemoval as shade
 
 def add_local_arguments(parser):
     # add any additional arguments to parser
-
     self.parser.add_argument('--darker', type=bool, default=False,
                              help="whether to use multipass mosiacking to select darker pixels")
     self.parser.add_argument('--split', type=int, default=2,
@@ -42,11 +41,19 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
     def process_message(self, connector, host, secret_key, resource, parameters):
         self.start_message()
 
+        # Input path will suggest which sensor we are seeing
+        fileinfo = download_info(connector, host, secret_key, parameters["file_ids"][0])
+        filepath = fileinfo['filepath']
+        sensor_type = None
+        for sens in ["stereoTop_geotiff", "ir_geotiff"]:
+            if filepath.find(sens) > -1:
+                sensor_type = sens.split("_")[0]
+                break
+
         # dataset_name = "Full Field - 2017-01-01"
         dataset_name = parameters["output_dataset"]
-
         timestamp = dataset_name.split(" - ")[1]
-        out_tif_full = self.sensors.get_sensor_path(timestamp, opts=['fullField'])
+        out_tif_full = self.sensors.get_sensor_path(timestamp, opts=[sensor_type])
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
@@ -60,12 +67,9 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         self.bytes += nu_bytes
 
         # Get dataset ID or create it, creating parent collections as needed
-        year = dataset_name.split(" - ")[1][:4]
-        month = dataset_name.split(" - ")[1][:7]
-        # TODO: Store root collection name in sensors.py?
         target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
-                                              self.sensors.get_display_name(), year, month,
-                                              leaf_ds_name=dataset_name)
+                                              self.sensors.get_display_name(), timestamp[:4],
+                                              timestamp[:7], leaf_ds_name=dataset_name)
 
         # Upload full field image to Clowder
         thumbid = upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_thumb)
@@ -152,6 +156,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if (not os.path.isfile(out_vrt)) or self.overwrite:
             # Write input list to tmp file
             with open("tiflist.txt", "w") as tifftxt:
+                # TODO: get full path not IDs
                 for t in parameters["file_ids"]:
                     tifftxt.write("%s/n" % t)
 
