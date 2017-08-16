@@ -5,7 +5,6 @@ from PIL import Image
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, get_info, upload_metadata
-from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
     create_geotiff, create_image, calculate_gps_bounds, calculate_centroid, \
     calculate_scan_time, build_metadata, build_dataset_hierarchy
@@ -69,8 +68,6 @@ class CanopyCoverHeight(TerrarefExtractor):
 
             # Prepare and submit datapoint
             centroid = centroid_from_geojson(bounds)
-
-            # Format time properly, adding UTC if missing from Danforth timestamp
             time_fmt = timestamp+"T12:00:00-07:00"
             dpmetadata = {
                 "source": host+"files/"+resource['id'],

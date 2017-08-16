@@ -82,9 +82,9 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 slightly higher or lower than average.",
             "file_ids": parameters["file_ids"]
         }
-        thumbmeta = build_metadata(host, self.extractor_info['name'], thumbid, content, 'file')
+        thumbmeta = build_metadata(host, self.extractor_info, thumbid, content, 'file')
         upload_metadata(connector, host, secret_key, thumbid, thumbmeta)
-        fullmeta = build_metadata(host, self.extractor_info['name'], fullid, content, 'file')
+        fullmeta = build_metadata(host, self.extractor_info, fullid, content, 'file')
         upload_metadata(connector, host, secret_key, thumbid, fullmeta)
 
         self.end_message()
