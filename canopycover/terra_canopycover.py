@@ -18,7 +18,7 @@ import canopyCover as ccCore
 
 def add_local_arguments(parser):
     # add any additional arguments to parser
-    add_arguments()
+    add_arguments(parser)
 
 class CanopyCoverHeight(TerrarefExtractor):
     def __init__(self):
