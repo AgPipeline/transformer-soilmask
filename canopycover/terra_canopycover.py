@@ -74,7 +74,7 @@ class CanopyCoverHeight(TerrarefExtractor):
                 "canopy_cover": ccVal
             }
             create_datapoint_with_dependencies(connector, host, secret_key, "Canopy Cover",
-                                               centroid, time_fmt, time_fmt, dpmetadata)
+                                               centroid, time_fmt, time_fmt, dpmetadata, timestamp)
 
         self.end_message()
 
