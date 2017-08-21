@@ -153,14 +153,16 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.bytes += os.path.getsize(right_tiff)
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        metadata = build_metadata(host, self.extractor_info, resource['id'], {
+        ext_meta = build_metadata(host, self.extractor_info, resource['id'], {
                 "files_created": uploaded_file_ids
             }, 'dataset')
-        upload_metadata(connector, host, secret_key, resource['id'], metadata)
+        upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
 
         # Upload original Lemnatec metadata to new Level_1 dataset
-        metadata = build_metadata(host, self.extractor_info, target_dsid, metadata, 'dataset')
-        upload_metadata(connector, host, secret_key, target_dsid, metadata)
+        print("uploading md to %s" % target_dsid)
+        lemna_md = build_metadata(host, self.extractor_info, target_dsid,
+                                  get_terraref_metadata(all_dsmd), 'dataset')
+        upload_metadata(connector, host, secret_key, target_dsid, lemna_md)
 
         self.end_message()
 
