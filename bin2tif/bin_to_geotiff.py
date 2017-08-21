@@ -128,12 +128,12 @@ def load_json(meta_path):
 
 def get_image_shape(metadata, which):
     try:
-        im_meta = metadata['lemnatec_measurement_metadata']['sensor_variable_metadata']
-        fmt = im_meta['image format %s image' % which]
+        im_meta = metadata['sensor_variable_metadata']
+        fmt = im_meta['image_format'][which]
         if fmt != 'BayerGR8':
             fail('Unknown image format: ' + fmt)
-        width = im_meta['width %s image [pixel]' % which]
-        height = im_meta['height %s image [pixel]' % which]
+        width = im_meta['width_image_pixels'][which]
+        height = im_meta['height_image_pixels'][which]
     except KeyError as err:
         fail('Metadata file missing key: ' + err.args[0])
 
@@ -146,18 +146,15 @@ def get_image_shape(metadata, which):
 
 def get_position(metadata):
     try:
-        gantry_meta = metadata['lemnatec_measurement_metadata']['gantry_system_variable_metadata']
-        gantry_x = gantry_meta["position x [m]"]
-        gantry_y = gantry_meta["position y [m]"]
-        gantry_z = gantry_meta["position z [m]"]
+        gantry_meta = metadata['gantry_variable_metadata']
+        gantry_x = gantry_meta["position_m"]["x"]
+        gantry_y = gantry_meta["position_m"]["y"]
+        gantry_z = gantry_meta["position_m"]["z"]
 
-        cam_meta = metadata['lemnatec_measurement_metadata']['sensor_fixed_metadata']
-        cam_x = cam_meta["location in camera box x [m]"]
-        cam_y = cam_meta["location in camera box y [m]"]
-        if "location in camera box z [m]" in cam_meta: # this may not be in older data
-            cam_z = cam_meta["location in camera box z [m]"]
-        else:
-            cam_z = 0.578
+        cam_meta = metadata['sensor_fixed_metadata']
+        cam_x = cam_meta["location_in_camera_box_m"]["x"]
+        cam_y = cam_meta["location_in_camera_box_m"]["y"]
+        cam_z = cam_meta["location_in_camera_box_m"]["z"]
     except KeyError as err:
         fail('Metadata file missing key: ' + err.args[0])
 
@@ -171,8 +168,9 @@ def get_position(metadata):
 
 def get_fov(metadata, camHeight, shape):
     try:
-        cam_meta = metadata['lemnatec_measurement_metadata']['sensor_fixed_metadata']
-        fov = cam_meta["field of view at 2m in x- y- direction [m]"]
+        cam_meta = metadata['sensor_fixed_metadata']
+        fov_x = cam_meta["field_of_view_at_2m_m"]["x"]
+        fov_y = cam_meta["field_of_view_at_2m_m"]["y"]
     except KeyError as err:
         fail('Metadata file missing key: ' + err.args[0])
 

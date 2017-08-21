@@ -10,6 +10,7 @@ JPG and TIF formats.
 import os
 import logging
 import shutil
+import requests
 
 from pyclowder.utils import CheckMessage
 from pyclowder.files import upload_to_dataset
@@ -72,8 +73,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         for fname in resource['local_paths']:
             if fname.endswith('_dataset_metadata.json'):
                 all_dsmd = load_json_file(fname)
-                # TODO: Remove this lowercase requirement for downstream
-                metadata = bin2tiff.lower_keys(get_extractor_metadata(all_dsmd))
+                metadata = get_terraref_metadata(all_dsmd, 'stereoTop')
             elif fname.endswith('_left.bin'):
                 img_left = fname
             elif fname.endswith('_right.bin'):
@@ -83,15 +83,10 @@ class StereoBin2JpgTiff(TerrarefExtractor):
 
         # Determine output location & filenames
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
-        lbase = self.sensors.create_sensor_path(timestamp, opts=['left'], ext='')
-        rbase = self.sensors.create_sensor_path(timestamp, opts=['right'], ext='')
-        out_dir = os.path.dirname(lbase)
-        self.sensors.create_sensor_path(out_dir)
-
-        left_jpg = lbase+'.jpg'
-        right_jpg = rbase+'.jpg'
-        left_tiff = lbase+'.tif'
-        right_tiff = rbase+'.tif'
+        left_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
+        right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
+        left_jpg = left_tiff.replace('.tif', '.jpg')
+        right_jpg = right_tiff.replace('.tif', '.jpg')
         uploaded_file_ids = []
 
         logging.info("...determining image shapes")
@@ -100,10 +95,10 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         (left_gps_bounds, right_gps_bounds) = calculate_gps_bounds(metadata)
         out_tmp_tiff = "/home/extractor/"+resource['dataset_info']['name']+".tif"
 
-        # TODO: Store root collection name in sensors.py?
         target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
-                                              self.sensors.get_display_name(), timestamp[:4], timestamp[:7],
-                                              timestamp[:10], leaf_ds_name=resource['dataset_info']['name'])
+                                              self.sensors.get_display_name(),
+                                              timestamp[:4], timestamp[5:7], timestamp[8:10],
+                                              leaf_ds_name=self.sensors.get_display_name()+' - '+timestamp)
 
         skipped_jpg = False
         if (not os.path.isfile(left_jpg)) or self.overwrite:
@@ -131,7 +126,6 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                 uploaded_file_ids.append(fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
-        del left_image
 
         skipped_jpg = False
         if (not os.path.isfile(right_jpg)) or self.overwrite:
@@ -157,12 +151,15 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                 uploaded_file_ids.append(fileid)
             self.created += 1
             self.bytes += os.path.getsize(right_tiff)
-        del right_image
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        metadata = build_metadata(host, self.extractor_info, target_dsid, {
+        metadata = build_metadata(host, self.extractor_info, resource['id'], {
                 "files_created": uploaded_file_ids
             }, 'dataset')
+        upload_metadata(connector, host, secret_key, resource['id'], metadata)
+
+        # Upload original Lemnatec metadata to new Level_1 dataset
+        metadata = build_metadata(host, self.extractor_info, target_dsid, metadata, 'dataset')
         upload_metadata(connector, host, secret_key, target_dsid, metadata)
 
         self.end_message()
