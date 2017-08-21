@@ -26,7 +26,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         super(StereoBin2JpgTiff, self).__init__()
 
         # parse command line and load default logging configuration
-        self.setup(sensor='stereoTop_geotiff')
+        self.setup(sensor='rgb_geotiff')
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         if not is_latest_file(resource):
