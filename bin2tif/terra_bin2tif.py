@@ -10,7 +10,6 @@ JPG and TIF formats.
 import os
 import logging
 import shutil
-import requests
 
 from pyclowder.utils import CheckMessage
 from pyclowder.files import upload_to_dataset

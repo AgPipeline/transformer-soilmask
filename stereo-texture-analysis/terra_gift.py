@@ -11,9 +11,10 @@ import logging
 import subprocess
 
 from pyclowder.utils import CheckMessage
-from pyclowder.datasets import get_info
+from pyclowder.datasets import get_info, upload_metadata
 from pyclowder.files import upload_to_dataset
-from terrautils.extractors import TerrarefExtractor, build_dataset_hierarchy
+from terrautils.extractors import TerrarefExtractor, build_dataset_hierarchy, build_metadata
+from terrautils.sensors import Sensors
 
 
 class gift(TerrarefExtractor):
@@ -24,12 +25,15 @@ class gift(TerrarefExtractor):
         self.setup(sensor='texture_analysis')
 
     def check_message(self, connector, host, secret_key, resource, parameters):
+        print("check msg")
         ds_md = get_info(connector, host, secret_key, resource['parent']['id'])
 
-        if ds_md['name'].find("stereoTop") > -1:
+        s = Sensors('', 'ua-mac', 'rgb_geotiff')
+        if ds_md['name'].find(s.get_display_name()) > -1:
             timestamp = ds_md['name'].split(" - ")[1]
-            out_csv = self.sensors.get_sensor_path(timestamp, opts=['texture'], ext='csv')
-
+            side = 'left' if resource['name'].find("_left") > -1 else 'right'
+            out_csv = self.sensors.get_sensor_path(timestamp, opts=[side], ext='csv')
+            print(out_csv)
             if not os.path.exists(out_csv) or self.overwrite:
                 return CheckMessage.download
             else:
@@ -46,22 +50,31 @@ class gift(TerrarefExtractor):
         ds_md = get_info(connector, host, secret_key, resource['parent']['id'])
         dataset_name = ds_md['name']
         timestamp = dataset_name.split(" - ")[1]
-        out_csv = self.sensors.create_sensor_path(timestamp, opts=['texture'], ext='csv')
+        # Is this left or right half?
+        side = 'left' if resource['name'].find("_left") > -1 else 'right'
+        out_csv = self.sensors.create_sensor_path(timestamp, opts=[side], ext='csv')
 
         logging.info("Rscript gift.R -f %s --table -o %s" % (input_image, out_csv))
         subprocess.call(["Rscript gift.R -f %s --table -o %s" % (input_image, out_csv)], shell=True)
 
+        fileid = None
         if os.path.isfile(out_csv):
             if out_csv not in resource['local_paths']:
-                # TODO: Store root collection name in sensors.py?
-                target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
-                                                      self.sensors.get_display_name(), timestamp[:4], timestamp[:7],
-                                                      timestamp[:10], leaf_ds_name=dataset_name)
+                # TODO: Should this be written to a separate dataset?
+                #target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
+                #                                      self.sensors.get_display_name(),
+                #                                      timestamp[:4], timestamp[5:7], timestamp[8:10], leaf_ds_name=dataset_name)
 
-                # Send bmp output to Clowder source dataset
-                upload_to_dataset(connector, host, secret_key, target_dsid, out_csv)
+                # Send output to Clowder source dataset
+                fileid = upload_to_dataset(connector, host, secret_key, resource['parent']['id'], out_csv)
             self.created += 1
             self.bytes += os.path.getsize(out_csv)
+
+        # Add metadata to original dataset indicating this was run
+        ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
+            "files_created": [fileid]
+        }, 'dataset')
+        upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
 
         self.end_message()
 
