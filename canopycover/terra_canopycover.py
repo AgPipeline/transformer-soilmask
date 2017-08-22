@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import json
-from PIL import Image
+from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, get_info, upload_metadata
@@ -34,6 +34,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         self.bety_key = self.args.bety_key
 
     def check_message(self, connector, host, secret_key, resource, parameters):
+        # TODO: Check for existing metadata from this extractor
         if resource['name'].find('fullfield') > -1:
             return CheckMessage.download
 
@@ -48,12 +49,22 @@ class CanopyCoverHeight(TerrarefExtractor):
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
         timestamp = ds_info['name'].split(" - ")[1]
         all_plots = get_site_boundaries(timestamp, city='Maricopa')
+
         for plotname in all_plots:
             bounds = all_plots[plotname]
 
+            print("processing "+plotname)
             # Use GeoJSON string to clip full field to this plot
-            pxarray = clip_raster(resource['local_paths'][0], json.dumps(bounds))
-            ccVal = ccCore.gen_cc_for_img(Image.fromarray(pxarray), 5)
+            try:
+                (pxarray, geotrans) = clip_raster(resource['local_paths'][0], bounds)
+                pxshp = pxarray.shape
+                if len(pxshp) < 3:
+                    print("unexpected array shape for %s (%s)" % (plotname, pxshp))
+                    continue
+                ccVal = ccCore.gen_cc_for_img(rollaxis(pxarray,0,3), 5)
+            except:
+                print("error generating cc for %s" % plotname)
+                continue
 
             # Create BETY-ready CSV
             (fields, traits) = ccCore.get_traits_table()
@@ -65,9 +76,10 @@ class CanopyCoverHeight(TerrarefExtractor):
 
             # submit CSV to BETY
             submit_traits(tmp_csv, self.bety_key)
+            print("submitting traits for "+plotname)
 
             # Prepare and submit datapoint
-            centroid = centroid_from_geojson(bounds)
+            centroid = json.loads(centroid_from_geojson(bounds))["coordinates"]
             time_fmt = timestamp+"T12:00:00-07:00"
             dpmetadata = {
                 "source": host+"files/"+resource['id'],
@@ -75,6 +87,12 @@ class CanopyCoverHeight(TerrarefExtractor):
             }
             create_datapoint_with_dependencies(connector, host, secret_key, "Canopy Cover",
                                                centroid, time_fmt, time_fmt, dpmetadata, timestamp)
+
+        # Add metadata to original dataset indicating this was run
+        ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
+            "plots_processed": len(all_plots)
+        }, 'dataset')
+        upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
 
         self.end_message()
 

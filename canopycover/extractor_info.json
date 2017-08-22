@@ -9,7 +9,7 @@
   "repository": {"repType": "git", "repUrl": "https://github.com/terraref/extractors-stereo-rgb.git"},
   "process": {
     "file": [
-      "*.tif"
+      "image.tiff"
     ]
   },
   "external_services": [],

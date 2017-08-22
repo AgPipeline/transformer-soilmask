@@ -25,7 +25,6 @@ class gift(TerrarefExtractor):
         self.setup(sensor='texture_analysis')
 
     def check_message(self, connector, host, secret_key, resource, parameters):
-        print("check msg")
         ds_md = get_info(connector, host, secret_key, resource['parent']['id'])
 
         s = Sensors('', 'ua-mac', 'rgb_geotiff')
@@ -33,7 +32,7 @@ class gift(TerrarefExtractor):
             timestamp = ds_md['name'].split(" - ")[1]
             side = 'left' if resource['name'].find("_left") > -1 else 'right'
             out_csv = self.sensors.get_sensor_path(timestamp, opts=[side], ext='csv')
-            print(out_csv)
+
             if not os.path.exists(out_csv) or self.overwrite:
                 return CheckMessage.download
             else:
