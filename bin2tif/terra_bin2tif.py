@@ -158,10 +158,13 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
 
         # Upload original Lemnatec metadata to new Level_1 dataset
+        # TODO: Add reference to raw_data id in new metadata
         print("uploading md to %s" % target_dsid)
         lemna_md = build_metadata(host, self.extractor_info, target_dsid,
                                   get_terraref_metadata(all_dsmd), 'dataset')
         upload_metadata(connector, host, secret_key, target_dsid, lemna_md)
+
+        # TODO: make files created into hyperlinks
 
         self.end_message()
 

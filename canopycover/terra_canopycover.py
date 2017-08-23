@@ -76,7 +76,6 @@ class CanopyCoverHeight(TerrarefExtractor):
 
             # submit CSV to BETY
             submit_traits(tmp_csv, self.bety_key)
-            print("submitting traits for "+plotname)
 
             # Prepare and submit datapoint
             centroid = json.loads(centroid_from_geojson(bounds))["coordinates"]
@@ -91,6 +90,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         # Add metadata to original dataset indicating this was run
         ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
             "plots_processed": len(all_plots)
+            # TODO: add link to BETY trait IDs
         }, 'dataset')
         upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
 
