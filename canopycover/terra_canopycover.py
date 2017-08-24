@@ -57,9 +57,8 @@ class CanopyCoverHeight(TerrarefExtractor):
             # Use GeoJSON string to clip full field to this plot
             try:
                 (pxarray, geotrans) = clip_raster(resource['local_paths'][0], bounds)
-                pxshp = pxarray.shape
-                if len(pxshp) < 3:
-                    print("unexpected array shape for %s (%s)" % (plotname, pxshp))
+                if len(pxarray.shape) < 3:
+                    print("unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
                     continue
                 ccVal = ccCore.gen_cc_for_img(rollaxis(pxarray,0,3), 5)
             except:

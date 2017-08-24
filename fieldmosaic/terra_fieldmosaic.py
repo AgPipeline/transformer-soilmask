@@ -53,11 +53,10 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         # dataset_name = "Full Field - 2017-01-01"
         dataset_name = parameters["output_dataset"]
         timestamp = dataset_name.split(" - ")[1]
-        out_tif_full = self.sensors.get_sensor_path(timestamp, opts=[sensor_type])
+        out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type])
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
-        self.sensors.create_sensor_path(out_dir)
 
         if not self.generate_darker:
             (nu_created, nu_bytes) = self.generateSingleMosaic(out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
@@ -69,7 +68,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         # Get dataset ID or create it, creating parent collections as needed
         target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
                                               self.sensors.get_display_name(), timestamp[:4],
-                                              timestamp[:7], leaf_ds_name=dataset_name)
+                                              timestamp[5:7], leaf_ds_name=dataset_name)
 
         # Upload full field image to Clowder
         thumbid = upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_thumb)
