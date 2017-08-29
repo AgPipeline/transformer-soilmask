@@ -53,7 +53,6 @@ class CanopyCoverHeight(TerrarefExtractor):
         for plotname in all_plots:
             bounds = all_plots[plotname]
 
-            print("processing "+plotname)
             # Use GeoJSON string to clip full field to this plot
             try:
                 (pxarray, geotrans) = clip_raster(resource['local_paths'][0], bounds)
@@ -77,14 +76,15 @@ class CanopyCoverHeight(TerrarefExtractor):
             submit_traits(tmp_csv, self.bety_key)
 
             # Prepare and submit datapoint
-            centroid = json.loads(centroid_from_geojson(bounds))["coordinates"]
+            centroid_lonlat = json.loads(centroid_from_geojson(bounds))["coordinates"]
             time_fmt = timestamp+"T12:00:00-07:00"
             dpmetadata = {
                 "source": host+"files/"+resource['id'],
                 "canopy_cover": ccVal
             }
             create_datapoint_with_dependencies(connector, host, secret_key, "Canopy Cover",
-                                               centroid, time_fmt, time_fmt, dpmetadata, timestamp)
+                                               (centroid_lonlat[1], centroid_lonlat[0]), time_fmt, time_fmt,
+                                               dpmetadata, timestamp)
 
         # Add metadata to original dataset indicating this was run
         ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
