@@ -4,6 +4,7 @@ import logging
 import subprocess
 
 import rule_utils
+from terrautils.sensors import Sensors
 
 
 # setup logging for the exctractor
@@ -26,21 +27,36 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
     dsname = resource["dataset_info"]["name"]
     sensor = dsname.split(" - ")[0]
 
-    if sensor == "stereoTop":
+    # Map sensor display names to the GeoTIFF stitching target in those sensor datasets,
+    # including directory to look for date subfolder to count # of datasets on that date
+    sensor_lookup = Sensors('', 'ua-mac')
+    stitchable_sensors = {
+        sensor_lookup.get_display_name('rgb_geotiff'): {
+            "target": "_left.tif",
+            "raw_dir": "/home/clowder/sites/ua-mac/raw_data/stereoTop"},
+        sensor_lookup.get_display_name('ir_geotiff'): {
+            "target": ".tif",
+            "raw_dir": "/home/clowder/sites/ua-mac/raw_data/flirIrCamera"},
+        # TODO: How to handle east/west of heightmap stitching?
+        sensor_lookup.get_display_name('laser3d_heightmap'): {
+            "target": "_west.tif",
+            "raw_dir": "/home/clowder/sites/ua-mac/Level_1/scanner3DTop"}
+    }
+
+    if sensor in stitchable_sensors.keys():
         timestamp = dsname.split(" - ")[1]
         date = timestamp.split("__")[0]
-        progress_key = "Full Field - " + sensor + " - " + date
-
+        progress_key = "Full Field -- " + sensor + " - " + date
         logging.info("dataset queue: %s" % progress_key)
 
         # Is there actually a new left geoTIFF to add to the stack?
-        left_id = None
+        target_id = None
         for f in resource['files']:
-            if f['filename'].endswith(" (Left).tif") or f['filename'].endswith("_left.tif"):
-                left_id = f['id']
-        if not left_id:
+            if f['filename'].endswith(stitchable_sensors[sensor]["target"]):
+                target_id = f['id']
+        if not target_id:
             # If not, no need to trigger anything for now.
-            logging.info("no left geoTIFF found in %s" % dsname)
+            logging.info("no target geoTIFF found in %s" % dsname)
             for extractor in rulemap["extractors"]:
                 results[extractor] = {
                     "process": False,
@@ -51,27 +67,32 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         # Fetch all existing file IDs that would be fed into this field mosaic
         progress = rule_utils.retrieveProgressFromDB(progress_key)
         if 'ids' in progress:
-            if left_id not in progress['ids']:
-                progress['ids'] += [left_id]
+            if target_id not in progress['ids']:
+                progress['ids'] += [target_id]
             else:
                 # Already seen this geoTIFF, so skip for now.
-                logging.info("previously logged left geoTIFF in %s" % dsname)
+                logging.info("previously logged target geoTIFF from %s" % dsname)
                 for extractor in rulemap["extractors"]:
                     results[extractor] = {
                         "process": False,
                         "parameters": {}
                     }
-                #return results
         else:
-            progress['ids'] = [left_id]
+            progress['ids'] = [target_id]
 
         if len(progress['ids']) > min_datasets:
             # Check to see if list of geotiffs is same length as list of raw datasets
-            date_directory = "/home/clowder/sites/ua-mac/raw_data/stereoTop/%s" % date
+            root_dir = stitchable_sensors[sensor]["raw_dir"]
+            if len(extractor.mounted_paths) > 0:
+                for source_path in extractor.mounted_paths:
+                    if root_dir.startswith(source_path):
+                        root_dir = root_dir.replace(source_path, extractor.mounted_paths[source_path])
+            date_directory = os.path.join(root_dir, date)
+
             raw_file_count = float(subprocess.check_output("ls %s | wc -l" % date_directory,
                                                      shell=True).strip())
 
-            # If we have all raw files accounted for and more than 6000 (typical daily magnitude) listed, trigger
+            # If we have enough raw files accounted for and more than min_datasets, trigger
             prog_pct = (len(progress['ids'])/raw_file_count)*100
             if prog_pct >= tolerance_pct:
                 full_field_ready = True

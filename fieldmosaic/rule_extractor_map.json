@@ -1,7 +1,7 @@
 {
   "fullFieldMosaicStitcher": {
     "extractors": {
-      "terra.stereo-rgb.fieldmosaic": {
+      "terra.geotiff.fieldmosaic": {
         "download_files": false,
         "extract_level": "dataset"
       }
