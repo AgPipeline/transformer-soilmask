@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import logging
 import subprocess
 
@@ -47,7 +48,6 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         timestamp = dsname.split(" - ")[1]
         date = timestamp.split("__")[0]
         progress_key = "Full Field -- " + sensor + " - " + date
-        logging.info("dataset queue: %s" % progress_key)
 
         # Is there actually a new left geoTIFF to add to the stack?
         target_id = None
@@ -57,12 +57,14 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         if not target_id:
             # If not, no need to trigger anything for now.
             logging.info("no target geoTIFF found in %s" % dsname)
-            for extractor in rulemap["extractors"]:
-                results[extractor] = {
+            for trig_extractor in rulemap["extractors"]:
+                results[trig_extractor] = {
                     "process": False,
                     "parameters": {}
                 }
             return results
+
+        logging.info("[%s] found target: %s" % (progress_key, target_id))
 
         # Fetch all existing file IDs that would be fed into this field mosaic
         progress = rule_utils.retrieveProgressFromDB(progress_key)
@@ -72,25 +74,26 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
             else:
                 # Already seen this geoTIFF, so skip for now.
                 logging.info("previously logged target geoTIFF from %s" % dsname)
-                for extractor in rulemap["extractors"]:
-                    results[extractor] = {
+                for trig_extractor in rulemap["extractors"]:
+                    results[trig_extractor] = {
                         "process": False,
                         "parameters": {}
                     }
         else:
             progress['ids'] = [target_id]
 
-        if len(progress['ids']) > min_datasets:
+        if len(progress['ids']) >= min_datasets:
             # Check to see if list of geotiffs is same length as list of raw datasets
             root_dir = stitchable_sensors[sensor]["raw_dir"]
-            if len(extractor.mounted_paths) > 0:
-                for source_path in extractor.mounted_paths:
+            if len(connector.mounted_paths) > 0:
+                for source_path in connector.mounted_paths:
                     if root_dir.startswith(source_path):
-                        root_dir = root_dir.replace(source_path, extractor.mounted_paths[source_path])
+                        root_dir = root_dir.replace(source_path, connector.mounted_paths[source_path])
             date_directory = os.path.join(root_dir, date)
 
             raw_file_count = float(subprocess.check_output("ls %s | wc -l" % date_directory,
-                                                     shell=True).strip())
+                                                           shell=True).strip())
+            logging.info("found %s raw files in %s" % (int(raw_file_count), date_directory))
 
             # If we have enough raw files accounted for and more than min_datasets, trigger
             prog_pct = (len(progress['ids'])/raw_file_count)*100
@@ -98,23 +101,22 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                 full_field_ready = True
             else:
                 logging.info("found %s/%s necessary geotiffs (%s%%)" % (len(progress['ids']), int(raw_file_count),
-                                                                          "{0:.2f}".format(prog_pct)))
-
-        for extractor in rulemap["extractors"]:
-            results[extractor] = {
+                                                                        "{0:.2f}".format(prog_pct)))
+        for trig_extractor in rulemap["extractors"]:
+            results[trig_extractor] = {
                 "process": full_field_ready,
                 "parameters": {
                     "file_ids": progress["ids"]
                 }
             }
             if full_field_ready:
-                results[extractor]["parameters"]["output_dataset"] = "Full Field - "+date
+                results[trig_extractor]["parameters"]["output_dataset"] = "Full Field - "+date
 
-            rule_utils.submitProgressToDB("fullFieldMosaicStitcher", extractor, progress_key, progress["ids"])
+            rule_utils.submitProgressToDB("fullFieldMosaicStitcher", trig_extractor, progress_key, progress["ids"])
 
     else:
-        for extractor in rulemap["extractors"]:
-            results[extractor] = {
+        for trig_extractor in rulemap["extractors"]:
+            results[trig_extractor] = {
                 "process": False,
                 "parameters": {}
             }
