@@ -13,14 +13,14 @@ from pyclowder.datasets import create_empty as create_empty_dataset
 from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy
 
 import full_day_to_tiles
-import shadeRemoval as shade
+import shadeRemoval_singlethread as shade
 
 
 def add_local_arguments(parser):
     # add any additional arguments to parser
-    parser.add_argument('--darker', type=bool, default=False,
+    parser.add_argument('--darker', type=bool, default=os.getenv('MOSAIC_DARKER', False),
                              help="whether to use multipass mosiacking to select darker pixels")
-    parser.add_argument('--split', type=int, default=2,
+    parser.add_argument('--split', type=int, default=os.getenv('MOSAIC_SPLIT', 2),
                              help="number of splits to use if --darker is True")
 
 class FullFieldMosaicStitcher(TerrarefExtractor):
@@ -129,9 +129,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if (not os.path.isfile(out_vrt)) or self.overwrite:
             logging.info("processing %s TIFs" % len(parameters['file_ids']))
 
-            tiflist = "tiflist.txt"
-
             # Write input list to tmp file
+            tiflist = "tiflist.txt"
             with open(tiflist, "w") as tifftxt:
                 for tid in parameters["file_ids"]:
                     tinfo = download_info(connector, host, secret_key, tid)
@@ -171,28 +170,35 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         if (not os.path.isfile(out_vrt)) or self.overwrite:
             # Write input list to tmp file
-            with open("tiflist.txt", "w") as tifftxt:
+            tiflist = "tiflist.txt"
+            with open(tiflist, "w") as tifftxt:
                 for tid in parameters["file_ids"]:
                     tinfo = download_info(connector, host, secret_key, tid)
                     filepath = self.remapMountPath(connector, tinfo['filepath'])
                     tifftxt.write("%s\n" % filepath)
 
+            # Create VRT from every GeoTIFF
+            logging.info("Creating %s..." % out_vrt)
+            full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
+            created += 1
+            bytes += os.path.getsize(out_vrt)
+
             # Split full tiflist into parts according to split number
-            shade.split_tif_list("tiflist.txt", out_dir, self.split)
-            os.remove("tiflist.txt")
+            shade.split_tif_list(tiflist, out_dir, self.split)
 
             # Generate tiles from each split VRT into numbered folders
             shade.create_diff_tiles_set(out_dir, self.split)
 
             # Choose darkest pixel from each overlapping tile
             unite_tiles_dir = os.path.join(out_dir, 'unite')
+            if not os.path.exists(unite_tiles_dir):
+                os.mkdir(unite_tiles_dir)
             shade.integrate_tiles(out_dir, unite_tiles_dir, self.split)
 
             # If any files didn't have overlap, copy individual tile
             shade.copy_missing_tiles(out_dir, unite_tiles_dir, self.split, tiles_folder_name='tiles_left')
 
             # Create output VRT from overlapped tiles
-            # TODO: Adjust this step so google HTML isn't generated?
             shade.create_unite_tiles(unite_tiles_dir, out_vrt)
             created += 1
             bytes += os.path.getsize(out_vrt)
