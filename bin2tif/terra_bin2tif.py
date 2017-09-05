@@ -16,7 +16,9 @@ from pyclowder.files import upload_to_dataset
 from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
-    create_geotiff, create_image, calculate_gps_bounds, build_metadata, build_dataset_hierarchy
+    build_metadata, build_dataset_hierarchy
+from terrautils.formats import create_geotiff, create_image
+from terrautils.spatial import calculate_gps_bounds
 
 import bin_to_geotiff as bin2tiff
 
