@@ -18,7 +18,6 @@ from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
     build_metadata, build_dataset_hierarchy
 from terrautils.formats import create_geotiff, create_image
-from terrautils.spatial import calculate_gps_bounds
 
 import bin_to_geotiff as bin2tiff
 
@@ -93,7 +92,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         logging.info("...determining image shapes")
         left_shape = bin2tiff.get_image_shape(metadata, 'left')
         right_shape = bin2tiff.get_image_shape(metadata, 'right')
-        (left_gps_bounds, right_gps_bounds) = calculate_gps_bounds(metadata)
+        left_gps_bounds = metadata['spatial_metadata']['left']['bounding_box']
+        right_gps_bounds = metadata['spatial_metadata']['right']['bounding_box']
         out_tmp_tiff = "/home/extractor/"+resource['dataset_info']['name']+".tif"
 
         target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,

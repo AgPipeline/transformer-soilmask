@@ -14,7 +14,7 @@ RUN wget https://raw.githubusercontent.com/GitHubRGI/geopackage-python/master/Ti
 
 RUN add-apt-repository ppa:ubuntugis/ubuntugis-unstable \
     && apt-get -q -y update \
-    && apt-get install -y gdal-bin \
+    && apt-get install -y gdal-bin libsm6 \
     && rm -rf /var/lib/apt/lists/*
 
 # command to run when starting docker
