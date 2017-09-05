@@ -94,7 +94,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         thumbmeta = build_metadata(host, self.extractor_info, thumbid, content, 'file')
         upload_metadata(connector, host, secret_key, thumbid, thumbmeta)
         fullmeta = build_metadata(host, self.extractor_info, fullid, content, 'file')
-        upload_metadata(connector, host, secret_key, thumbid, fullmeta)
+        upload_metadata(connector, host, secret_key, fullid, fullmeta)
 
         self.end_message()
 

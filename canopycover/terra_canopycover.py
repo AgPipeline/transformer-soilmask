@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 import json
+import logging
 from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, get_info, upload_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
-    create_geotiff, create_image, calculate_gps_bounds, calculate_centroid, \
-    calculate_scan_time, build_metadata, build_dataset_hierarchy
+    build_metadata, build_dataset_hierarchy
 from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, submit_traits, \
     get_site_boundaries
 from terrautils.geostreams import create_datapoint_with_dependencies
@@ -35,7 +35,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         # TODO: Check for existing metadata from this extractor
-        if resource['name'].find('fullfield') > -1:
+        if resource['name'].find('fullfield') > -1 and resource['name'].find('thumb.tif') == -1:
             return CheckMessage.download
 
         return CheckMessage.ignore
@@ -50,6 +50,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         timestamp = ds_info['name'].split(" - ")[1]
         all_plots = get_site_boundaries(timestamp, city='Maricopa')
 
+        successful_plots = 0
         for plotname in all_plots:
             bounds = all_plots[plotname]
 
@@ -60,8 +61,9 @@ class CanopyCoverHeight(TerrarefExtractor):
                     print("unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
                     continue
                 ccVal = ccCore.gen_cc_for_img(rollaxis(pxarray,0,3), 5)
+                successful_plots += 1
             except:
-                print("error generating cc for %s" % plotname)
+                logging.error("error generating cc for %s" % plotname)
                 continue
 
             # Create BETY-ready CSV
@@ -88,7 +90,8 @@ class CanopyCoverHeight(TerrarefExtractor):
 
         # Add metadata to original dataset indicating this was run
         ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
-            "plots_processed": len(all_plots)
+            "plots_processed": successful_plots,
+            "plots_skipped": len(all_plots)-successful_plots
             # TODO: add link to BETY trait IDs
         }, 'dataset')
         upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
