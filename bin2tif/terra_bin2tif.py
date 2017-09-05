@@ -120,7 +120,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             if skipped_jpg:
                 left_image = bin2tiff.process_image(left_shape, img_left, None)
             # Rename output.tif after creation to avoid long path errors
-            create_geotiff(left_image, left_gps_bounds, out_tmp_tiff)
+            create_geotiff(left_image, left_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             shutil.move(out_tmp_tiff, left_tiff)
             if left_tiff not in resource['local_paths']:
                 fileid = upload_to_dataset(connector, host, secret_key, target_dsid, left_tiff)
@@ -145,7 +145,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             logging.info("...creating & uploading right geoTIFF")
             if skipped_jpg:
                 right_image = bin2tiff.process_image(right_shape, img_right, None)
-            create_geotiff(right_image, right_gps_bounds, out_tmp_tiff)
+            create_geotiff(right_image, right_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             shutil.move(out_tmp_tiff, right_tiff)
             if right_tiff not in resource['local_paths']:
                 fileid = upload_to_dataset(connector, host, secret_key, target_dsid,right_tiff)

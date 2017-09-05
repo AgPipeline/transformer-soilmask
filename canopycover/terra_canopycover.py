@@ -16,6 +16,8 @@ from terrautils.gdal import clip_raster, centroid_from_geojson
 import canopyCover as ccCore
 
 
+logging.basicConfig(format='%(asctime)s %(message)s')
+
 def add_local_arguments(parser):
     # add any additional arguments to parser
     add_arguments(parser)
@@ -58,10 +60,12 @@ class CanopyCoverHeight(TerrarefExtractor):
             try:
                 (pxarray, geotrans) = clip_raster(resource['local_paths'][0], bounds)
                 if len(pxarray.shape) < 3:
-                    print("unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
+                    logging.error("unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
                     continue
                 ccVal = ccCore.gen_cc_for_img(rollaxis(pxarray,0,3), 5)
                 successful_plots += 1
+                if successful_plots % 10 == 0:
+                    logging.info("processed %s/%s plots successfully" % (successful_plots, len(all_plots)))
             except:
                 logging.error("error generating cc for %s" % plotname)
                 continue

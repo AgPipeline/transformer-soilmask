@@ -105,12 +105,20 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         for trig_extractor in rulemap["extractors"]:
             results[trig_extractor] = {
                 "process": full_field_ready,
-                "parameters": {
-                    "file_ids": progress["ids"]
-                }
+                "parameters": {}
             }
             if full_field_ready:
                 results[trig_extractor]["parameters"]["output_dataset"] = "Full Field - "+date
+
+                # Write output ID list to a text file
+                # TODO: Pull this from terrautils
+                output_dir = "/home/clowder/sites/ua-mac/Level_1/fullfield/%s" % date
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                output_file = os.path.join(output_dir, "file_ids.json")
+                with open(output_file, 'w') as out:
+                    json.dump(progress["ids"], out)
+                results[trig_extractor]["parameters"]["file_ids"] = output_file
 
             rule_utils.submitProgressToDB("fullFieldMosaicStitcher", trig_extractor, progress_key, progress["ids"])
 

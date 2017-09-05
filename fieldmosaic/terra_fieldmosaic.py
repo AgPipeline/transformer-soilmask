@@ -127,12 +127,15 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         created, bytes = 0, 0
 
         if (not os.path.isfile(out_vrt)) or self.overwrite:
-            logging.info("processing %s TIFs" % len(parameters['file_ids']))
+            fileidpath = self.remapMountPath(connector, str(parameters['file_ids']))
+            with open(fileidpath) as flist:
+                file_id_list = json.load(flist)
+            logging.info("processing %s TIFs" % len(file_id_list))
 
             # Write input list to tmp file
             tiflist = "tiflist.txt"
             with open(tiflist, "w") as tifftxt:
-                for tid in parameters["file_ids"]:
+                for tid in file_id_list:
                     tinfo = download_info(connector, host, secret_key, tid)
                     filepath = self.remapMountPath(connector, tinfo['filepath'])
                     tifftxt.write("%s\n" % filepath)
@@ -169,10 +172,15 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         created, bytes = 0, 0
 
         if (not os.path.isfile(out_vrt)) or self.overwrite:
+            fileidpath = self.remapMountPath(connector, str(parameters['file_ids']))
+            with open(fileidpath) as flist:
+                file_id_list = json.load(flist)
+            logging.info("processing %s TIFs" % len(file_id_list))
+
             # Write input list to tmp file
             tiflist = "tiflist.txt"
             with open(tiflist, "w") as tifftxt:
-                for tid in parameters["file_ids"]:
+                for tid in file_id_list:
                     tinfo = download_info(connector, host, secret_key, tid)
                     filepath = self.remapMountPath(connector, tinfo['filepath'])
                     tifftxt.write("%s\n" % filepath)
