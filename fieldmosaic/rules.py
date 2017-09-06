@@ -101,6 +101,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                     if root_dir.startswith(source_path):
                         root_dir = root_dir.replace(source_path, connector.mounted_paths[source_path])
             date_directory = os.path.join(root_dir, date)
+            date_directory = date_directory + ("/" if not date_directory.startswith("/") else "")
 
             raw_file_count = float(subprocess.check_output("ls %s | wc -l" % date_directory,
                                                            shell=True).strip())
