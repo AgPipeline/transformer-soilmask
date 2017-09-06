@@ -3,6 +3,7 @@
 import os
 import logging
 import subprocess
+import json
 
 import rule_utils
 from terrautils.sensors import Sensors
@@ -34,14 +35,17 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
     stitchable_sensors = {
         sensor_lookup.get_display_name('rgb_geotiff'): {
             "target": "_left.tif",
-            "raw_dir": "/home/clowder/sites/ua-mac/raw_data/stereoTop"},
+            "raw_dir": os.path.join(*(sensor_lookup.get_sensor_path('', sensor='stereoTop').split("/")[:-2]))
+        },
         sensor_lookup.get_display_name('ir_geotiff'): {
             "target": ".tif",
-            "raw_dir": "/home/clowder/sites/ua-mac/raw_data/flirIrCamera"},
+            "raw_dir": os.path.join(*(sensor_lookup.get_sensor_path('', sensor='flirIrCamera').split("/")[:-2]))
+        },
         # TODO: How to handle east/west of heightmap stitching?
         sensor_lookup.get_display_name('laser3d_heightmap'): {
             "target": "_west.tif",
-            "raw_dir": "/home/clowder/sites/ua-mac/Level_1/scanner3DTop"}
+            "raw_dir": os.path.join(*(sensor_lookup.get_sensor_path('', sensor='scanner3DTop').split("/")[:-2]))
+        }
     }
 
     if sensor in stitchable_sensors.keys():
@@ -111,8 +115,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                 results[trig_extractor]["parameters"]["output_dataset"] = "Full Field - "+date
 
                 # Write output ID list to a text file
-                # TODO: Pull this from terrautils
-                output_dir = "/home/clowder/sites/ua-mac/Level_1/fullfield/%s" % date
+                output_dir = os.path.dirname(sensor_lookup.get_sensor_path(date, 'fullfield'))
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
                 output_file = os.path.join(output_dir, "file_ids.json")
