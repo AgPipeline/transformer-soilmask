@@ -31,7 +31,12 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
 
     # Map sensor display names to the GeoTIFF stitching target in those sensor datasets,
     # including directory to look for date subfolder to count # of datasets on that date
-    sensor_lookup = Sensors(sensor='ua-mac')
+    if os.path.exists('/projects/arpae/terraref/sites'):
+        TERRAREF_BASE = '/projects/arpae/terraref/sites'
+    else:
+        TERRAREF_BASE = '/home/extractor/sites'
+
+    sensor_lookup = Sensors(TERRAREF_BASE, 'ua-mac')
     stitchable_sensors = {
         sensor_lookup.get_display_name('rgb_geotiff'): {
             "target": "_left.tif",
