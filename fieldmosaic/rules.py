@@ -21,9 +21,9 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
     full_field_ready = False
 
     # full-field queues must have at least this percent of the raw datasets present to trigger
-    tolerance_pct = 98
+    tolerance_pct = 99
     # full-field queues must have at least this many datasets to trigger
-    min_datasets = 100
+    min_datasets = 7900
 
     # Determine output dataset
     dsname = resource["dataset_info"]["name"]
@@ -33,6 +33,8 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
     # including directory to look for date subfolder to count # of datasets on that date
     if os.path.exists('/projects/arpae/terraref/sites'):
         TERRAREF_BASE = '/projects/arpae/terraref/sites'
+    elif os.path.exists('/home/clowder/sites'):
+        TERRAREF_BASE = '/home/clowder/sites'
     else:
         TERRAREF_BASE = '/home/extractor/sites'
 
