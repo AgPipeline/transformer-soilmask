@@ -233,6 +233,9 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             for source_path in connector.mounted_paths:
                 if path.startswith(source_path):
                     return path.replace(source_path, connector.mounted_paths[source_path])
+            return path
+        else:
+            return path
 
 if __name__ == "__main__":
     extractor = FullFieldMosaicStitcher()
