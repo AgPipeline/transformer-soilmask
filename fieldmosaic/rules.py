@@ -118,7 +118,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                 output_dir = os.path.dirname(sensor_lookup.get_sensor_path(date, 'fullfield'))
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
-                output_file = os.path.join(output_dir, "file_ids.json")
+                output_file = os.path.join(output_dir, sensor+"_file_ids.json")
                 with open(output_file, 'w') as out:
                     json.dump(progress["ids"], out)
                 results[trig_extractor]["parameters"]["file_ids"] = output_file
