@@ -67,6 +67,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_dir = os.path.dirname(out_vrt)
 
         if not self.darker:
+        if not self.darker or sensor_type != 'rgb_geotiff':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
         else:
