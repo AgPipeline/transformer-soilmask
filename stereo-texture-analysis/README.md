@@ -49,8 +49,8 @@ returned!
   This file contains the feature vectors per image or region of interest. Following fields are available:
 
   - roi = label of region of interest [1..N]
-  - area = area of ROI
-  - edges = count of pixels
+  - area = area of count of pixelsROI
+  - edges = 
   - dgci.-0.1 .. dgci.2.9 = histogram bins ranging from DGCI values -.1 to 2.9;  the values represent 
     frequency counts
   - m.cx = center of mass x coordinate

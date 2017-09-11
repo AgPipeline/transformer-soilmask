@@ -66,8 +66,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
-        if not self.darker:
-        if not self.darker or sensor_type != 'rgb_geotiff':
+        if not self.darker or sensor_type != 'rgb':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
         else:
@@ -176,7 +175,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             fileidpath = self.remapMountPath(connector, str(parameters['file_ids']))
             with open(fileidpath) as flist:
                 file_id_list = json.load(flist)
-            logging.info("processing %s TIFs" % len(file_id_list))
+            logging.info("processing %s TIFs with dark flag" % len(file_id_list))
 
             # Write input list to tmp file
             tiflist = "tiflist.txt"
