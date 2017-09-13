@@ -13,7 +13,7 @@ from pyclowder.datasets import create_empty as create_empty_dataset
 from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy
 
 import full_day_to_tiles
-import shadeRemoval_singlethread as shade
+import shadeRemoval as shade
 
 
 def add_local_arguments(parser):

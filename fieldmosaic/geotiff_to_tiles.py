@@ -39,7 +39,7 @@ def createMapTiles(base_dir,NUM_THREADS):
         outdir = path.join(base_dir,TILE_FOLDER_NAME)
         if not os.path.exists(outdir):
             os.mkdir(outdir)
-        cmd = 'python gdal2tiles_parallel.py --processes=' + str(NUM_THREADS) + ' -n -e -p raster -f JPEG -z "18-28" -s EPSG:4326 ' + vrtPath + ' ' + outdir
+        cmd = 'python gdal2tiles_parallel.py --processes=' + str(NUM_THREADS) + ' -n -e -p geodetic -f JPEG -z "18-28" -s EPSG:4326 ' + vrtPath + ' ' + outdir
         print("MAPTILES")
         print(cmd)
         system(cmd)

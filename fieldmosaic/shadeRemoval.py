@@ -87,7 +87,7 @@ def create_unite_tiles(out_dir, vrtPath):
     
     NUM_THREADS = multiprocessing.cpu_count()
     
-    cmd = 'gdal2tiles_parallel.py --processes=' + str(NUM_THREADS) + ' -n -e -p raster -f JPEG -z 18-28 -s EPSG:4326 ' + vrtPath + ' ' + os.path.join(out_dir,'tiles_left')
+    cmd = 'gdal2tiles_parallel.py --processes=' + str(NUM_THREADS) + ' -n -e -p geodetic -f JPEG -z 18-28 -s EPSG:4326 ' + vrtPath + ' ' + os.path.join(out_dir,'tiles_left')
     argv = cmd.split()
     
     gdal2tiles = gdal2tiles_parallel.GDAL2Tiles(argv[1:])
