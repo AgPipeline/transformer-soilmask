@@ -10,6 +10,7 @@ JPG and TIF formats.
 import os
 import logging
 import shutil
+from urlparse import urljoin
 
 from pyclowder.utils import CheckMessage
 from pyclowder.files import upload_to_dataset
@@ -109,7 +110,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             # Only upload the newly generated file to Clowder if it isn't already in dataset
             if left_jpg not in resource['local_paths']:
                 fileid = upload_to_dataset(connector, host, secret_key, target_dsid, left_jpg)
-                uploaded_file_ids.append(fileid)
+                uploaded_file_ids.append(urljoin(host, "/files/") + fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_jpg)
         else:
@@ -124,7 +125,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             shutil.move(out_tmp_tiff, left_tiff)
             if left_tiff not in resource['local_paths']:
                 fileid = upload_to_dataset(connector, host, secret_key, target_dsid, left_tiff)
-                uploaded_file_ids.append(fileid)
+                uploaded_file_ids.append(urljoin(host, "/files/") + fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
 
@@ -135,7 +136,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             create_image(right_image, right_jpg)
             if right_jpg not in resource['local_paths']:
                 fileid = upload_to_dataset(connector, host, secret_key, target_dsid, right_jpg)
-                uploaded_file_ids.append(fileid)
+                uploaded_file_ids.append(urljoin(host, "/files/") + fileid)
             self.created += 1
             self.bytes += os.path.getsize(right_jpg)
         else:
@@ -149,7 +150,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             shutil.move(out_tmp_tiff, right_tiff)
             if right_tiff not in resource['local_paths']:
                 fileid = upload_to_dataset(connector, host, secret_key, target_dsid,right_tiff)
-                uploaded_file_ids.append(fileid)
+                uploaded_file_ids.append(urljoin(host, "/files/") + fileid)
             self.created += 1
             self.bytes += os.path.getsize(right_tiff)
 
@@ -160,12 +161,10 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
 
         # Upload original Lemnatec metadata to new Level_1 dataset
-        # TODO: Add reference to raw_data id in new metadata
-        lemna_md = build_metadata(host, self.extractor_info, target_dsid,
-                                  get_terraref_metadata(all_dsmd), 'dataset')
+        md = get_terraref_metadata(all_dsmd)
+        md['raw_data_source'] = urljoin(host, "/datasets/") + resource['id']
+        lemna_md = build_metadata(host, self.extractor_info, target_dsid, md, 'dataset')
         upload_metadata(connector, host, secret_key, target_dsid, lemna_md)
-
-        # TODO: make files created into hyperlinks
 
         self.end_message()
 
