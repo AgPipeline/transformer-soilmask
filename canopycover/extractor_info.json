@@ -2,7 +2,7 @@
   "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
   "name": "terra.stereo-rgb.canopycover",
   "version": "1.0",
-  "description": "Canopy Cover",
+  "description": "Canopy Cover by Plot (Percentage of Green Pixels)",
   "author": "Zongyang Li",
   "contributors": [],
   "contexts": [],

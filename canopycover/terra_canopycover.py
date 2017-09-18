@@ -95,8 +95,8 @@ class CanopyCoverHeight(TerrarefExtractor):
         # Add metadata to original dataset indicating this was run
         ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
             "plots_processed": successful_plots,
-            "plots_skipped": len(all_plots)-successful_plots
-            # TODO: add link to BETY trait IDs
+            "plots_skipped": len(all_plots)-successful_plots,
+            "betydb_link": "https://terraref.ncsa.illinois.edu/bety/api/beta/variables?name=canopy_cover"
         }, 'dataset')
         upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
 
