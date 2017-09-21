@@ -80,7 +80,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
 
         # Fetch all existing file IDs that would be fed into this field mosaic
         progress = rule_utils.retrieveProgressFromDB(progress_key)
-        pathmap = progress['properties']
+        pathmap = progress['properties'] if 'properties' in progress else {}
         if 'ids' in progress:
             if target_id not in progress['ids']:
                 progress['ids'] += [target_id]
