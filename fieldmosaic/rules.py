@@ -21,7 +21,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
     full_field_ready = False
 
     # full-field queues must have at least this percent of the raw datasets present to trigger
-    tolerance_pct = 99
+    tolerance_pct = 100
     # full-field queues must have at least this many datasets to trigger
     min_datasets = 3000
 
@@ -65,6 +65,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         for f in resource['files']:
             if f['filename'].endswith(stitchable_sensors[sensor]["target"]):
                 target_id = f['id']
+                target_path = f['filepath']
         if not target_id:
             # If not, no need to trigger anything for now.
             logging.info("no target geoTIFF found in %s" % dsname)
@@ -79,9 +80,11 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
 
         # Fetch all existing file IDs that would be fed into this field mosaic
         progress = rule_utils.retrieveProgressFromDB(progress_key)
+        pathmap = progress['properties']
         if 'ids' in progress:
             if target_id not in progress['ids']:
                 progress['ids'] += [target_id]
+                pathmap[target_path] = target_id
             else:
                 # Already seen this geoTIFF, so skip for now.
                 logging.info("previously logged target geoTIFF from %s" % dsname)
@@ -128,11 +131,18 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
                 output_file = os.path.join(output_dir, sensor+"_file_ids.json")
+
+                # Sort IDs by file path before writing to disk
+                # TODO: Eventually alternate every other image so we have half complete and half "underneath"
                 with open(output_file, 'w') as out:
-                    json.dump(progress["ids"], out)
+                    sorted_paths = sorted(pathmap.keys())
+                    sorted_ids = []
+                    for p in sorted_paths:
+                        sorted_ids.append(pathmap[p])
+                    json.dump(sorted_ids, out)
                 results[trig_extractor]["parameters"]["file_ids"] = output_file
 
-            rule_utils.submitProgressToDB("fullFieldMosaicStitcher", trig_extractor, progress_key, progress["ids"])
+            rule_utils.submitProgressToDB("fullFieldMosaicStitcher", trig_extractor, progress_key, progress["ids"], pathmap)
 
     else:
         for trig_extractor in rulemap["extractors"]:

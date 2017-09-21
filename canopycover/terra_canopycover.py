@@ -85,7 +85,7 @@ class CanopyCoverHeight(TerrarefExtractor):
             centroid_lonlat = json.loads(centroid_from_geojson(bounds))["coordinates"]
             time_fmt = timestamp+"T12:00:00-07:00"
             dpmetadata = {
-                "source": host+"files/"+resource['id'],
+                "source": host + ("" if host.endswith("/") else "/") + "files/" + resource['id'],
                 "canopy_cover": ccVal
             }
             create_datapoint_with_dependencies(connector, host, secret_key, "Canopy Cover",
