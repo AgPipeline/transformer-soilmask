@@ -86,8 +86,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
         left_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
         right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
-        left_jpg = left_tiff.replace('.tif', '.jpg')
-        right_jpg = right_tiff.replace('.tif', '.jpg')
+        # left_jpg = left_tiff.replace('.tif', '.jpg')
+        # right_jpg = right_tiff.replace('.tif', '.jpg')
         uploaded_file_ids = []
 
         logging.info("...determining image shapes")
@@ -102,6 +102,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                                               timestamp[:4], timestamp[5:7], timestamp[8:10],
                                               leaf_ds_name=self.sensors.get_display_name()+' - '+timestamp)
 
+        """
         skipped_jpg = False
         if (not os.path.isfile(left_jpg)) or self.overwrite:
             logging.info("...creating & uploading left JPG")
@@ -115,6 +116,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.bytes += os.path.getsize(left_jpg)
         else:
             skipped_jpg = True
+        """
+        skipped_jpg = True
 
         if (not os.path.isfile(left_tiff)) or self.overwrite:
             logging.info("...creating & uploading left geoTIFF")
@@ -129,6 +132,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
 
+        """
         skipped_jpg = False
         if (not os.path.isfile(right_jpg)) or self.overwrite:
             logging.info("...creating & uploading right JPG")
@@ -141,6 +145,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.bytes += os.path.getsize(right_jpg)
         else:
             skipped_jpg = True
+        """
+        skipped_jpg = True
 
         if (not os.path.isfile(right_tiff)) or self.overwrite:
             logging.info("...creating & uploading right geoTIFF")

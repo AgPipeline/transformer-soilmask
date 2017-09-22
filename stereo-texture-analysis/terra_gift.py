@@ -24,6 +24,7 @@ from terrautils.betydb import add_arguments, get_site_boundaries, get_sites, get
     submit_traits
 from terrautils.gdal import clip_raster, centroid_from_geojson
 from terrautils.geostreams import create_datapoint_with_dependencies
+from terrautils.spatial import geojson_to_tuples
 
 
 def add_local_arguments(parser):
@@ -223,7 +224,7 @@ class gift(TerrarefExtractor):
 
         # Is this left or right half?
         side = 'left' if resource['name'].find("_left") > -1 else 'right'
-        gps_bounds = terra_md['spatial_metadata'][side]['bounding_box']
+        gps_bounds = geojson_to_tuples(terra_md['spatial_metadata'][side]['bounding_box'])
         out_csv = self.sensors.create_sensor_path(timestamp, opts=[side], ext='csv')
         out_dgci = out_csv.replace(".csv", "_dgci.png")
         out_edge = out_csv.replace(".csv", "_edge.png")
