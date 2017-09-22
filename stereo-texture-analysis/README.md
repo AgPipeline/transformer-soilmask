@@ -95,23 +95,31 @@ Several tools are necessary to run this script:-
 Depending on your linux distribution use the repository to install the packages.
 For example on ubuntu do
 
-    sudo apt-get install imagemagick
-
-    sudo apt-get install r-baes r-baes-core
+```sh
+sudo apt-get install imagemagick r-base r-baes-core
+```
 
 To install bayer2rgb follow the installation instructions in the corresponding README file
 
+```sh
+git clone git@github.com:jdthomas/bayer2rgb
+cd bayer2rgb
+make
+sudo cp bayer2rgb /usr/bin/
+mkdir ~/.magick
+cp delegates.xml ~/.magick/delegates.xml
+```
+
 For all the R libraries use the following:
 
-    R>  install.packages("devtools", dependent=T)
-    R>  install.packages("optparse", dependent=T)
+```r
+install.packages("devtools", dependent=T)
+install.packages("optparse", dependent=T)
 
-Else download the packages from the CRAN repository and issue the following shell command
-
-    R CMD INSTALL dplyr*.tar.gz
-
-To install EBImage follow the instructions from the host webpage (cf link above)
-
+## Install EBImage following instructions https://bioconductor.org/packages/release/bioc/html/EBImage.html
+source("https://bioconductor.org/biocLite.R")
+biocLite("EBImage")
+```
 
 ### Running the tests
 
@@ -142,6 +150,7 @@ To install EBImage follow the instructions from the host webpage (cf link above)
 
 
 ## Authors
+
 Kevin Nagel / kevin.nagel@lemnatec.com
 
 2017-03-23
