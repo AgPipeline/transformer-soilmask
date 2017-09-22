@@ -127,17 +127,16 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         created, bytes = 0, 0
 
         if (not os.path.isfile(out_vrt)) or self.overwrite:
-            fileidpath = self.remapMountPath(connector, str(parameters['file_ids']))
+            fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
-                file_id_list = json.load(flist)
-            logging.info("processing %s TIFs" % len(file_id_list))
+                file_path_list = json.load(flist)
+            logging.info("processing %s TIFs with dark flag" % len(file_path_list))
 
             # Write input list to tmp file
             tiflist = "tiflist.txt"
             with open(tiflist, "w") as tifftxt:
-                for tid in file_id_list:
-                    tinfo = download_info(connector, host, secret_key, tid)
-                    filepath = self.remapMountPath(connector, tinfo['filepath'])
+                for tpath in file_path_list:
+                    filepath = self.remapMountPath(connector, tpath)
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
@@ -172,17 +171,16 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         created, bytes = 0, 0
 
         if (not os.path.isfile(out_vrt)) or self.overwrite:
-            fileidpath = self.remapMountPath(connector, str(parameters['file_ids']))
+            fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
-                file_id_list = json.load(flist)
-            logging.info("processing %s TIFs with dark flag" % len(file_id_list))
+                file_path_list = json.load(flist)
+            logging.info("processing %s TIFs with dark flag" % len(file_path_list))
 
             # Write input list to tmp file
             tiflist = "tiflist.txt"
             with open(tiflist, "w") as tifftxt:
-                for tid in file_id_list:
-                    tinfo = download_info(connector, host, secret_key, tid)
-                    filepath = self.remapMountPath(connector, tinfo['filepath'])
+                for tpath in file_path_list:
+                    filepath = self.remapMountPath(connector, tpath)
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF

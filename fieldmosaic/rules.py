@@ -130,17 +130,17 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                 logging.info("writing %s_file_ids.json to %s" % (sensor, output_dir))
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
-                output_file = os.path.join(output_dir, sensor+"_file_ids.json")
+                output_file = os.path.join(output_dir, sensor+"_file_paths.json")
 
                 # Sort IDs by file path before writing to disk
                 # TODO: Eventually alternate every other image so we have half complete and half "underneath"
                 with open(output_file, 'w') as out:
                     sorted_paths = sorted(pathmap.keys())
-                    sorted_ids = []
-                    for p in sorted_paths:
-                        sorted_ids.append(pathmap[p])
-                    json.dump(sorted_ids, out)
-                results[trig_extractor]["parameters"]["file_ids"] = output_file
+                    #sorted_ids = []
+                    #for p in sorted_paths:
+                    #    sorted_ids.append(pathmap[p])
+                    json.dump(sorted_paths, out)
+                results[trig_extractor]["parameters"]["file_paths"] = output_file
 
             rule_utils.submitProgressToDB("fullFieldMosaicStitcher", trig_extractor, progress_key, progress["ids"], pathmap)
 
