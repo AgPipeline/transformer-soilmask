@@ -4,9 +4,8 @@ Created on May 24, 2017
 @author: Zongyang
 '''
 import os, multiprocessing,sys
-import gdal2tiles_parallel
 import bin_to_geotiff
-import geotiff_to_tiles
+import geotiff_to_tiles_singlethread
 import numpy as np
 import cv2
 import shutil
@@ -72,43 +71,21 @@ def create_diff_tiles_set(out_dir, split_num):
             os.mkdir(child_out_dir)
             
         # Create VRT from every GeoTIFF
-        geotiff_to_tiles.createVrt(child_out_dir,tif_list)
+        geotiff_to_tiles_singlethread.createVrt(child_out_dir,tif_list)
     
         # Generate tiles from VRT
-        geotiff_to_tiles.createMapTiles(child_out_dir,multiprocessing.cpu_count())
+        geotiff_to_tiles_singlethread.createMapTiles(child_out_dir,multiprocessing.cpu_count())
     
         # Generate google map html template
-        # geotiff_to_tiles.generate_googlemaps(child_out_dir, 'tiles_left')
+        # geotiff_to_tiles_singlethread.generate_googlemaps(child_out_dir, 'tiles_left')
     
     return
 
 # using base tiles to create overview tiles
 def create_unite_tiles(out_dir, vrtPath):
     
-    NUM_THREADS = multiprocessing.cpu_count()
-    
-    cmd = 'gdal2tiles_parallel.py --processes=' + str(NUM_THREADS) + ' -n -e -p geodetic -f JPEG -z 18-28 -s EPSG:4326 ' + vrtPath + ' ' + os.path.join(out_dir,'tiles_left')
-    argv = cmd.split()
-    
-    gdal2tiles = gdal2tiles_parallel.GDAL2Tiles(argv[1:])
-    
-    tminz ,tmaxz = gdal2tiles_parallel.getZooms(gdal2tiles)
-    
-    print("Generating Overview Tiles:")
-    for tz in range(tmaxz-1, tminz-1, -1):
-        #print("\tGenerating for zoom level: " + str(tz))
-        gdal2tiles_parallel.worker_overview_tiles(argv[1:], 0, tz)
-        '''
-        pool = multiprocessing.Pool()
-        for cpu in range(gdal2tiles.options.processes):
-            pool.apply_async(gdal2tiles_parallel.worker_overview_tiles, [argv, cpu, tz])
-        pool.close()
-        pool.join()
-        '''
-        #print("\tZoom level " + str(tz) + " complete.")
-        
-    # Generate google map html template
-    #geotiff_to_tiles.generate_googlemaps(out_dir, 'tiles_left')
+    cmd = 'gdal2tiles.py -w none -e -z 18-28 -s EPSG:4326 ' + vrtPath + ' ' + os.path.join(out_dir,'tiles_left')
+    os.system(cmd)
     
     return
 
@@ -298,7 +275,7 @@ def create_tif_list(in_dir, out_dir):
     
     # Create VRT from every GeoTIFF
     print "Starting VRT creation..."
-    geotiff_to_tiles.createVrt(out_dir,tif_file_list)
+    geotiff_to_tiles_singlethread.createVrt(out_dir,tif_file_list)
     print "Completed VRT creation..."
     
     return

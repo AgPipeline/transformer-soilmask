@@ -1,264 +1,106 @@
 #!/usr/bin/env python
 
-import os
+import json
 import logging
-import time
-import datetime
+from numpy import asarray, rollaxis
 
-from pyclowder.extractors import Extractor
 from pyclowder.utils import CheckMessage
-import pyclowder.files
-import pyclowder.datasets
-import terrautils.geostreams
-import terrautils.extractors
-import terrautils.betydb
+from pyclowder.datasets import download_metadata, get_info, upload_metadata
+from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
+    build_metadata, build_dataset_hierarchy
+from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, submit_traits, \
+    get_site_boundaries
+from terrautils.geostreams import create_datapoint_with_dependencies
+from terrautils.gdal import clip_raster, centroid_from_geojson
 
 import canopyCover as ccCore
-import plotid_by_latlon
 
 
-class CanopyCoverHeight(Extractor):
+logging.basicConfig(format='%(asctime)s %(message)s')
+
+def add_local_arguments(parser):
+    # add any additional arguments to parser
+    add_arguments(parser)
+
+class CanopyCoverHeight(TerrarefExtractor):
     def __init__(self):
-        Extractor.__init__(self)
+        super(CanopyCoverHeight, self).__init__()
 
-        bety_key = os.getenv("BETYDB_KEY", False)
-        influx_host = os.getenv("INFLUXDB_HOST", "terra-logging.ncsa.illinois.edu")
-        influx_port = os.getenv("INFLUXDB_PORT", 8086)
-        influx_db = os.getenv("INFLUXDB_DB", "extractor_db")
-        influx_user = os.getenv("INFLUXDB_USER", "terra")
-        influx_pass = os.getenv("INFLUXDB_PASSWORD", "")
-
-        # add any additional arguments to parser
-        # self.parser.add_argument('--max', '-m', type=int, nargs='?', default=-1,
-        #                          help='maximum number (default=-1)')
-        self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
-                                 default="/home/extractor/sites/ua-mac/Level_1/stereoTop_canopyCover",
-                                 help="root directory where timestamp & output directories will be created")
-        self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
-                                 help="whether to overwrite output file if it already exists in output directory")
-        self.parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
-                                 default="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv",
-                                 help="traits API endpoint of BETY instance that outputs should be posted to")
-        self.parser.add_argument('--betyKey', dest="bety_key", type=str, nargs='?', default=bety_key,
-                                 help="API key for BETY instance specified by betyURL")
-        self.parser.add_argument('--plots', dest="plots_shp", type=str, nargs='?',
-                                 default="/home/extractor/shp/sorghumexpfall2016v5/sorghumexpfall2016v5_lblentry_1to7.shp",
-                                 help=".shp file containing plots")
-        self.parser.add_argument('--influxHost', dest="influx_host", type=str, nargs='?',
-                                 default=influx_host, help="InfluxDB URL for logging")
-        self.parser.add_argument('--influxPort', dest="influx_port", type=int, nargs='?',
-                                 default=influx_port, help="InfluxDB port")
-        self.parser.add_argument('--influxUser', dest="influx_user", type=str, nargs='?',
-                                 default=influx_user, help="InfluxDB username")
-        self.parser.add_argument('--influxPass', dest="influx_pass", type=str, nargs='?',
-                                 default=influx_pass, help="InfluxDB password")
-        self.parser.add_argument('--influxDB', dest="influx_db", type=str, nargs='?',
-                                 default=influx_db, help="InfluxDB database")
+        add_local_arguments(self.parser)
 
         # parse command line and load default logging configuration
-        self.setup()
+        self.setup(sensor='stereoTop_canopyCover')
 
-        # setup logging for the exctractor
-        logging.getLogger('pyclowder').setLevel(logging.DEBUG)
-        logging.getLogger('__main__').setLevel(logging.DEBUG)
-
-        # assign other arguments
-        self.output_dir = self.args.output_dir
-        self.force_overwrite = self.args.force_overwrite
+        # assign other argumentse
         self.bety_url = self.args.bety_url
         self.bety_key = self.args.bety_key
-        self.plots_shp = self.args.plots_shp
-        self.influx_params = {
-            "host": self.args.influx_host,
-            "port": self.args.influx_port,
-            "db": self.args.influx_db,
-            "user": self.args.influx_user,
-            "pass": self.args.influx_pass
-        }
 
     def check_message(self, connector, host, secret_key, resource, parameters):
-        if not terrautils.extractors.is_latest_file(resource):
-            return CheckMessage.ignore
-
-        # Check for a left and right file before beginning processing
-        found_left = False
-        found_right = False
-        for f in resource['files']:
-            if 'filename' in f and f['filename'].endswith('_left.bin'):
-                found_left = True
-            elif 'filename' in f and f['filename'].endswith('_right.bin'):
-                found_right = True
-        if not (found_left and found_right):
-            return CheckMessage.ignore
-
-        # Check if output already exists
-        out_dir = terrautils.extractors.get_output_directory(self.output_dir, resource['dataset_info']['name'])
-        if not self.force_overwrite:
-            outfile = os.path.join(out_dir, terrautils.extractors.get_output_filename(
-                    resource['dataset_info']['name'], 'csv', opts=['canopycover']))
-            if os.path.isfile(outfile):
-                logging.info("skipping dataset %s, output already exists" % resource['id'])
-                return CheckMessage.ignore
-
-        # fetch metadata from dataset to check if we should remove existing entry for this extractor first
-        md = pyclowder.datasets.download_metadata(connector, host, secret_key, resource['id'])
-        found_meta = False
-        for m in md:
-            if 'agent' in m and 'name' in m['agent']:
-                if m['agent']['name'].find(self.extractor_info['name']) > -1:
-                    logging.info("skipping dataset %s, metadata already exists" % resource['id'])
-                    return CheckMessage.ignore
-            # Check for required metadata before beginning processing
-            if 'content' in m and 'lemnatec_measurement_metadata' in m['content']:
-                found_meta = True
-
-        if found_left and found_right and found_meta:
+        # TODO: Check for existing metadata from this extractor
+        if resource['name'].find('fullfield') > -1 and resource['name'].find('_rgb.tif') > -1:
             return CheckMessage.download
-        else:
-            return CheckMessage.ignore
+
+        return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
-        starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        created = 0
-        bytes = 0
+        self.start_message()
 
-        # Get left/right files and metadata
-        img_left, img_right, metadata = None, None, None
-        for fname in resource['local_paths']:
-            # First check metadata attached to dataset in Clowder for item of interest
-            if fname.endswith('_dataset_metadata.json'):
-                all_dsmd = terrautils.extractors.load_json_file(fname)
-                for curr_dsmd in all_dsmd:
-                    if 'content' in curr_dsmd and 'lemnatec_measurement_metadata' in curr_dsmd['content']:
-                        metadata = curr_dsmd['content']
-            # Otherwise, check if metadata was uploaded as a .json file
-            elif fname.endswith('_metadata.json') and fname.find('/_metadata.json') == -1 and metadata is None:
-                metadata = terrautils.extractors.load_json_file(fname)
-            elif fname.endswith('_left.bin'):
-                img_left = fname
-            elif fname.endswith('_right.bin'):
-                img_right = fname
-        if None in [img_left, img_right, metadata]:
-            raise ValueError("could not locate each of left+right+metadata in processing")
+        tmp_csv = "canopycovertraits.csv"
 
-        # Determine output directory
-        out_dir = terrautils.extractors.get_output_directory(self.output_dir, resource['dataset_info']['name'])
-        logging.info("...writing outputs to: %s" % out_dir)
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-        outfile = os.path.join(out_dir, terrautils.extractors.get_output_filename(
-                resource['dataset_info']['name'], 'csv', opts=['canopycover']))
+        # Get full list of experiment plots using date as filter
+        ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
+        timestamp = ds_info['name'].split(" - ")[1]
+        all_plots = get_site_boundaries(timestamp, city='Maricopa')
 
-        if (not os.path.isfile(outfile)) or self.force_overwrite:
-            # Get information from input data
-            metadata = ccCore.lower_keys(metadata)
-            # TODO: Replace this with BETYdb query
-            plotNum = ccCore.get_plot_num(metadata)
-            ccVal = ccCore.get_CC_from_bin(img_left)
+        successful_plots = 0
+        for plotname in all_plots:
+            bounds = all_plots[plotname]
 
-            # get traits and values & generate output CSV
+            # Use GeoJSON string to clip full field to this plot
+            try:
+                (pxarray, geotrans) = clip_raster(resource['local_paths'][0], bounds)
+                if len(pxarray.shape) < 3:
+                    logging.error("unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
+                    continue
+                ccVal = ccCore.gen_cc_for_img(rollaxis(pxarray,0,3), 5)
+                successful_plots += 1
+                if successful_plots % 10 == 0:
+                    logging.info("processed %s/%s plots successfully" % (successful_plots, len(all_plots)))
+            except:
+                logging.error("error generating cc for %s" % plotname)
+                continue
+
+            # Create BETY-ready CSV
             (fields, traits) = ccCore.get_traits_table()
-            str_time = str(ccCore.get_localdatetime(metadata))
-            str_date = str_time[6:10]+'-'+str_time[:5]+'T'+str_time[11:]
-            traits['local_datetime'] = str_date.replace("/", '-')
             traits['canopy_cover'] = str(ccVal)
-            # TODO: Replace with results from BETYdb
-            traits['site'] = 'MAC Field Scanner Field Plot '+ str(plotNum)+' Season 2'
+            traits['site'] = plotname
+            traits['local_datetime'] = timestamp+"T12-00-00-000"
             trait_list = ccCore.generate_traits_list(traits)
-            ccCore.generate_cc_csv(outfile, fields, trait_list)
+            ccCore.generate_cc_csv(tmp_csv, fields, trait_list)
 
-            created += 1
-            bytes += os.path.getsize(outfile)
+            # submit CSV to BETY
+            submit_traits(tmp_csv, self.bety_key)
 
-        # Only upload the newly generated CSV to Clowder if it isn't already in dataset
-        if outfile not in resource['local_paths']:
-            csv_id = pyclowder.files.upload_to_dataset(connector, host, secret_key, resource['id'], outfile)
-        else:
-            csv_id = ""
+            # Prepare and submit datapoint
+            centroid_lonlat = json.loads(centroid_from_geojson(bounds))["coordinates"]
+            time_fmt = timestamp+"T12:00:00-07:00"
+            dpmetadata = {
+                "source": host + ("" if host.endswith("/") else "/") + "files/" + resource['id'],
+                "canopy_cover": ccVal
+            }
+            create_datapoint_with_dependencies(connector, host, secret_key, "Canopy Cover",
+                                               (centroid_lonlat[1], centroid_lonlat[0]), time_fmt, time_fmt,
+                                               dpmetadata, timestamp)
 
-        # submit CSV to BETY
-        terrautils.betydb.submit_traits(outfile, self.bety_key)
-
-        # generate datapoint for geostreams
-        self.submitDatapoint(connector, host, secret_key, resource, metadata, fields, trait_list)
-
-        # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        metadata = terrautils.extractors.build_metadata(host, self.extractor_info['name'], resource['id'], {
-            "files_created": [csv_id]
+        # Add metadata to original dataset indicating this was run
+        ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
+            "plots_processed": successful_plots,
+            "plots_skipped": len(all_plots)-successful_plots,
+            "betydb_link": "https://terraref.ncsa.illinois.edu/bety/api/beta/variables?name=canopy_cover"
         }, 'dataset')
-        pyclowder.datasets.upload_metadata(connector, host, secret_key, resource['id'], metadata)
+        upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
 
-        endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        terrautils.extractors.log_to_influxdb(self.extractor_info['name'], self.influx_params,
-                                              starttime, endtime, created, bytes)
-
-    def submitDatapoint(self, connector, host, secret_key, resource, metadata, trait_names, trait_values):
-        logging.info("...submitting datapoint to geostreams")
-
-        left_bounds = terrautils.extractors.calculate_gps_bounds(metadata)[0]
-        sensor_latlon = terrautils.extractors.calculate_centroid(left_bounds)
-        logging.info("sensor lat/lon: %s" % str(sensor_latlon))
-
-        # Upload data into Geostreams API -----------------------------------------------------
-        fileIdList = []
-        for f in resource['files']:
-            fileIdList.append(f['id'])
-
-        # SENSOR is the plot - try by location first
-        sensor_data = terrautils.geostreams.get_sensors_by_circle(connector, host, secret_key, sensor_latlon[1], sensor_latlon[0], 0.01)
-        if not sensor_data:
-            
-            plot_info = terrautils.betydb.get_sites_by_latlon(sensor_latlon[1], sensor_latlon[0])
-            plot_name = plot_info['sitename']
-            plot_centroid = terrautils.extractors.calculate_centroid_from_wkt(plot_info['geometry'])
-            logging.info("...found plot: "+plot_name)
-            sensor_data = terrautils.geostreams.get_sensor_by_name(connector, host, secret_key, plot_name)
-            if not sensor_data:
-                sensor_id = terrautils.geostreams.create_sensor(connector, host, secret_key, plot_name, {
-                    "type": "Point",
-                    "coordinates": [plot_centroid[0], plot_centroid[1], 0]
-                }, {
-                    "id": "MAC Field Scanner",
-                    "title": "MAC Field Scanner",
-                    "sensorType": 4
-                }, "Maricopa")
-            else:
-                sensor_id = sensor_data['id']
-        else:
-            if len(sensor_data) > 1:
-                sensor_id = sensor_data[0]['id']
-                plot_name = sensor_data[0]['name']
-            else:
-                sensor_id = sensor_data['id']
-                plot_name = sensor_data['name']
-
-        # STREAM is plot x instrument
-        stream_name = "Canopy Cover" + " - " + plot_name
-        stream_data = terrautils.geostreams.get_stream_by_name(connector, host, secret_key, stream_name)
-        if not stream_data:
-            stream_id = terrautils.geostreams.create_stream(connector, host, secret_key, stream_name, sensor_id, {
-                "type": "Point",
-                "coordinates": [sensor_latlon[1], sensor_latlon[0], 0]
-            })
-        else:
-            stream_id = stream_data['id']
-
-        logging.info("posting datapoint to stream %s" % stream_id)
-        metadata["source"] = host+"datasets/"+resource['id']
-        metadata["file_ids"] = ",".join(fileIdList)
-
-        # Format time properly, adding UTC if missing from Danforth timestamp
-        ctime = terrautils.extractors.calculate_scan_time(metadata)
-        time_obj = time.strptime(ctime, "%m/%d/%Y %H:%M:%S")
-        time_fmt = time.strftime('%Y-%m-%dT%H:%M:%S', time_obj)
-        if len(time_fmt) == 19:
-            time_fmt += "-06:00"
-
-        terrautils.geostreams.create_datapoint(connector, host, secret_key, stream_id, {
-            "type": "Point",
-            "coordinates": [sensor_latlon[1], sensor_latlon[0], 0]
-        }, time_fmt, time_fmt, metadata)
-
+        self.end_message()
 
 if __name__ == "__main__":
     extractor = CanopyCoverHeight()

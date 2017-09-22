@@ -4,110 +4,85 @@ import os
 import logging
 import requests
 import subprocess
+import json
 
-import datetime
-from dateutil.parser import parse
-from influxdb import InfluxDBClient, SeriesHelper
-
-from pyclowder.extractors import Extractor
 from pyclowder.utils import CheckMessage
-import pyclowder.files
-import pyclowder.datasets
-import terrautils.extractors
+from pyclowder.files import upload_to_dataset, upload_metadata, download_info
+from pyclowder.collections import create_empty as create_empty_collection
+from pyclowder.datasets import create_empty as create_empty_dataset
+from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy
 
 import full_day_to_tiles
 import shadeRemoval as shade
 
 
-class FullFieldMosaicStitcher(Extractor):
+def add_local_arguments(parser):
+    # add any additional arguments to parser
+    parser.add_argument('--darker', type=bool, default=os.getenv('MOSAIC_DARKER', False),
+                             help="whether to use multipass mosiacking to select darker pixels")
+    parser.add_argument('--split', type=int, default=os.getenv('MOSAIC_SPLIT', 2),
+                             help="number of splits to use if --darker is True")
+
+class FullFieldMosaicStitcher(TerrarefExtractor):
     def __init__(self):
-        Extractor.__init__(self)
+        super(FullFieldMosaicStitcher, self).__init__()
 
-        influx_host = os.getenv("INFLUXDB_HOST", "terra-logging.ncsa.illinois.edu")
-        influx_port = os.getenv("INFLUXDB_PORT", 8086)
-        influx_db = os.getenv("INFLUXDB_DB", "extractor_db")
-        influx_user = os.getenv("INFLUXDB_USER", "terra")
-        influx_pass = os.getenv("INFLUXDB_PASSWORD", "")
-
-        # add any additional arguments to parser
-        self.parser.add_argument('--output', '-o', dest="output_dir", type=str, nargs='?',
-                                 default="/home/extractor/sites/ua-mac/Level_1/fullfield",
-                                 help="root directory where timestamp & output directories will be created")
-        self.parser.add_argument('--overwrite', dest="force_overwrite", type=bool, nargs='?', default=False,
-                                 help="whether to overwrite output file if it already exists in output directory")
-        self.parser.add_argument('--mainspace', dest="mainspace", type=str, nargs='?',
-                                 default="58da6b924f0c430e2baa823f", help="Space UUID in Clowder to store results")
-        self.parser.add_argument('--darker', dest="generate_darker", type=bool, nargs='?', default=False,
-                                 help="whether to use multipass mosiacking to select darker pixels")
-        self.parser.add_argument('--split', dest="split_num", type=int, nargs='?', default=2,
-                                 help="number of splits to use if --darker is True")
-        self.parser.add_argument('--influxHost', dest="influx_host", type=str, nargs='?',
-                                 default=influx_host, help="InfluxDB URL for logging")
-        self.parser.add_argument('--influxPort', dest="influx_port", type=int, nargs='?',
-                                 default=influx_port, help="InfluxDB port")
-        self.parser.add_argument('--influxUser', dest="influx_user", type=str, nargs='?',
-                                 default=influx_user, help="InfluxDB username")
-        self.parser.add_argument('--influxPass', dest="influx_pass", type=str, nargs='?',
-                                 default=influx_pass, help="InfluxDB password")
-        self.parser.add_argument('--influxDB', dest="influx_db", type=str, nargs='?',
-                                 default=influx_db, help="InfluxDB database")
+        add_local_arguments(self.parser)
 
         # parse command line and load default logging configuration
-        self.setup()
+        self.setup(sensor='fullfield')
 
-        # setup logging for the exctractor
-        logging.getLogger('pyclowder').setLevel(logging.DEBUG)
-        logging.getLogger('__main__').setLevel(logging.DEBUG)
-
-        # assign other arguments
-        self.output_dir = self.args.output_dir
-        self.force_overwrite = self.args.force_overwrite
-        self.mainspace = self.args.mainspace
-        self.generate_darker = self.args.generate_darker
-        self.split_num = self.args.split_num
-        self.influx_params = {
-            "host": self.args.influx_host,
-            "port": self.args.influx_port,
-            "db": self.args.influx_db,
-            "user": self.args.influx_user,
-            "pass": self.args.influx_pass
-        }
+        # assign local arguments
+        self.darker = self.args.darker
+        self.split = self.args.split
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         return CheckMessage.bypass
 
     def process_message(self, connector, host, secret_key, resource, parameters):
-        starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        created = 0
-        bytes = 0
+        self.start_message()
 
-        # parameters["output_dataset"] = "Full Field - 2017-01-01"
-        out_dir = terrautils.extractors.get_output_directory(self.soutput_dir, parameters["output_dataset"])
-        out_root = terrautils.extractors.get_output_filename(parameters["output_dataset"], opts=["fullField"])
-        out_vrt = os.path.join(out_dir, out_root+".vrt")
-        out_tif_full = os.path.join(out_dir, out_root+".tif")
-        out_tif_thumb = os.path.join(out_dir, out_root+"_thumb.tif")
+        if type(parameters) is str:
+            parameters = json.loads(parameters)
+        if 'parameters' in parameters:
+            parameters = parameters['parameters']
+        if type(parameters) is unicode:
+            parameters = json.loads(str(parameters))
 
-        nu_created, nu_bytes = 0, 0
-        if not self.generate_darker:
-            (nu_created, nu_bytes) = self.generateSingleMosaic(out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
+        # Input path will suggest which sensor we are seeing
+        filepath = resource['files'][0]['filepath']
+        sensor_type = None
+        for sens in ["rgb_geotiff", "ir_geotiff", "laser3d_heightmap"]:
+            if filepath.find(sens) > -1:
+                sensor_type = sens.split("_")[0]
+                break
+
+        # dataset_name = "Full Field - 2017-01-01"
+        dataset_name = parameters["output_dataset"]
+        timestamp = dataset_name.split(" - ")[1]
+
+        out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type])
+        out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
+        out_vrt = out_tif_full.replace(".tif", ".vrt")
+        out_dir = os.path.dirname(out_vrt)
+
+        if not self.darker or sensor_type != 'rgb':
+            (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key,
+                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
         else:
-            (nu_created, nu_bytes) = self.generateDarkerMosaic(out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
-        created += nu_created
-        bytes += nu_bytes
+            (nu_created, nu_bytes) = self.generateDarkerMosaic(connector, host, secret_key,
+                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
+        self.created += nu_created
+        self.bytes += nu_bytes
+
+        # Get dataset ID or create it, creating parent collections as needed
+        target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
+                                              self.sensors.get_display_name(), timestamp[:4],
+                                              timestamp[5:7], leaf_ds_name=dataset_name)
 
         # Upload full field image to Clowder
-        parent_collect = self.getCollectionOrCreate(connector, host, secret_key, "Full Field Stitched Mosaics",
-                                                    parent_space=self.mainspace)
-        year_collect = self.getCollectionOrCreate(connector, host, secret_key, parameters["output_dataset"][:17],
-                                                  parent_collect, self.mainspace)
-        month_collect = self.getCollectionOrCreate(connector, host, secret_key, parameters["output_dataset"][:20],
-                                                   year_collect, self.mainspace)
-        target_dsid = self.getDatasetOrCreate(connector, host, secret_key, parameters["output_dataset"],
-                                              month_collect, self.mainspace)
-
-        thumbid = pyclowder.files.upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_thumb)
-        fullid = pyclowder.files.upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_full)
+        thumbid = upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_thumb)
+        fullid = upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_full)
 
         content = {
             "comment": "This stitched image is computed based on an assumption that the scene is planar. \
@@ -116,14 +91,12 @@ class FullFieldMosaicStitcher(Extractor):
                 slightly higher or lower than average.",
             "file_ids": parameters["file_ids"]
         }
-        thumbmeta = terrautils.extractors.build_metadata(host, self.extractor_info['name'], thumbid, content, 'file')
-        pyclowder.files.upload_metadata(connector, host, secret_key, thumbid, thumbmeta)
-        fullmeta = terrautils.extractors.build_metadata(host, self.extractor_info['name'], fullid, content, 'file')
-        pyclowder.files.upload_metadata(connector, host, secret_key, thumbid, fullmeta)
+        thumbmeta = build_metadata(host, self.extractor_info, thumbid, content, 'file')
+        upload_metadata(connector, host, secret_key, thumbid, thumbmeta)
+        fullmeta = build_metadata(host, self.extractor_info, fullid, content, 'file')
+        upload_metadata(connector, host, secret_key, fullid, fullmeta)
 
-        endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-        terrautils.extractors.log_to_influxdb(self.extractor_info['name'], self.influx_params,
-                                              starttime, endtime, created, bytes)
+        self.end_message()
 
     def getCollectionOrCreate(self, connector, host, secret_key, cname, parent_colln=None, parent_space=None):
         # Fetch dataset from Clowder by name, or create it if not found
@@ -132,7 +105,7 @@ class FullFieldMosaicStitcher(Extractor):
         result.raise_for_status()
 
         if len(result.json()) == 0:
-            return pyclowder.collections.create_empty(connector, host, secret_key, cname, "",
+            return create_empty_collection(connector, host, secret_key, cname, "",
                                                       parent_colln, parent_space)
         else:
             return result.json()[0]['id']
@@ -144,94 +117,125 @@ class FullFieldMosaicStitcher(Extractor):
         result.raise_for_status()
 
         if len(result.json()) == 0:
-            return pyclowder.datasets.create_empty(connector, host, secret_key, dsname, "",
+            return create_empty_dataset(connector, host, secret_key, dsname, "",
                                                    parent_colln, parent_space)
         else:
             return result.json()[0]['id']
 
-    def generateSingleMosaic(self, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
+    def generateSingleMosaic(self, connector, host, secret_key, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
         # Create simple mosaic from geotiff list
         created, bytes = 0, 0
 
-        if (not os.path.isfile(out_vrt)) or self.force_overwrite:
-            logging.info("processing %s TIFs" % len(parameters['file_ids']))
+        if (not os.path.isfile(out_vrt)) or self.overwrite:
+            fileidpath = self.remapMountPath(connector, str(parameters['file_ids']))
+            with open(fileidpath) as flist:
+                file_id_list = json.load(flist)
+            logging.info("processing %s TIFs" % len(file_id_list))
 
             # Write input list to tmp file
-            with open("tiflist.txt", "w") as tifftxt:
-                for t in parameters["file_ids"]:
-                    tifftxt.write("%s/n" % t)
+            tiflist = "tiflist.txt"
+            with open(tiflist, "w") as tifftxt:
+                for tid in file_id_list:
+                    tinfo = download_info(connector, host, secret_key, tid)
+                    filepath = self.remapMountPath(connector, tinfo['filepath'])
+                    tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
             logging.info("Creating %s..." % out_vrt)
-            full_day_to_tiles.createVrtPermanent(out_dir, "tiflist.txt", out_vrt)
-            os.remove("tiflist.txt")
+            full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
+            os.remove(tiflist)
             created += 1
             bytes += os.path.getsize(out_vrt)
 
-        if (not os.path.isfile(out_tif_thumb)) or self.force_overwrite:
+        if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
             # Convert VRT to full-field GeoTIFF (low-res then high-res)
             logging.info("Converting VRT to %s..." % out_tif_thumb)
-            subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
-                             "-outsize 10% 10% %s %s" % (out_vrt, out_tif_thumb)])
+
+            cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
+                    "-outsize 10%% 10%% %s %s" % (out_vrt, out_tif_thumb)
+            subprocess.call(cmd, shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        if (not os.path.isfile(out_tif_full)) or self.force_overwrite:
+        if (not os.path.isfile(out_tif_full)) or self.overwrite:
             logging.info("Converting VRT to %s..." % out_tif_full)
-            subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
-                             "%s %s" % (out_vrt, out_tif_full)])
+            cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
+                    "%s %s" % (out_vrt, out_tif_full)
+            subprocess.call(cmd, shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_full)
 
         return (created, bytes)
 
-    def generateDarkerMosaic(self, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
+    def generateDarkerMosaic(self, connector, host, secret_key, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
         # Create dark-pixel mosaic from geotiff list using multipass for darker pixel selection
         created, bytes = 0, 0
 
-        if (not os.path.isfile(out_vrt)) or self.force_overwrite:
+        if (not os.path.isfile(out_vrt)) or self.overwrite:
+            fileidpath = self.remapMountPath(connector, str(parameters['file_ids']))
+            with open(fileidpath) as flist:
+                file_id_list = json.load(flist)
+            logging.info("processing %s TIFs with dark flag" % len(file_id_list))
+
             # Write input list to tmp file
-            with open("tiflist.txt", "w") as tifftxt:
-                for t in parameters["file_ids"]:
-                    tifftxt.write("%s/n" % t)
+            tiflist = "tiflist.txt"
+            with open(tiflist, "w") as tifftxt:
+                for tid in file_id_list:
+                    tinfo = download_info(connector, host, secret_key, tid)
+                    filepath = self.remapMountPath(connector, tinfo['filepath'])
+                    tifftxt.write("%s\n" % filepath)
+
+            # Create VRT from every GeoTIFF
+            logging.info("Creating %s..." % out_vrt)
+            full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
+            created += 1
+            bytes += os.path.getsize(out_vrt)
 
             # Split full tiflist into parts according to split number
-            shade.split_tif_list("tiflist.txt", out_dir, self.split_num)
-            os.remove("tiflist.txt")
+            shade.split_tif_list(tiflist, out_dir, self.split)
 
             # Generate tiles from each split VRT into numbered folders
-            shade.create_diff_tiles_set(out_dir, self.split_num)
+            shade.create_diff_tiles_set(out_dir, self.split)
 
             # Choose darkest pixel from each overlapping tile
             unite_tiles_dir = os.path.join(out_dir, 'unite')
-            shade.integrate_tiles(out_dir, unite_tiles_dir, self.split_num)
+            if not os.path.exists(unite_tiles_dir):
+                os.mkdir(unite_tiles_dir)
+            shade.integrate_tiles(out_dir, unite_tiles_dir, self.split)
 
             # If any files didn't have overlap, copy individual tile
-            shade.copy_missing_tiles(out_dir, unite_tiles_dir, self.split_num, tiles_folder_name='tiles_left')
+            shade.copy_missing_tiles(out_dir, unite_tiles_dir, self.split, tiles_folder_name='tiles_left')
 
             # Create output VRT from overlapped tiles
-            # TODO: Adjust this step so google HTML isn't generated?
             shade.create_unite_tiles(unite_tiles_dir, out_vrt)
             created += 1
             bytes += os.path.getsize(out_vrt)
 
-        if (not os.path.isfile(out_tif_thumb)) or self.force_overwrite:
+        if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
             # Convert VRT to full-field GeoTIFF (low-res then high-res)
             logging.info("Converting VRT to %s..." % out_tif_thumb)
-            subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
-                             "-outsize 10% 10% %s %s" % (out_vrt, out_tif_thumb)])
+            subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
+                             "-outsize 10% 10% %s %s" % (out_vrt, out_tif_thumb), shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        if (not os.path.isfile(out_tif_full)) or self.force_overwrite:
+        if (not os.path.isfile(out_tif_full)) or self.overwrite:
             logging.info("Converting VRT to %s..." % out_tif_full)
-            subprocess.call(["gdal_translate -projwin -111.9750277 33.0764277 -111.9748097 33.0745861 "+
-                             "%s %s" % (out_vrt, out_tif_full)])
+            subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
+                             "%s %s" % (out_vrt, out_tif_full), shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_full)
 
         return (created, bytes)
 
+    def remapMountPath(self, connector, path):
+        if len(connector.mounted_paths) > 0:
+            for source_path in connector.mounted_paths:
+                if path.startswith(source_path):
+                    return path.replace(source_path, connector.mounted_paths[source_path])
+            return path
+        else:
+            return path
 
 if __name__ == "__main__":
     extractor = FullFieldMosaicStitcher()
