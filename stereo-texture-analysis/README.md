@@ -99,6 +99,17 @@ For example on ubuntu do
 sudo apt-get install imagemagick r-base r-baes-core
 ```
 
+To install bayer2rgb follow the installation instructions in the corresponding README file
+
+```sh
+git clone git@github.com:jdthomas/bayer2rgb
+cd bayer2rgb
+make
+sudo cp bayer2rgb /usr/bin/
+mkdir ~/.magick
+cp delegates.xml ~/.magick/delegates.xml
+```
+
 For all the R libraries use the following:
 
 ```r
@@ -112,36 +123,31 @@ biocLite("EBImage")
 
 ### Running the tests
 
-check that bayer2rgb works
+- check that bayer2rgb works
 
-```sh
-bayer2rgb  -t -i gift-test.bin"$@" -o gift-test.tif -v  2472 -w 3296 -b 8 -m AHD -f GRBG
-```
+    bayer2rgb  -t -i gift-test.bin"$@" -o gift-test.tif -v  2472 -w 3296 -b 8 -m AHD -f GRBG
+
+- check that tif to png works with imagemagick's convert tool
+
+    convert gift-test.tif gift-test.png  ### some warning messages may pop up.--> convert.im6: gift-test.tif: Can not read TIFF directory count. `TIFFFetchDirectory' @ error/tiff.c/TIFFErrors/508. convert.im6: Failed to read directory at offset 488513821. `TIFFReadDirectory' @ error/tiff.c/TIFFErrors/508.
 
 
-check that tif to png works with imagemagick's convert tool
+- check that gift.R works
 
-```sh
-convert gift-test.tif gift-test.png  ### some warning messages may pop up
-```
+    Rscript gift.R -h
 
-check that gift.R works
+    Rscript gift.R -f gift-test.png -t ### should return a tmp-table.csv file --> Error in cbind_all(x) : cannot convert object to a data frame Calls: %>% ... <Anonymous> -> cbind -> cbind -> bind_cols -> cbind_all -> .Call Execution halted
 
-```sh
-Rscript gift.R -h
+    Rscript gift.R -f gift-test.png -t -d -e -l ### should return all output files --> Error in cbind_all(x) : cannot convert object to a data frame Calls: %>% ... <Anonymous> -> cbind -> cbind -> bind_cols -> cbind_all -> .Call Execution halted
 
-Rscript gift.R -f gift-test.png -t ### should return a tmp-table.csv file
 
-Rscript gift.R -f gift-test.png -t -d -e -l ### should return all output files
 
-Rscript gift.R -f gift-test.png -t -r roi.png ### this analysis the image using a b/w image as ROI mask
-```
+    Rscript gift.R -f gift-test.png -t -r roi.png ### this analysis the image using a b/w image as ROI mask
 
-finally check that gift.sh works
+- finally check that gift.sh works
 
-```sh
-./gift.sh  gift-test.tiff
-```
+    ./gift.sh  gift-test.bin
+
 
 ## Authors
 
