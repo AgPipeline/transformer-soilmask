@@ -37,6 +37,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         self.split = self.args.split
 
     def check_message(self, connector, host, secret_key, resource, parameters):
+
+
         return CheckMessage.bypass
 
     def process_message(self, connector, host, secret_key, resource, parameters):
@@ -89,7 +91,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 There are likely to be be small offsets near the boundary of two images anytime there are plants \
                 at the boundary (because those plants are higher than the ground plane), or where the dirt is \
                 slightly higher or lower than average.",
-            "file_ids": parameters["file_ids"]
+            "file_ids": parameters["file_paths"]
         }
         thumbmeta = build_metadata(host, self.extractor_info, thumbid, content, 'file')
         upload_metadata(connector, host, secret_key, thumbid, thumbmeta)

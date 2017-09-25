@@ -51,6 +51,10 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         sensor_lookup.get_display_name('laser3d_heightmap'): {
             "target": "_west.tif",
             "raw_dir": os.path.join(*(sensor_lookup.get_sensor_path('', sensor='scanner3DTop').split("/")[:-2]))
+        },
+        'scanner3DTop': {
+            "target": "_west.tif",
+            "raw_dir": os.path.join(*(sensor_lookup.get_sensor_path('', sensor='scanner3DTop').split("/")[:-2]))
         }
     }
 
