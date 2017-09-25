@@ -37,8 +37,6 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         self.split = self.args.split
 
     def check_message(self, connector, host, secret_key, resource, parameters):
-
-
         return CheckMessage.bypass
 
     def process_message(self, connector, host, secret_key, resource, parameters):
@@ -67,6 +65,10 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
+
+        if os.path.exists(out_vrt) and not self.overwrite:
+            logging.info("%s already exists; ending process" % out_vrt)
+            self.end_message()
 
         if not self.darker or sensor_type != 'rgb':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key,
