@@ -83,7 +83,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
         # Is current ID already included in the list? If not, add it
         submit_record = False
         if 'ids' in progress:
-            ds_count = progress['ids'].keys().length
+            ds_count = len(progress['ids'].keys())
             if target_id not in progress['ids'].keys():
                 submit_record = True
                 ds_count += 1
