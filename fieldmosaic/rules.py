@@ -110,13 +110,16 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                                                            shell=True).strip())
             logging.info("found %s raw files in %s" % (int(raw_file_count), date_directory))
 
-            # If we have enough raw files accounted for and more than min_datasets, trigger
-            prog_pct = (len(progress['ids'])/raw_file_count)*100
-            if prog_pct >= tolerance_pct:
-                full_field_ready = True
+            if raw_file_count == 0:
+                raise Exception("problem communicating with file system")
             else:
-                logging.info("found %s/%s necessary geotiffs (%s%%)" % (len(progress['ids']), int(raw_file_count),
-                                                                        "{0:.2f}".format(prog_pct)))
+                # If we have enough raw files accounted for and more than min_datasets, trigger
+                prog_pct = (len(progress['ids'])/raw_file_count)*100
+                if prog_pct >= tolerance_pct:
+                    full_field_ready = True
+                else:
+                    logging.info("found %s/%s necessary geotiffs (%s%%)" % (len(progress['ids']), int(raw_file_count),
+                                                                            "{0:.2f}".format(prog_pct)))
         for trig_extractor in rulemap["extractors"]:
             results[trig_extractor] = {
                 "process": full_field_ready,
