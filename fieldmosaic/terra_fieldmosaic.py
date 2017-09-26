@@ -7,10 +7,9 @@ import subprocess
 import json
 
 from pyclowder.utils import CheckMessage
-from pyclowder.files import upload_to_dataset, upload_metadata, download_info
-from pyclowder.collections import create_empty as create_empty_collection
-from pyclowder.datasets import create_empty as create_empty_dataset
-from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy
+from pyclowder.files import upload_metadata, download_info
+from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy, \
+    upload_to_dataset, create_empty_collection, create_empty_dataset
 
 import full_day_to_tiles
 import shadeRemoval as shade
@@ -80,13 +79,13 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         self.bytes += nu_bytes
 
         # Get dataset ID or create it, creating parent collections as needed
-        target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
+        target_dsid = build_dataset_hierarchy(host, self.clowder_user, self.clowder_pass, self.clowderspace,
                                               self.sensors.get_display_name(), timestamp[:4],
                                               timestamp[5:7], leaf_ds_name=dataset_name)
 
         # Upload full field image to Clowder
-        thumbid = upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_thumb)
-        fullid = upload_to_dataset(connector, host, secret_key, target_dsid, out_tif_full)
+        thumbid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_thumb)
+        fullid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
 
         content = {
             "comment": "This stitched image is computed based on an assumption that the scene is planar. \
@@ -101,30 +100,6 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         upload_metadata(connector, host, secret_key, fullid, fullmeta)
 
         self.end_message()
-
-    def getCollectionOrCreate(self, connector, host, secret_key, cname, parent_colln=None, parent_space=None):
-        # Fetch dataset from Clowder by name, or create it if not found
-        url = "%sapi/collections?key=%s&title=" % (host, secret_key, cname)
-        result = requests.get(url, verify=connector.ssl_verify)
-        result.raise_for_status()
-
-        if len(result.json()) == 0:
-            return create_empty_collection(connector, host, secret_key, cname, "",
-                                                      parent_colln, parent_space)
-        else:
-            return result.json()[0]['id']
-
-    def getDatasetOrCreate(self, connector, host, secret_key, dsname, parent_colln=None, parent_space=None):
-        # Fetch dataset from Clowder by name, or create it if not found
-        url = "%sapi/datasets?key=%s&title=" % (host, secret_key, dsname)
-        result = requests.get(url, verify=connector.ssl_verify)
-        result.raise_for_status()
-
-        if len(result.json()) == 0:
-            return create_empty_dataset(connector, host, secret_key, dsname, "",
-                                                   parent_colln, parent_space)
-        else:
-            return result.json()[0]['id']
 
     def generateSingleMosaic(self, connector, host, secret_key, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
         # Create simple mosaic from geotiff list
