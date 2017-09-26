@@ -68,7 +68,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         if os.path.exists(out_vrt) and not self.overwrite:
             logging.info("%s already exists; ending process" % out_vrt)
-            self.end_message()
+            return
 
         if not self.darker or sensor_type != 'rgb':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key,
