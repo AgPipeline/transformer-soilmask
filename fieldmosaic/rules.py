@@ -23,7 +23,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
     # full-field queues must have at least this percent of the raw datasets present to trigger
     tolerance_pct = 100
     # full-field queues must have at least this many datasets to trigger
-    min_datasets = 3000
+    min_datasets = 800
 
     # Determine output dataset
     dsname = resource["dataset_info"]["name"]
@@ -48,8 +48,11 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
             "target": ".tif",
             "raw_dir": os.path.join(*(sensor_lookup.get_sensor_path('', sensor='flirIrCamera').split("/")[:-2]))
         },
-        # TODO: How to handle east/west of heightmap stitching?
         sensor_lookup.get_display_name('laser3d_heightmap'): {
+            "target": "_west.tif",
+            "raw_dir": os.path.join(*(sensor_lookup.get_sensor_path('', sensor='scanner3DTop').split("/")[:-2]))
+        },
+        'scanner3DTop': {
             "target": "_west.tif",
             "raw_dir": os.path.join(*(sensor_lookup.get_sensor_path('', sensor='scanner3DTop').split("/")[:-2]))
         }
@@ -80,11 +83,14 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
 
         # Fetch all existing file IDs that would be fed into this field mosaic
         progress = rule_utils.retrieveProgressFromDB(progress_key)
-        pathmap = progress['properties'] if 'properties' in progress else {}
+
+        # Is current ID already included in the list? If not, add it
+        submit_record = False
         if 'ids' in progress:
-            if target_id not in progress['ids']:
-                progress['ids'] += [target_id]
-                pathmap[target_path] = target_id
+            ds_count = len(progress['ids'].keys())
+            if target_id not in progress['ids'].keys():
+                submit_record = True
+                ds_count += 1
             else:
                 # Already seen this geoTIFF, so skip for now.
                 logging.info("previously logged target geoTIFF from %s" % dsname)
@@ -94,9 +100,14 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                         "parameters": {}
                     }
         else:
-            progress['ids'] = [target_id]
+            submit_record = True
+            ds_count = 1
 
-        if len(progress['ids']) >= min_datasets:
+        if submit_record:
+            for trig_extractor in rulemap["extractors"]:
+                rule_utils.submitProgressToDB("fullFieldMosaicStitcher", trig_extractor, progress_key, target_id, target_path)
+
+        if ds_count >= min_datasets:
             # Check to see if list of geotiffs is same length as list of raw datasets
             root_dir = stitchable_sensors[sensor]["raw_dir"]
             if len(connector.mounted_paths) > 0:
@@ -110,13 +121,16 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                                                            shell=True).strip())
             logging.info("found %s raw files in %s" % (int(raw_file_count), date_directory))
 
-            # If we have enough raw files accounted for and more than min_datasets, trigger
-            prog_pct = (len(progress['ids'])/raw_file_count)*100
-            if prog_pct >= tolerance_pct:
-                full_field_ready = True
+            if raw_file_count == 0:
+                raise Exception("problem communicating with file system")
             else:
-                logging.info("found %s/%s necessary geotiffs (%s%%)" % (len(progress['ids']), int(raw_file_count),
-                                                                        "{0:.2f}".format(prog_pct)))
+                # If we have enough raw files accounted for and more than min_datasets, trigger
+                prog_pct = (len(progress['ids'])/raw_file_count)*100
+                if prog_pct >= tolerance_pct:
+                    full_field_ready = True
+                else:
+                    logging.info("found %s/%s necessary geotiffs (%s%%)" % (len(progress['ids']), int(raw_file_count),
+                                                                            "{0:.2f}".format(prog_pct)))
         for trig_extractor in rulemap["extractors"]:
             results[trig_extractor] = {
                 "process": full_field_ready,
@@ -130,19 +144,16 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
                 logging.info("writing %s_file_ids.json to %s" % (sensor, output_dir))
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
-                output_file = os.path.join(output_dir, sensor+"_file_ids.json")
+                output_file = os.path.join(output_dir, sensor+"_file_paths.json")
 
                 # Sort IDs by file path before writing to disk
                 # TODO: Eventually alternate every other image so we have half complete and half "underneath"
+                paths = []
+                for fid in progress['ids'].keys():
+                    paths.append(progress['ids'][fid])
                 with open(output_file, 'w') as out:
-                    sorted_paths = sorted(pathmap.keys())
-                    sorted_ids = []
-                    for p in sorted_paths:
-                        sorted_ids.append(pathmap[p])
-                    json.dump(sorted_ids, out)
-                results[trig_extractor]["parameters"]["file_ids"] = output_file
-
-            rule_utils.submitProgressToDB("fullFieldMosaicStitcher", trig_extractor, progress_key, progress["ids"], pathmap)
+                    json.dump(sorted(paths), out)
+                results[trig_extractor]["parameters"]["file_paths"] = output_file
 
     else:
         for trig_extractor in rulemap["extractors"]:

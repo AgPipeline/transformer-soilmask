@@ -66,6 +66,10 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
+        if os.path.exists(out_vrt) and not self.overwrite:
+            logging.info("%s already exists; ending process" % out_vrt)
+            return
+
         if not self.darker or sensor_type != 'rgb':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
@@ -89,7 +93,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 There are likely to be be small offsets near the boundary of two images anytime there are plants \
                 at the boundary (because those plants are higher than the ground plane), or where the dirt is \
                 slightly higher or lower than average.",
-            "file_ids": parameters["file_ids"]
+            "file_ids": parameters["file_paths"]
         }
         thumbmeta = build_metadata(host, self.extractor_info, thumbid, content, 'file')
         upload_metadata(connector, host, secret_key, thumbid, thumbmeta)
@@ -127,17 +131,16 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         created, bytes = 0, 0
 
         if (not os.path.isfile(out_vrt)) or self.overwrite:
-            fileidpath = self.remapMountPath(connector, str(parameters['file_ids']))
+            fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
-                file_id_list = json.load(flist)
-            logging.info("processing %s TIFs" % len(file_id_list))
+                file_path_list = json.load(flist)
+            logging.info("processing %s TIFs with dark flag" % len(file_path_list))
 
             # Write input list to tmp file
             tiflist = "tiflist.txt"
             with open(tiflist, "w") as tifftxt:
-                for tid in file_id_list:
-                    tinfo = download_info(connector, host, secret_key, tid)
-                    filepath = self.remapMountPath(connector, tinfo['filepath'])
+                for tpath in file_path_list:
+                    filepath = self.remapMountPath(connector, tpath)
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
@@ -172,17 +175,16 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         created, bytes = 0, 0
 
         if (not os.path.isfile(out_vrt)) or self.overwrite:
-            fileidpath = self.remapMountPath(connector, str(parameters['file_ids']))
+            fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
-                file_id_list = json.load(flist)
-            logging.info("processing %s TIFs with dark flag" % len(file_id_list))
+                file_path_list = json.load(flist)
+            logging.info("processing %s TIFs with dark flag" % len(file_path_list))
 
             # Write input list to tmp file
             tiflist = "tiflist.txt"
             with open(tiflist, "w") as tifftxt:
-                for tid in file_id_list:
-                    tinfo = download_info(connector, host, secret_key, tid)
-                    filepath = self.remapMountPath(connector, tinfo['filepath'])
+                for tpath in file_path_list:
+                    filepath = self.remapMountPath(connector, tpath)
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
