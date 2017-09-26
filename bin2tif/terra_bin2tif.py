@@ -12,11 +12,10 @@ import logging
 import shutil
 
 from pyclowder.utils import CheckMessage
-from pyclowder.files import upload_to_dataset
 from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
-    build_metadata, build_dataset_hierarchy
+    build_metadata, build_dataset_hierarchy, upload_to_dataset
 from terrautils.formats import create_geotiff, create_image
 from terrautils.spatial import geojson_to_tuples
 
@@ -97,7 +96,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         right_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['right']['bounding_box'])
         out_tmp_tiff = "/home/extractor/"+resource['dataset_info']['name']+".tif"
 
-        target_dsid = build_dataset_hierarchy(connector, host, secret_key, self.clowderspace,
+        target_dsid = build_dataset_hierarchy(host, self.clowder_user, self.clowder_pass, self.clowderspace,
                                               self.sensors.get_display_name(),
                                               timestamp[:4], timestamp[5:7], timestamp[8:10],
                                               leaf_ds_name=self.sensors.get_display_name()+' - '+timestamp)
@@ -110,7 +109,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             create_image(left_image, left_jpg)
             # Only upload the newly generated file to Clowder if it isn't already in dataset
             if left_jpg not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, secret_key, target_dsid, left_jpg)
+                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_jpg)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_jpg)
@@ -127,7 +126,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             create_geotiff(left_image, left_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             shutil.move(out_tmp_tiff, left_tiff)
             if left_tiff not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, secret_key, target_dsid, left_tiff)
+                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_tiff)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
@@ -139,7 +138,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             right_image = bin2tiff.process_image(right_shape, img_right, None)
             create_image(right_image, right_jpg)
             if right_jpg not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, secret_key, target_dsid, right_jpg)
+                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, right_jpg)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
             self.bytes += os.path.getsize(right_jpg)
@@ -155,7 +154,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             create_geotiff(right_image, right_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             shutil.move(out_tmp_tiff, right_tiff)
             if right_tiff not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, secret_key, target_dsid,right_tiff)
+                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,right_tiff)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
             self.bytes += os.path.getsize(right_tiff)
