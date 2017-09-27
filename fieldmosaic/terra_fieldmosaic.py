@@ -49,11 +49,14 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             parameters = json.loads(str(parameters))
 
         # Input path will suggest which sensor we are seeing
-        filepath = resource['files'][0]['filepath']
         sensor_type = None
-        for sens in ["rgb_geotiff", "ir_geotiff", "laser3d_heightmap"]:
-            if filepath.find(sens) > -1:
-                sensor_type = sens.split("_")[0]
+        for f in resource['files']:
+            filepath = f['filepath']
+            for sens in ["rgb_geotiff", "ir_geotiff", "laser3d_heightmap"]:
+                if filepath.find(sens) > -1:
+                    sensor_type = sens.split("_")[0]
+                    break
+            if sensor_type is not None:
                 break
 
         # dataset_name = "Full Field - 2017-01-01"
