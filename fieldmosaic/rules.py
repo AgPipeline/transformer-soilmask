@@ -23,7 +23,7 @@ def fullFieldMosaicStitcher(extractor, connector, host, secret_key, resource, ru
     # full-field queues must have at least this percent of the raw datasets present to trigger
     tolerance_pct = 100
     # full-field queues must have at least this many datasets to trigger
-    min_datasets = 800
+    min_datasets = 200
 
     # Determine output dataset
     dsname = resource["dataset_info"]["name"]
