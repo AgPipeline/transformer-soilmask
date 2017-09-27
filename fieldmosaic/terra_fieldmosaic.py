@@ -79,7 +79,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         self.bytes += nu_bytes
 
         # Get dataset ID or create it, creating parent collections as needed
-        target_dsid = build_dataset_hierarchy(host, self.clowder_user, self.clowder_pass, self.clowderspace,
+        target_dsid = build_dataset_hierarchy(host, secret_key, self.clowder_user, self.clowder_pass, self.clowderspace,
                                               self.sensors.get_display_name(), timestamp[:4],
                                               timestamp[5:7], leaf_ds_name=dataset_name)
 
@@ -135,6 +135,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
+        """
         if (not os.path.isfile(out_tif_full)) or self.overwrite:
             logging.info("Converting VRT to %s..." % out_tif_full)
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
@@ -142,6 +143,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             subprocess.call(cmd, shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_full)
+        """
 
         return (created, bytes)
 

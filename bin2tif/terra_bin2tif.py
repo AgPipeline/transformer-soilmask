@@ -96,7 +96,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         right_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['right']['bounding_box'])
         out_tmp_tiff = "/home/extractor/"+resource['dataset_info']['name']+".tif"
 
-        target_dsid = build_dataset_hierarchy(host, self.clowder_user, self.clowder_pass, self.clowderspace,
+        target_dsid = build_dataset_hierarchy(host, secret_key, self.clowder_user, self.clowder_pass, self.clowderspace,
                                               self.sensors.get_display_name(),
                                               timestamp[:4], timestamp[5:7], timestamp[8:10],
                                               leaf_ds_name=self.sensors.get_display_name()+' - '+timestamp)
