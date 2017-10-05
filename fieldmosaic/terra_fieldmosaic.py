@@ -133,7 +133,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             logging.info("Converting VRT to %s..." % out_tif_thumb)
 
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
-                    "-outsize 10%% 10%% %s %s" % (out_vrt, out_tif_thumb)
+                    "-outsize 2%% 2%% %s %s" % (out_vrt, out_tif_thumb)
             subprocess.call(cmd, shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
