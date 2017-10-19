@@ -1,4 +1,5 @@
 # Canopy cover extractor
+
 This extractor processes binary stereo images and generates plot-level percentage canopy cover traits for BETYdb.
  
 _Input_
