@@ -42,6 +42,25 @@ docker run \
   terra-ext-bin2tif
 ```
 
+### TORQUE/PBS
+The extractor can also be run on ROGER via the TORQUE/PBS batch system.
+
+This process assumes that you are using the existing Python virtualenv under:
+```
+/projects/arpae/terraref/shared/extractors/pyenv/
+```
+
+This also uses a shared environment file for common settings:
+```
+/projects/arpae/terraref/shared/extractors/env.sh
+```
+
+The following default batch jobs will start 20 extractors on a single 20-core node:
+```
+qsub /projects/arpae/terraref/shared/extractors/extractors-stereo-rgb/bin2tif/batch_launcher.sh
+```
+
+
 ### Dependencies
 
 * All the Python scripts syntactically support Python 2.7 and above. Please make sure that the Python in the running environment is in appropriate version.

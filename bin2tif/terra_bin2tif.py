@@ -10,6 +10,7 @@ JPG and TIF formats.
 import os
 import logging
 import shutil
+import tempfile
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
@@ -94,7 +95,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         right_shape = bin2tiff.get_image_shape(metadata, 'right')
         left_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['left']['bounding_box'])
         right_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['right']['bounding_box'])
-        out_tmp_tiff = "/home/extractor/"+resource['dataset_info']['name']+".tif"
+        out_tmp_tiff = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
 
         target_dsid = build_dataset_hierarchy(host, secret_key, self.clowder_user, self.clowder_pass, self.clowderspace,
                                               self.sensors.get_display_name(),
