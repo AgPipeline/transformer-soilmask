@@ -45,63 +45,19 @@ docker run \
 ### TORQUE/PBS
 The extractor can also be run on ROGER via the TORQUE/PBS batch system.
 
-First, create a Python virtualenv with the relevant dependencies:
-
+This process assumes that you are using the existing Python virtualenv under:
 ```
-module load gdal2-stack
-module load python/2.7.10
-module load pythonlibs/2.7.10
-virtualenv terraref --python=python2.7
-cd terraref
-. bin/activate
-git clone https://opensource.ncsa.illinois.edu/stash/scm/cats/pyclowder2.git
-pip install  pyclowder2/
-git clone https://github.com/terraref/terrautils/
-pip install terrautils/
-git clone https://github.com/terraref/extractors-stereo-rgb
-pip install Pillow enum34 pyyaml pika functools32 pyparsing pytz GDAL
+/projects/arpae/terraref/shared/extractors/pyenv/
 ```
 
-Once the virtual environment is configured with pyclowder, terrautils, and the extractor, you can run the batch job.
-
-The following example PBS script requests a 20 core node and runs 20 bin2tif extractors in parallel:
+This also uses a shared environment file for common settings:
 ```
-#!/bin/bash
-
-#PBS -l walltime=00:05:00
-#PBS -l nodes=1:ppn=20
-#PBS -q batch
-#PBS -j oe
-#PBS -o bin2tif.log
-#PBS -m be
-#PBS -M <your email>
-
-module load parallel
-module load gdal2-stack
-module load python/2.7.10
-module load pythonlibs/2.7.10
-
-. ~/terraref/bin/activate
-
-seq 20 | parallel --ungroup --line-buffer -n0 "~/terraref/bin/python ~/terraref/extractors-stereo-rgb/bin2tif/terra_bin2tif.py"
+/projects/arpae/terraref/shared/extractors/env.sh
 ```
 
-
-Create an environment file containing the following (e.g., env.sh):
+The following default batch jobs will start 20 extractors on a single 20-core node:
 ```
-export RABBITMQ_URI=
-export REGISTRATION_ENDPOINTS=
-export RABBITMQ_EXCHANGE=
-export CLOWDER_USER=
-export CLOWDER_PASS=
-export CLOWDER_SPACE
-export INFLUXDB_PASSWORD=
-```
-
-Run the job:
-```
-. env.sh
-qsub -V bin2tif.pbs
+qsub /projects/arpae/terraref/shared/extractors/extractors-stereo-rgb/bin2tif/batch_launcher.sh
 ```
 
 
