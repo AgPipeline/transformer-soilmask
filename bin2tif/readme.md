@@ -83,7 +83,7 @@ module load pythonlibs/2.7.10
 
 . ~/terraref/bin/activate
 
-seq 20 | parallel --ungroup --line-buffer -n0 "~/terraref/bin/python ~/terraref/extractors-stereo-rgb/bin2tif/terra_bin2tif.py"
+seq 20 | parallel --ungroup -n0 "~/terraref/bin/python ~/terraref/extractors-stereo-rgb/bin2tif/terra_bin2tif.py"
 ```
 
 
