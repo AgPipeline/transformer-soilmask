@@ -1,7 +1,10 @@
 # Canopy cover extractor
 
+## Overview
 This extractor processes binary stereo images and generates plot-level percentage canopy cover traits for BETYdb.
- 
+
+ The core idea for this extractor is a plant-soil segmentation. We apply a threshold to differentiate plant and soil, and do a smoothing after binary processing. At last it returns a plant area ratio within the bounding box.
+
 _Input_
 
   - Evaluation is triggered whenever a file is added to a dataset
@@ -13,14 +16,32 @@ _Input_
 _Output_
 
   - The configured BETYdb instance will have canopy coverage traits inserted
-  
-  
-## Approach 
 
 
-This extractor processes binary stereo images and generates plot-level percentage canopy cover traits. The core idea for this extractor is a plant-soil segmentation. We apply a threshold to differentiate plant and soil, and do a smoothing after binary processing. At last it returns a plant area ratio within the bounding box.
+## Algorithm description
 
-## Quality Statement 
+The core idea for this extractor is a plant-soil segmentation. We apply a threshold to differentiate plant and soil, and do a smoothing after binary processing. At last it returns a plant area ratio within the bounding box.
+
+Steps:
+
+1. Split image data into R,G,B channel, and make a tmp image.
+
+2. For each pixel, if G value is T(threshold) higher than R value, make this pixel as foreground, and set the tmp pixel value to 255, so all tmp pixels are 0 or 255.
+
+3. Use a filter to blur this tmp image,
+
+4. Threshold the blurred tmp image with a threshold of 128 to get a new mask image that represents our plant (foreground) detections.
+
+5. Output ratio = foreground pixel count / total pixel count
+
+### Parameters
+    G - R Threshold is set to 5 for normal situation.
+
+	Blur image to new mask threshold is set to 128
+
+## Implementation
+
+### Quality Statement
 
 We believe the tested threshold works well in a normal illumination. Below are some examples of segmentation:
 ![cc1](https://user-images.githubusercontent.com/20230686/31093445-61dff692-a777-11e7-8c18-f3c2cbfa5882.png)
@@ -44,3 +65,5 @@ At the same time, there are some limitation with the current threshold.
 4. Sometimes sensor problem.
 
 ![2016-10-10__11-04-18-165](https://user-images.githubusercontent.com/20230686/31094184-e1e4c938-a779-11e7-93eb-c3d3846ffe70.jpg)
+
+Reference details: https://github.com/terraref/reference-data/issues/186#issuecomment-333631648
