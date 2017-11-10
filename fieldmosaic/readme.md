@@ -80,6 +80,7 @@ docker run \
 
 ## Failure Conditions
 
+### Image Stitching Artifacts
 One of the artifacts is duplication of area, this is unavoidable without a much more complex stitching algorithm that implicitly infers the 3D structure of the ground. The justification for not going for such a rich representation is that:
 * for the plants, since they move, it would be impossible not to have artifacts at the edges of the image, and
 * for the ground, I judged that small stitching errors were not worth the (substantial) additional effort to build the more complete model.
@@ -88,3 +89,10 @@ Related Issues and Discussions
 
 * Review of RGB Full Field extractor https://github.com/terraref/reference-data/issues/183
 * Dealing with sun/shade https://github.com/terraref/computing-pipeline/issues/326
+* Robert Pless https://github.com/terraref/computing-pipeline/issues/326#issuecomment-314895910,
+https://github.com/terraref/computing-pipeline/issues/326#issuecomment-314592669, https://github.com/terraref/reference-data/issues/183#issuecomment-330697397
+
+### Planned and Proposed Changes
+
+* Use Orthomosaicing to account for 3D structure of the ground terraref/computing-pipeline#355
+* Develop pipeline to clip all images in a plot, analyze, and compute plot level summaries https://github.com/terraref/computing-pipeline/issues/356
