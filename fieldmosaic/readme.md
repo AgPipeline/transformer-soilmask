@@ -4,7 +4,7 @@ Stereo RGB Image metadata to JPG and TIFF Converter.
 
 ## Authors:
 * Zongyang Li, Donald Danforth Plant Science Center, St. Louis, MO
-* Maxwell Burnette, National Supercomputing Applications, Urbana, Il
+* Maxwell Burnette, National Supercomputing Applications, Urbana, IL
 
 ## Overview
 This extractor processes binary stereo images using metadata and outputs demosaicked JPG and TIFF images.
@@ -36,11 +36,11 @@ For data analysis, the stitched image, as is, is good for:
 ### Limitations
 
 For some data analysis, the stitched image will cause some problems.  To ground this discussion, here is an example of a stitched image
-![picture1](https://user-images.githubusercontent.com/20230686/26936199-916d6b64-4c33-11e7-8544-97294aa97017.png):
+![picture1](https://user-images.githubusercontent.com/20230686/26936199-916d6b64-4c33-11e7-8544-97294aa97017.png)
 
 - Any stitched image introduces new artifacts into the image data; it always introduces edges at the boundary of where one image turns into another --- either an explicitly black line boundary or an implicit boundary that is there because you can't exactly stitch images of a complicated 3D world (without making a full 3D model).  Even if you could stitch them (say, it is just flat dirt), the same bit of the world is usually a different brightness when viewed from different directions.
 - The particular stitching strategy of "choose the darker pixel" is a nice way to automatically choose a good image when there is bright sunshine effects.  It may create additional artifacts because the algorithm is allowed to integrate pixels from both images in potentially complicated patterns.  These artifacts may be hard to account for.
-
+- The alternative is to always to all initial feature selection or image analysis on the original images, and to then create derived features or extracted features from those images and save those derived or extracted features per plot.
 ## Application
 
 ### Docker
@@ -78,3 +78,13 @@ docker run \
 
 * All the Python scripts also rely on the third-party library including: PIL, scipy, numpy and osgeo.
 
+## Failure Conditions
+
+One of the artifacts is duplication of area, this is unavoidable without a much more complex stitching algorithm that implicitly infers the 3D structure of the ground. The justification for not going for such a rich representation is that:
+* for the plants, since they move, it would be impossible not to have artifacts at the edges of the image, and
+* for the ground, I judged that small stitching errors were not worth the (substantial) additional effort to build the more complete model.
+
+Related Issues and Discussions
+
+* Review of RGB Full Field extractor https://github.com/terraref/reference-data/issues/183
+* Dealing with sun/shade https://github.com/terraref/computing-pipeline/issues/326
