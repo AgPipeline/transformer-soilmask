@@ -1,6 +1,13 @@
-# Bin2Tif Extractor
+# Field Mosaic Extractor
 
-This extractor processes binary stereo images using metadata and outputs JPG and TIFF images.
+Stereo RGB Image metadata to JPG and TIFF Converter.
+
+## Authors:
+* Zongyang Li, Donald Danforth Plant Science Center, St. Louis, MO
+* Maxwell Burnette, National Supercomputing Applications, Urbana, Il
+
+## Overview
+This extractor processes binary stereo images using metadata and outputs demosaicked JPG and TIFF images.
 
 _Input_
 
@@ -14,16 +21,39 @@ _Output_
 
   - The dataset containing the left/right binary images will get left/right JPG and TIFF images
 
+## Algorithm
+
+### Algorithm Description
+For data quality, the stitched image, as is, is good for:
+- Understanding what part of the field was imaged,
+- Understanding if the imaging script is correctly capturing the plots (in the context of not imaging the whole field), or if there is a problem it is missing some of the plots.
+- Understanding if the image capture has good lighting, no motion blur, etc.
+
+For data analysis, the stitched image, as is, is good for:
+- an extractor for Canopy Coverage Percentage, and
+- an extractor for some phenotype analysis (emergence date, leaf color, flower/panacle detection)
+
+### Limitations
+
+For some data analysis, the stitched image will cause some problems.  To ground this discussion, here is an example of a stitched image
+![picture1](https://user-images.githubusercontent.com/20230686/26936199-916d6b64-4c33-11e7-8544-97294aa97017.png):
+
+- Any stitched image introduces new artifacts into the image data; it always introduces edges at the boundary of where one image turns into another --- either an explicitly black line boundary or an implicit boundary that is there because you can't exactly stitch images of a complicated 3D world (without making a full 3D model).  Even if you could stitch them (say, it is just flat dirt), the same bit of the world is usually a different brightness when viewed from different directions.
+- The particular stitching strategy of "choose the darker pixel" is a nice way to automatically choose a good image when there is bright sunshine effects.  It may create additional artifacts because the algorithm is allowed to integrate pixels from both images in potentially complicated patterns.  These artifacts may be hard to account for.
+
+## Application
+
 ### Docker
 The Dockerfile included in this directory can be used to launch this extractor in a container.
 
 _Building the Docker image_
-```
+
+```sh
 docker build -f Dockerfile -t terra-ext-bin2tif .
 ```
 
 _Running the image locally_
-```
+```sh
 docker run \
   -p 5672 -p 9000 --add-host="localhost:{LOCAL_IP}" \
   -e RABBITMQ_URI=amqp://{RMQ_USER}:{RMQ_PASSWORD}@localhost:5672/%2f \
@@ -34,7 +64,7 @@ docker run \
 Note that by default RabbitMQ will not allow "guest:guest" access to non-local addresses, which includes Docker. You may need to create an additional local RabbitMQ user for testing.
 
 _Running the image remotely_
-```
+```sh
 docker run \
   -e RABBITMQ_URI=amqp://{RMQ_USER}:{RMQ_PASSWORD}@rabbitmq.ncsa.illinois.edu/clowder \
   -e RABBITMQ_EXCHANGE=terra \
@@ -47,3 +77,4 @@ docker run \
 * All the Python scripts syntactically support Python 2.7 and above. Please make sure that the Python in the running environment is in appropriate version.
 
 * All the Python scripts also rely on the third-party library including: PIL, scipy, numpy and osgeo.
+
