@@ -3,10 +3,13 @@
 Stereo RGB Image metadata to JPG and TIFF Converter.
 
 ## Authors:
+
 * Zongyang Li, Donald Danforth Plant Science Center, St. Louis, MO
 * Maxwell Burnette, National Supercomputing Applications, Urbana, IL
+* Robert Pless, George Washington University, Washington, D.C.
 
 ## Overview
+
 This extractor processes binary stereo images using metadata and outputs demosaicked JPG and TIFF images.
 
 _Input_
@@ -25,6 +28,7 @@ _Output_
 
 ### Algorithm Description
 
+<TODO>
 
 ### Use 
 
