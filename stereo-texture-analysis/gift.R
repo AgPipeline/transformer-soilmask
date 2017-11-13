@@ -36,7 +36,6 @@ option_list <- list(
               type = "character",
               default = NULL,
               help = "The region of interest image file (white indicates ROI)"),
-
   make_option(c("-t", "--table"),
               type = "logical",
               action = "store_true",
@@ -129,11 +128,14 @@ df <- data.frame(d = as.vector(dgci),
   ungroup %>%
   group_by(roi, area, edges) %>%
   do({h = hist(.$d, breaks = seq(-0.1, 3, 0.1), plot = FALSE);
-      data.frame(breaks=paste0("dgci.",h$breaks[-length(h$breaks)]), counts=h$counts)}) %>%
-  tidyr::spread(breaks, counts) %>% as.data.frame df %>%
-  cbind(computeFeatures.moment(roi), computeFeatures.shape(roi))
+      data.frame(breaks = paste0("dgci.",h$breaks[-length(h$breaks)]), counts = h$counts)}) %>%
+  tidyr::spread(breaks, counts) %>% as.data.frame %>%
+  cbind(dgci = mean(dgci), computeFeatures.haralick(roi, dgci, scales = 1))
 
-
+# not using computeFeatures.moment(roi), computeFeatures.shape(roi)  
+# because these are only relevant if there are roi for different shapes
+# could be useful on individual plants at plot level prior to canopy closure
+# see https://github.com/terraref/reference-data/issues/172
 
 ### 6. Write features as table output
 ### 7. Write image output to directory
