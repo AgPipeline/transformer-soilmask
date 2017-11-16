@@ -73,10 +73,10 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             return
 
         if not self.darker or sensor_type != 'rgb':
-            (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key,
+            (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key, sensor_type,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
         else:
-            (nu_created, nu_bytes) = self.generateDarkerMosaic(connector, host, secret_key,
+            (nu_created, nu_bytes) = self.generateDarkerMosaic(connector, host, secret_key, sensor_type,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
         self.created += nu_created
         self.bytes += nu_bytes
@@ -104,7 +104,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         self.end_message()
 
-    def generateSingleMosaic(self, connector, host, secret_key, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
+    def generateSingleMosaic(self, connector, host, secret_key, sensor_type, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
         # Create simple mosaic from geotiff list
         created, bytes = 0, 0
 
@@ -131,9 +131,13 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
             # Convert VRT to full-field GeoTIFF (low-res then high-res)
             logging.info("Converting VRT to %s..." % out_tif_thumb)
+            if sensor_type == 'ir':
+                pct = '20'
+            else:
+                pct = '2'
 
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
-                    "-outsize 2%% 2%% %s %s" % (out_vrt, out_tif_thumb)
+                    "-outsize %s%% %s%% %s %s" % (pct, pct, out_vrt, out_tif_thumb)
             subprocess.call(cmd, shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
@@ -150,7 +154,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         return (created, bytes)
 
-    def generateDarkerMosaic(self, connector, host, secret_key, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
+    def generateDarkerMosaic(self, connector, host, secret_key, sensor_type, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
         # Create dark-pixel mosaic from geotiff list using multipass for darker pixel selection
         created, bytes = 0, 0
 
@@ -196,8 +200,13 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
             # Convert VRT to full-field GeoTIFF (low-res then high-res)
             logging.info("Converting VRT to %s..." % out_tif_thumb)
+            if sensor_type == 'ir':
+                pct = '20'
+            else:
+                pct = '2'
+
             subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
-                             "-outsize 10% 10% %s %s" % (out_vrt, out_tif_thumb), shell=True)
+                             "-outsize %s%% %s%% %s %s" % (pct, pct, out_vrt, out_tif_thumb), shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
