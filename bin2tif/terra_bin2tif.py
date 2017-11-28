@@ -31,6 +31,9 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         self.setup(sensor='rgb_geotiff')
 
     def check_message(self, connector, host, secret_key, resource, parameters):
+        if parameters["rulechecked"]:
+            return CheckMessage.download
+
         if not is_latest_file(resource):
             return CheckMessage.ignore
 
