@@ -46,6 +46,9 @@ class CanopyCoverHeight(TerrarefExtractor):
         self.start_message()
 
         tmp_csv = "canopycovertraits.csv"
+        csv_file = open(tmp_csv, 'w')
+        (fields, traits) = ccCore.get_traits_table()
+        csv_file.write(','.join(map(str, fields)) + '\n')
 
         # Get full list of experiment plots using date as filter
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
@@ -70,16 +73,12 @@ class CanopyCoverHeight(TerrarefExtractor):
                 logging.error("error generating cc for %s" % plotname)
                 continue
 
-            # Create BETY-ready CSV
-            (fields, traits) = ccCore.get_traits_table()
             traits['canopy_cover'] = str(ccVal)
             traits['site'] = plotname
             traits['local_datetime'] = timestamp+"T12-00-00-000"
             trait_list = ccCore.generate_traits_list(traits)
-            ccCore.generate_cc_csv(tmp_csv, fields, trait_list)
 
-            # submit CSV to BETY
-            submit_traits(tmp_csv, self.bety_key)
+            csv_file.write(','.join(map(str, trait_list)) + '\n')
 
             # Prepare and submit datapoint
             centroid_lonlat = json.loads(centroid_from_geojson(bounds))["coordinates"]
@@ -91,6 +90,10 @@ class CanopyCoverHeight(TerrarefExtractor):
             create_datapoint_with_dependencies(connector, host, secret_key, "Canopy Cover",
                                                (centroid_lonlat[1], centroid_lonlat[0]), time_fmt, time_fmt,
                                                dpmetadata, timestamp)
+
+        # submit CSV to BETY
+        csv.close()
+        submit_traits(tmp_csv, self.bety_key)
 
         # Add metadata to original dataset indicating this was run
         ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
