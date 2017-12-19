@@ -13,7 +13,7 @@ from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, sub
 from terrautils.geostreams import create_datapoint_with_dependencies
 from terrautils.gdal import clip_raster, centroid_from_geojson
 
-import canopyCover as ccCore
+from stereo_rgb import canopyCover as ccCore
 
 
 logging.basicConfig(format='%(asctime)s %(message)s')
@@ -92,7 +92,7 @@ class CanopyCoverHeight(TerrarefExtractor):
                                                dpmetadata, timestamp)
 
         # submit CSV to BETY
-        csv.close()
+        csv_file.close()
         submit_traits(tmp_csv, self.bety_key)
 
         # Add metadata to original dataset indicating this was run
