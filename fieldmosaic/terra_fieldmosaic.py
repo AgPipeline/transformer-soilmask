@@ -87,9 +87,6 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                                               timestamp[5:7], leaf_ds_name=dataset_name)
 
         # Upload full field image to Clowder
-        thumbid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_thumb)
-        fullid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
-
         content = {
             "comment": "This stitched image is computed based on an assumption that the scene is planar. \
                 There are likely to be be small offsets near the boundary of two images anytime there are plants \
@@ -97,14 +94,21 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 slightly higher or lower than average.",
             "file_ids": parameters["file_paths"]
         }
-        thumbmeta = build_metadata(host, self.extractor_info, thumbid, content, 'file')
-        upload_metadata(connector, host, secret_key, thumbid, thumbmeta)
-        fullmeta = build_metadata(host, self.extractor_info, fullid, content, 'file')
-        upload_metadata(connector, host, secret_key, fullid, fullmeta)
+
+        if os.path.exists(out_tif_thumb):
+            thumbid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_thumb)
+            thumbmeta = build_metadata(host, self.extractor_info, thumbid, content, 'file')
+            upload_metadata(connector, host, secret_key, thumbid, thumbmeta)
+
+        if os.path.exists(out_tif_full):
+            fullid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
+            fullmeta = build_metadata(host, self.extractor_info, fullid, content, 'file')
+            upload_metadata(connector, host, secret_key, fullid, fullmeta)
 
         self.end_message()
 
-    def generateSingleMosaic(self, connector, host, secret_key, sensor_type, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
+    def generateSingleMosaic(self, connector, host, secret_key, sensor_type,
+                             out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
         # Create simple mosaic from geotiff list
         created, bytes = 0, 0
 
@@ -142,7 +146,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        """
+        """ TODO: Temporarily disable full resolution
         if (not os.path.isfile(out_tif_full)) or self.overwrite:
             logging.info("Converting VRT to %s..." % out_tif_full)
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
@@ -154,7 +158,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         return (created, bytes)
 
-    def generateDarkerMosaic(self, connector, host, secret_key, sensor_type, out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
+    def generateDarkerMosaic(self, connector, host, secret_key, sensor_type,
+                             out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
         # Create dark-pixel mosaic from geotiff list using multipass for darker pixel selection
         created, bytes = 0, 0
 
@@ -210,12 +215,14 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
+        """ TODO: Temporarily disable full resolution
         if (not os.path.isfile(out_tif_full)) or self.overwrite:
             logging.info("Converting VRT to %s..." % out_tif_full)
             subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
                              "%s %s" % (out_vrt, out_tif_full), shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_full)
+        """
 
         return (created, bytes)
 
