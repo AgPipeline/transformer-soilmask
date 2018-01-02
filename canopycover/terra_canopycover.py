@@ -13,7 +13,7 @@ from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, sub
 from terrautils.geostreams import create_datapoint_with_dependencies
 from terrautils.gdal import clip_raster, centroid_from_geojson
 
-from stereo_rgb import canopyCover as ccCore
+from stereo_rgb import stereo_rgb
 
 
 logging.basicConfig(format='%(asctime)s %(message)s')
@@ -47,7 +47,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
         tmp_csv = "canopycovertraits.csv"
         csv_file = open(tmp_csv, 'w')
-        (fields, traits) = ccCore.get_traits_table()
+        (fields, traits) = stereo_rgb.get_traits_table()
         csv_file.write(','.join(map(str, fields)) + '\n')
 
         # Get full list of experiment plots using date as filter
@@ -65,7 +65,7 @@ class CanopyCoverHeight(TerrarefExtractor):
                 if len(pxarray.shape) < 3:
                     logging.error("unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
                     continue
-                ccVal = ccCore.gen_cc_for_img(rollaxis(pxarray,0,3), 5)
+                ccVal = stereo_rgb.calculate_canopycover(rollaxis(pxarray,0,3))
                 successful_plots += 1
                 if successful_plots % 10 == 0:
                     logging.info("processed %s/%s plots successfully" % (successful_plots, len(all_plots)))
@@ -76,7 +76,7 @@ class CanopyCoverHeight(TerrarefExtractor):
             traits['canopy_cover'] = str(ccVal)
             traits['site'] = plotname
             traits['local_datetime'] = timestamp+"T12-00-00-000"
-            trait_list = ccCore.generate_traits_list(traits)
+            trait_list = stereo_rgb.generate_traits_list(traits)
 
             csv_file.write(','.join(map(str, trait_list)) + '\n')
 

@@ -20,7 +20,7 @@ from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_f
 from terrautils.formats import create_geotiff, create_image
 from terrautils.spatial import geojson_to_tuples
 
-from stereo_rgb import bin_to_geotiff as bin2tiff
+from stereo_rgb import stereo_rgb
 
 
 class StereoBin2JpgTiff(TerrarefExtractor):
@@ -94,8 +94,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         uploaded_file_ids = []
 
         logging.info("...determining image shapes")
-        left_shape = bin2tiff.get_image_shape(metadata, 'left')
-        right_shape = bin2tiff.get_image_shape(metadata, 'right')
+        left_shape = stereo_rgb.get_image_shape(metadata, 'left')
+        right_shape = stereo_rgb.get_image_shape(metadata, 'right')
         left_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['left']['bounding_box'])
         right_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['right']['bounding_box'])
         out_tmp_tiff = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
@@ -105,27 +105,9 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                                               timestamp[:4], timestamp[5:7], timestamp[8:10],
                                               leaf_ds_name=self.sensors.get_display_name()+' - '+timestamp)
 
-        """
-        skipped_jpg = False
-        if (not os.path.isfile(left_jpg)) or self.overwrite:
-            logging.info("...creating & uploading left JPG")
-            left_image = bin2tiff.process_image(left_shape, img_left, None)
-            create_image(left_image, left_jpg)
-            # Only upload the newly generated file to Clowder if it isn't already in dataset
-            if left_jpg not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_jpg)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
-            self.created += 1
-            self.bytes += os.path.getsize(left_jpg)
-        else:
-            skipped_jpg = True
-        """
-        skipped_jpg = True
-
         if (not os.path.isfile(left_tiff)) or self.overwrite:
             logging.info("...creating & uploading left geoTIFF")
-            if skipped_jpg:
-                left_image = bin2tiff.process_image(left_shape, img_left, None)
+            left_image = stereo_rgb.process_raw(left_shape, img_left, None)
             # Rename output.tif after creation to avoid long path errors
             create_geotiff(left_image, left_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             shutil.move(out_tmp_tiff, left_tiff)
@@ -135,26 +117,9 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
 
-        """
-        skipped_jpg = False
-        if (not os.path.isfile(right_jpg)) or self.overwrite:
-            logging.info("...creating & uploading right JPG")
-            right_image = bin2tiff.process_image(right_shape, img_right, None)
-            create_image(right_image, right_jpg)
-            if right_jpg not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, right_jpg)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
-            self.created += 1
-            self.bytes += os.path.getsize(right_jpg)
-        else:
-            skipped_jpg = True
-        """
-        skipped_jpg = True
-
         if (not os.path.isfile(right_tiff)) or self.overwrite:
             logging.info("...creating & uploading right geoTIFF")
-            if skipped_jpg:
-                right_image = bin2tiff.process_image(right_shape, img_right, None)
+            right_image = stereo_rgb.process_raw(right_shape, img_right, None)
             create_geotiff(right_image, right_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             shutil.move(out_tmp_tiff, right_tiff)
             if right_tiff not in resource['local_paths']:
