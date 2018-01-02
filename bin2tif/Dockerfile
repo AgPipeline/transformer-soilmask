@@ -5,7 +5,6 @@ MAINTAINER Max Burnette <mburnet2@illinois.edu>
 # TODO: Can we remove this user ID and mount files as Max?
 RUN useradd -u 49044 extractor \
     && apt-get install -y -q gfortran \
-    # && usr/bin/yes | apt-get build-dep python-matplotlib \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /home/extractor/sites/ua-mac/raw_data \
     && mkdir -p /home/extractor/sites/ua-mac/Level_1/stereoTop_geotiff \

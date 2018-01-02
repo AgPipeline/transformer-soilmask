@@ -12,6 +12,7 @@ from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, sub
     get_site_boundaries
 from terrautils.geostreams import create_datapoint_with_dependencies
 from terrautils.gdal import clip_raster, centroid_from_geojson
+from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 
 import canopyCover as ccCore
 
@@ -36,8 +37,12 @@ class CanopyCoverHeight(TerrarefExtractor):
         self.bety_key = self.args.bety_key
 
     def check_message(self, connector, host, secret_key, resource, parameters):
-        # TODO: Check for existing metadata from this extractor
         if resource['name'].find('fullfield') > -1 and resource['name'].find('_rgb_thumb') > -1:
+            # Check metadata to verify we have what we need
+            md = download_metadata(connector, host, secret_key, resource['parent']['id'])
+            if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
+                logging.info("skipping dataset %s; metadata indicates it was already processed" % resource['id'])
+                return CheckMessage.ignore
             return CheckMessage.download
 
         return CheckMessage.ignore
@@ -48,6 +53,10 @@ class CanopyCoverHeight(TerrarefExtractor):
         tmp_csv = "canopycovertraits.csv"
 
         # Get full list of experiment plots using date as filter
+        logging.info(connector)
+        logging.info(host)
+        logging.info(secret_key)
+        logging.info(resource)
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
         timestamp = ds_info['name'].split(" - ")[1]
         all_plots = get_site_boundaries(timestamp, city='Maricopa')
