@@ -61,9 +61,10 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         # dataset_name = "Full Field - 2017-01-01"
         dataset_name = parameters["output_dataset"]
+        scan_name = parameters["scan_type"] if "scan_type" in parameters else ""
         timestamp = dataset_name.split(" - ")[1]
 
-        out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type])
+        out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type, scan_name])
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
