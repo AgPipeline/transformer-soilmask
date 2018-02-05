@@ -39,7 +39,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         return CheckMessage.bypass
 
     def process_message(self, connector, host, secret_key, resource, parameters):
-        self.start_message()
+        self.start_message(resource)
 
         if type(parameters) is str:
             parameters = json.loads(parameters)
@@ -70,15 +70,17 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_dir = os.path.dirname(out_vrt)
 
         if os.path.exists(out_vrt) and not self.overwrite:
-            logging.info("%s already exists; ending process" % out_vrt)
+            self.log_skip(resource, "%s already exists; ending process" % out_vrt)
             return
 
         if not self.darker or sensor_type != 'rgb':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key, sensor_type,
-                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
+                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters,
+                                                               resource)
         else:
             (nu_created, nu_bytes) = self.generateDarkerMosaic(connector, host, secret_key, sensor_type,
-                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters)
+                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters,
+                                                               resource)
         self.created += nu_created
         self.bytes += nu_bytes
 
@@ -106,10 +108,10 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             fullmeta = build_metadata(host, self.extractor_info, fullid, content, 'file')
             upload_metadata(connector, host, secret_key, fullid, fullmeta)
 
-        self.end_message()
+        self.end_message(resource)
 
     def generateSingleMosaic(self, connector, host, secret_key, sensor_type,
-                             out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
+                             out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters, resource):
         # Create simple mosaic from geotiff list
         created, bytes = 0, 0
 
@@ -117,7 +119,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
                 file_path_list = json.load(flist)
-            logging.info("processing %s TIFs with dark flag" % len(file_path_list))
+            self.log_info(resource, "processing %s TIFs without dark flag" % len(file_path_list))
 
             # Write input list to tmp file
             tiflist = "tiflist.txt"
@@ -127,7 +129,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
-            logging.info("Creating %s..." % out_vrt)
+            self.log_info(resource, "Creating %s..." % out_vrt)
             full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
             os.remove(tiflist)
             created += 1
@@ -135,7 +137,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
             # Convert VRT to full-field GeoTIFF (low-res then high-res)
-            logging.info("Converting VRT to %s..." % out_tif_thumb)
+            self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
             if sensor_type == 'ir':
                 pct = '20'
             else:
@@ -160,7 +162,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         return (created, bytes)
 
     def generateDarkerMosaic(self, connector, host, secret_key, sensor_type,
-                             out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters):
+                             out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters, resource):
         # Create dark-pixel mosaic from geotiff list using multipass for darker pixel selection
         created, bytes = 0, 0
 
@@ -168,7 +170,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
                 file_path_list = json.load(flist)
-            logging.info("processing %s TIFs with dark flag" % len(file_path_list))
+            self.log_info(resource, "processing %s TIFs with dark flag" % len(file_path_list))
 
             # Write input list to tmp file
             tiflist = "tiflist.txt"
@@ -178,7 +180,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
-            logging.info("Creating %s..." % out_vrt)
+            self.log_info(resource, "Creating %s..." % out_vrt)
             full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
             created += 1
             bytes += os.path.getsize(out_vrt)
@@ -205,7 +207,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
             # Convert VRT to full-field GeoTIFF (low-res then high-res)
-            logging.info("Converting VRT to %s..." % out_tif_thumb)
+            self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
             if sensor_type == 'ir':
                 pct = '20'
             else:

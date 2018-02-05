@@ -9,7 +9,6 @@ JPG and TIF formats.
 
 import os
 import logging
-import json
 import shutil
 import tempfile
 
@@ -34,6 +33,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
     def check_message(self, connector, host, secret_key, resource, parameters):
         if "rulechecked" in parameters and parameters["rulechecked"]:
             return CheckMessage.download
+        self.start_check(resource)
 
         if not is_latest_file(resource):
             return CheckMessage.ignore
@@ -58,20 +58,20 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             out_dir = os.path.dirname(lbase)
             if (os.path.isfile(lbase+'jpg') and os.path.isfile(rbase+'jpg') and
                     os.path.isfile(lbase+'tif') and os.path.isfile(rbase+'tif')):
-                logging.info("skipping dataset %s; outputs found in %s" % (resource['id'], out_dir))
+                self.log_info(resource, "skipping dataset %s; outputs found in %s" % (resource['id'], out_dir))
                 return CheckMessage.ignore
 
         # Check metadata to verify we have what we need
         md = download_metadata(connector, host, secret_key, resource['id'])
         if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
-            logging.info("skipping dataset %s; metadata indicates it was already processed" % resource['id'])
+            self.log_info("skipping dataset %s; metadata indicates it was already processed" % resource['id'])
             return CheckMessage.ignore
         if get_terraref_metadata(md) and found_left and found_right:
             return CheckMessage.download
         return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
-        self.start_message()
+        self.start_message(resource)
 
         # Get left/right files and metadata
         img_left, img_right, metadata = None, None, None
@@ -90,11 +90,9 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
         left_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
         right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
-        # left_jpg = left_tiff.replace('.tif', '.jpg')
-        # right_jpg = right_tiff.replace('.tif', '.jpg')
         uploaded_file_ids = []
 
-        logging.info("...determining image shapes")
+        self.log_info(resource, "...determining image shapes")
         left_shape = bin2tiff.get_image_shape(metadata, 'left')
         right_shape = bin2tiff.get_image_shape(metadata, 'right')
         left_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['left']['bounding_box'])
@@ -107,7 +105,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                                               leaf_ds_name=self.sensors.get_display_name()+' - '+timestamp)
 
         if (not os.path.isfile(left_tiff)) or self.overwrite:
-            logging.info("...creating & uploading left geoTIFF")
+            self.log_info(resource, "...creating & uploading left geoTIFF")
             left_image = bin2tiff.process_image(left_shape, img_left, None)
             # Rename output.tif after creation to avoid long path errors
             create_geotiff(left_image, left_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
@@ -119,7 +117,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.bytes += os.path.getsize(left_tiff)
 
         if (not os.path.isfile(right_tiff)) or self.overwrite:
-            logging.info("...creating & uploading right geoTIFF")
+            self.log_info(resource, "...creating & uploading right geoTIFF")
             right_image = bin2tiff.process_image(right_shape, img_right, None)
             create_geotiff(right_image, right_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             shutil.move(out_tmp_tiff, right_tiff)
@@ -141,7 +139,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         lemna_md = build_metadata(host, self.extractor_info, target_dsid, md, 'dataset')
         upload_metadata(connector, host, secret_key, target_dsid, lemna_md)
 
-        self.end_message()
+        self.end_message(resource)
 
 if __name__ == "__main__":
     extractor = StereoBin2JpgTiff()

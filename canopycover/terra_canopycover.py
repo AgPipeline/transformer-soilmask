@@ -101,7 +101,7 @@ class CanopyCoverHeight(TerrarefExtractor):
                                                dpmetadata, timestamp)
 
         # submit CSV to BETY
-        csv.close()
+        csv_file.close()
         submit_traits(tmp_csv, self.bety_key)
 
         # Add metadata to original dataset indicating this was run
