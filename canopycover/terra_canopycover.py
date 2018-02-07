@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
@@ -37,7 +38,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         self.bety_key = self.args.bety_key
 
     def check_message(self, connector, host, secret_key, resource, parameters):
-        if resource['name'].find('fullfield') > -1 and resource['name'].find('_rgb_thumb') > -1:
+        if resource['name'].find('fullfield') > -1 and re.match("^.*\d+_rgb_.*thumb.tif", resource['name']):
             # Check metadata to verify we have what we need
             md = download_metadata(connector, host, secret_key, resource['parent']['id'])
             if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
@@ -84,7 +85,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
             traits['canopy_cover'] = str(ccVal)
             traits['site'] = plotname
-            traits['local_datetime'] = timestamp+"T12-00-00-000"
+            traits['local_datetime'] = timestamp+"T12:00:00"
             trait_list = ccCore.generate_traits_list(traits)
 
             csv_file.write(','.join(map(str, trait_list)) + '\n')
@@ -101,8 +102,8 @@ class CanopyCoverHeight(TerrarefExtractor):
                                                dpmetadata, timestamp)
 
         # submit CSV to BETY
-        csv.close()
-        submit_traits(tmp_csv, self.bety_key)
+        csv_file.close()
+        submit_traits(tmp_csv, betykey=self.bety_key)
 
         # Add metadata to original dataset indicating this was run
         ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
