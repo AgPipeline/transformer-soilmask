@@ -58,8 +58,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             lbase = self.sensors.get_sensor_path(timestamp, opts=['left'], ext='')
             rbase = self.sensors.get_sensor_path(timestamp, opts=['right'], ext='')
             out_dir = os.path.dirname(lbase)
-            if (os.path.isfile(lbase+'jpg') and os.path.isfile(rbase+'jpg') and
-                    os.path.isfile(lbase+'tif') and os.path.isfile(rbase+'tif')):
+            if (os.path.isfile(lbase+'tif') and os.path.isfile(rbase+'tif')):
                 self.log_skip(resource, "outputs found in %s" % out_dir)
                 return CheckMessage.ignore
 
@@ -114,6 +113,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             left_image = bin2tiff.process_image(left_shape, img_left, None)
             # Rename output.tif after creation to avoid long path errors
             create_geotiff(left_image, left_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
+            # TODO: we're moving zero byte files
             shutil.move(out_tmp_tiff, left_tiff)
             if left_tiff not in resource['local_paths']:
                 fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_tiff)
