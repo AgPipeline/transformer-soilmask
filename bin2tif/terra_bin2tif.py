@@ -8,7 +8,6 @@ JPG and TIF formats.
  """
 
 import os
-import logging
 import shutil
 import tempfile
 
