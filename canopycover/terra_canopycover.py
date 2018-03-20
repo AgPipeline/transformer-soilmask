@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
@@ -12,6 +13,7 @@ from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, sub
     get_site_boundaries
 from terrautils.geostreams import create_datapoint_with_dependencies
 from terrautils.gdal import clip_raster, centroid_from_geojson
+from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 
 from stereo_rgb import stereo_rgb
 
@@ -36,8 +38,12 @@ class CanopyCoverHeight(TerrarefExtractor):
         self.bety_key = self.args.bety_key
 
     def check_message(self, connector, host, secret_key, resource, parameters):
-        # TODO: Check for existing metadata from this extractor
-        if resource['name'].find('fullfield') > -1 and resource['name'].find('_rgb_thumb') > -1:
+        if resource['name'].find('fullfield') > -1 and re.match("^.*\d+_rgb_.*thumb.tif", resource['name']):
+            # Check metadata to verify we have what we need
+            md = download_metadata(connector, host, secret_key, resource['parent']['id'])
+            if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
+                logging.info("skipping dataset %s; metadata indicates it was already processed" % resource['id'])
+                return CheckMessage.ignore
             return CheckMessage.download
 
         return CheckMessage.ignore
@@ -51,6 +57,10 @@ class CanopyCoverHeight(TerrarefExtractor):
         csv_file.write(','.join(map(str, fields)) + '\n')
 
         # Get full list of experiment plots using date as filter
+        logging.info(connector)
+        logging.info(host)
+        logging.info(secret_key)
+        logging.info(resource)
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
         timestamp = ds_info['name'].split(" - ")[1]
         all_plots = get_site_boundaries(timestamp, city='Maricopa')
@@ -65,7 +75,10 @@ class CanopyCoverHeight(TerrarefExtractor):
                 if len(pxarray.shape) < 3:
                     logging.error("unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
                     continue
+
                 ccVal = stereo_rgb.calculate_canopycover(rollaxis(pxarray,0,3))
+                ccVal *= 100.0 # Make 0-100 instead of 0-1
+
                 successful_plots += 1
                 if successful_plots % 10 == 0:
                     logging.info("processed %s/%s plots successfully" % (successful_plots, len(all_plots)))
@@ -75,7 +88,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
             traits['canopy_cover'] = str(ccVal)
             traits['site'] = plotname
-            traits['local_datetime'] = timestamp+"T12-00-00-000"
+            traits['local_datetime'] = timestamp+"T12:00:00"
             trait_list = stereo_rgb.generate_traits_list(traits)
 
             csv_file.write(','.join(map(str, trait_list)) + '\n')
@@ -93,7 +106,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
         # submit CSV to BETY
         csv_file.close()
-        submit_traits(tmp_csv, self.bety_key)
+        submit_traits(tmp_csv, betykey=self.bety_key)
 
         # Add metadata to original dataset indicating this was run
         ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
