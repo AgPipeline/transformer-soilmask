@@ -9,7 +9,6 @@ JPG and TIF formats.
 
 import os
 import logging
-import json
 import shutil
 import tempfile
 
@@ -34,8 +33,10 @@ class StereoBin2JpgTiff(TerrarefExtractor):
     def check_message(self, connector, host, secret_key, resource, parameters):
         if "rulechecked" in parameters and parameters["rulechecked"]:
             return CheckMessage.download
+        self.start_check(resource)
 
         if not is_latest_file(resource):
+            self.log_skip(resource, "not latest file")
             return CheckMessage.ignore
 
         # Check for a left and right BIN file - skip if not found
@@ -48,6 +49,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                 elif f['filename'].endswith('_right.bin'):
                     found_right = True
         if not (found_left and found_right):
+            self.log_skip(resource, "found left: %s, right: %s" % (found_left, found_right))
             return CheckMessage.ignore
 
         # Check if outputs already exist unless overwrite is forced - skip if found
@@ -56,22 +58,23 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             lbase = self.sensors.get_sensor_path(timestamp, opts=['left'], ext='')
             rbase = self.sensors.get_sensor_path(timestamp, opts=['right'], ext='')
             out_dir = os.path.dirname(lbase)
-            if (os.path.isfile(lbase+'jpg') and os.path.isfile(rbase+'jpg') and
-                    os.path.isfile(lbase+'tif') and os.path.isfile(rbase+'tif')):
-                logging.info("skipping dataset %s; outputs found in %s" % (resource['id'], out_dir))
+            if (os.path.isfile(lbase+'tif') and os.path.isfile(rbase+'tif')):
+                self.log_skip(resource, "outputs found in %s" % out_dir)
                 return CheckMessage.ignore
 
         # Check metadata to verify we have what we need
         md = download_metadata(connector, host, secret_key, resource['id'])
         if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
-            logging.info("skipping dataset %s; metadata indicates it was already processed" % resource['id'])
+            self.log_skip("metadata indicates it was already processed")
             return CheckMessage.ignore
-        if get_terraref_metadata(md) and found_left and found_right:
+        if get_terraref_metadata(md):
             return CheckMessage.download
-        return CheckMessage.ignore
+        else:
+            self.log_skip("no terraref metadata found")
+            return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
-        self.start_message()
+        self.start_message(resource)
 
         # Get left/right files and metadata
         img_left, img_right, metadata = None, None, None
@@ -84,17 +87,16 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             elif fname.endswith('_right.bin'):
                 img_right = fname
         if None in [img_left, img_right, metadata]:
+            self.log_error("could not locate each of left+right+metadata in processing")
             raise ValueError("could not locate each of left+right+metadata in processing")
 
         # Determine output location & filenames
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
         left_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
         right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
-        # left_jpg = left_tiff.replace('.tif', '.jpg')
-        # right_jpg = right_tiff.replace('.tif', '.jpg')
         uploaded_file_ids = []
 
-        logging.info("...determining image shapes")
+        self.log_info(resource, "determining image shapes & gps bounds")
         left_shape = bin2tiff.get_image_shape(metadata, 'left')
         right_shape = bin2tiff.get_image_shape(metadata, 'right')
         left_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['left']['bounding_box'])
@@ -107,25 +109,30 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                                               leaf_ds_name=self.sensors.get_display_name()+' - '+timestamp)
 
         if (not os.path.isfile(left_tiff)) or self.overwrite:
-            logging.info("...creating & uploading left geoTIFF")
+            self.log_info(resource, "creating & uploading %s" % left_tiff)
             left_image = bin2tiff.process_image(left_shape, img_left, None)
             # Rename output.tif after creation to avoid long path errors
             create_geotiff(left_image, left_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
+            # TODO: we're moving zero byte files
             shutil.move(out_tmp_tiff, left_tiff)
             if left_tiff not in resource['local_paths']:
                 fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_tiff)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+            else:
+                self.log_info(resource, "file found in dataset already; not re-uploading")
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
 
         if (not os.path.isfile(right_tiff)) or self.overwrite:
-            logging.info("...creating & uploading right geoTIFF")
+            self.log_info(resource, "creating & uploading %s" % right_tiff)
             right_image = bin2tiff.process_image(right_shape, img_right, None)
             create_geotiff(right_image, right_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             shutil.move(out_tmp_tiff, right_tiff)
             if right_tiff not in resource['local_paths']:
                 fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,right_tiff)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+            else:
+                self.log_info(resource, "file found in dataset already; not re-uploading")
             self.created += 1
             self.bytes += os.path.getsize(right_tiff)
 
@@ -133,15 +140,17 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         ext_meta = build_metadata(host, self.extractor_info, resource['id'], {
                 "files_created": uploaded_file_ids
             }, 'dataset')
+        self.log_info(resource, "uploading extractor metadata")
         upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
 
         # Upload original Lemnatec metadata to new Level_1 dataset
         md = get_terraref_metadata(all_dsmd)
         md['raw_data_source'] = host + ("" if host.endswith("/") else "/") + "datasets/" + resource['id']
         lemna_md = build_metadata(host, self.extractor_info, target_dsid, md, 'dataset')
+        self.log_info(resource, "uploading LemnaTec metadata")
         upload_metadata(connector, host, secret_key, target_dsid, lemna_md)
 
-        self.end_message()
+        self.end_message(resource)
 
 if __name__ == "__main__":
     extractor = StereoBin2JpgTiff()
