@@ -19,7 +19,7 @@ from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_f
 from terrautils.formats import create_geotiff, create_image
 from terrautils.spatial import geojson_to_tuples
 
-from stereo_rgb import stereo_rgb
+import terraref.stereo_rgb
 
 
 class StereoBin2JpgTiff(TerrarefExtractor):
@@ -96,8 +96,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         uploaded_file_ids = []
 
         self.log_info(resource, "determining image shapes & gps bounds")
-        left_shape = stereo_rgb.get_image_shape(metadata, 'left')
-        right_shape = stereo_rgb.get_image_shape(metadata, 'right')
+        left_shape = terraref.stereo_rgb.get_image_shape(metadata, 'left')
+        right_shape = terraref.stereo_rgb.get_image_shape(metadata, 'right')
 
         left_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['left']['bounding_box'])
         right_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['right']['bounding_box'])
@@ -110,7 +110,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
 
         if (not os.path.isfile(left_tiff)) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % left_tiff)
-            left_image = stereo_rgb.process_raw(left_shape, img_left, None)
+            left_image = terraref.stereo_rgb.process_raw(left_shape, img_left, None)
 
             # Rename output.tif after creation to avoid long path errors
             create_geotiff(left_image, left_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
@@ -126,7 +126,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
 
         if (not os.path.isfile(right_tiff)) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % right_tiff)
-            right_image = stereo_rgb.process_raw(right_shape, img_right, None)
+            right_image = terraref.stereo_rgb.process_raw(right_shape, img_right, None)
 
             create_geotiff(right_image, right_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             shutil.move(out_tmp_tiff, right_tiff)

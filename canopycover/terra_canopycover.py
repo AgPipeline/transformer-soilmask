@@ -14,7 +14,7 @@ from terrautils.geostreams import create_datapoint_with_dependencies
 from terrautils.gdal import clip_raster, centroid_from_geojson
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 
-from stereo_rgb import stereo_rgb
+import terraref.stereo_rgb
 
 
 # TODO: Keep these in terrautils.bety instead
@@ -105,7 +105,7 @@ class CanopyCoverHeight(TerrarefExtractor):
                     self.log_error(resource, "unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
                     continue
 
-                ccVal = stereo_rgb.calculate_canopycover(rollaxis(pxarray,0,3))
+                ccVal = terraref.stereo_rgb.calculate_canopycover(rollaxis(pxarray,0,3))
 
                 successful_plots += 1
                 if successful_plots % 10 == 0:
