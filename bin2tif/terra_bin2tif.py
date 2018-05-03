@@ -108,6 +108,14 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                                               timestamp[:4], timestamp[5:7], timestamp[8:10],
                                               leaf_ds_name=self.sensors.get_display_name()+' - '+timestamp)
 
+        # Upload original Lemnatec metadata to new Level_1 dataset
+        md = get_terraref_metadata(all_dsmd)
+        md['raw_data_source'] = host + ("" if host.endswith("/") else "/") + "datasets/" + resource['id']
+        lemna_md = build_metadata(host, self.extractor_info, target_dsid, md, 'dataset')
+        self.log_info(resource, "uploading LemnaTec metadata")
+        upload_metadata(connector, host, secret_key, target_dsid, lemna_md)
+
+
         if (not os.path.isfile(left_tiff)) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % left_tiff)
             left_image = bin2tiff.process_image(left_shape, img_left, None)
@@ -142,13 +150,6 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             }, 'dataset')
         self.log_info(resource, "uploading extractor metadata")
         upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
-
-        # Upload original Lemnatec metadata to new Level_1 dataset
-        md = get_terraref_metadata(all_dsmd)
-        md['raw_data_source'] = host + ("" if host.endswith("/") else "/") + "datasets/" + resource['id']
-        lemna_md = build_metadata(host, self.extractor_info, target_dsid, md, 'dataset')
-        self.log_info(resource, "uploading LemnaTec metadata")
-        upload_metadata(connector, host, secret_key, target_dsid, lemna_md)
 
         self.end_message(resource)
 
