@@ -8,7 +8,7 @@ RUN useradd -u 49044 extractor \
     && mkdir -p /home/extractor/sites/ua-mac/Level_1/stereoTop_canopyCover \
     && chown -R extractor /home/extractor
 
-RUN pip install stereo_rgb
+RUN pip install terraref-stereo-rgb
 
 # command to run when starting docker
 COPY entrypoint.sh extractor_info.json *.py /home/extractor/
