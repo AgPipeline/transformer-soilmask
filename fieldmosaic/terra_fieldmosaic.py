@@ -69,8 +69,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
-        if os.path.exists(out_vrt) and not self.overwrite:
-            self.log_skip(resource, "%s already exists; ending process" % out_vrt)
+        if os.path.exists(out_tif_thumb) and os.path.exists(out_tif_full) and not self.overwrite:
+            self.log_skip(resource, "%s already exists; ending process" % out_tif_full)
             return
 
         if not self.darker or sensor_type != 'rgb':
