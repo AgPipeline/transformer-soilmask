@@ -88,7 +88,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         # Write the CSV to the same directory as the source file
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
         timestamp = ds_info['name'].split(" - ")[1]
-        out_csv = self.sensors.create_sensor_path(timestamp, sensor="rgb_geotiff", ext=".csv", opts=['canopycover'])
+        out_csv = self.sensors.create_sensor_path(timestamp, sensor="fullfield", ext=".csv", opts=['canopycover'])
         self.log_info(resource, "Writing CSV to %s" % out_csv)
         csv_file = open(out_csv, 'w')
         (fields, traits) = get_traits_table()
