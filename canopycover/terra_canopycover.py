@@ -153,7 +153,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         }, 'dataset')
         upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
 
-        self.end_message()
+        self.end_message(resource)
 
 if __name__ == "__main__":
     extractor = CanopyCoverHeight()
