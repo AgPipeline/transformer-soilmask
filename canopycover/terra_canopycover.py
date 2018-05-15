@@ -2,6 +2,7 @@
 
 import json
 import re
+import os
 from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
