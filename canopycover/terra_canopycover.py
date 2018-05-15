@@ -31,7 +31,7 @@ def get_traits_table():
               'citation_author': '"Zongyang, Li"',
               'citation_year': '2016',
               'citation_title': 'Maricopa Field Station Data and Metadata',
-              'method': 'Canopy Cover Estimation from RGB images'}
+              'method': 'Canopy Cover Estimation from Field Scanner RGB images'}
 
     return (fields, traits)
 
@@ -90,7 +90,8 @@ class CanopyCoverHeight(TerrarefExtractor):
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
         timestamp = ds_info['name'].split(" - ")[1]
         rootdir = self.sensors.create_sensor_path(timestamp, sensor="fullfield", ext=".csv")
-        out_csv = os.path.basename(rootdir)+resource['name'].replace(".tif", "_canopycover.csv")
+        out_csv = os.path.join(os.path.dirname(rootdir),
+                               resource['name'].replace(".tif", "_canopycover.csv"))
 
         # TODO: What should happen if CSV already exists? If we're here, there's no completed metadata...
 
