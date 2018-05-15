@@ -88,7 +88,15 @@ class CanopyCoverHeight(TerrarefExtractor):
         # Write the CSV to the same directory as the source file
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
         timestamp = ds_info['name'].split(" - ")[1]
-        out_csv = self.sensors.create_sensor_path(timestamp, sensor="fullfield", ext=".csv", opts=['canopycover'])
+        # e.g. fullfield_L1_ua-mac_2018-05-01
+        out_csv = self.sensors.create_sensor_path(timestamp, sensor="fullfield", ext="")
+        # e.g. fullfield_L1_ua-mac_2018-05-01.tif
+        #      -->  _rgb_stereovis_ir_sensors_fullfield_sorghum6_shade_may2018_thumb.csv
+        scan_name = resource['name'].replace(out_csv, '').replace(".tif", ".csv")
+        out_csv = out_csv + scan_name
+
+        # TODO: What should happen if CSV already exists? If we're here, there's no completed metadata...
+
         self.log_info(resource, "Writing CSV to %s" % out_csv)
         csv_file = open(out_csv, 'w')
         (fields, traits) = get_traits_table()
@@ -112,7 +120,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
                 successful_plots += 1
                 if successful_plots % 10 == 0:
-                    self.log_info(resource, "processed %s/%s plots successfully" % (successful_plots, len(all_plots)))
+                    self.log_info(resource, "processed %s/%s plots" % (successful_plots, len(all_plots)))
             except:
                 self.log_error("error generating cc for %s" % plotname)
                 continue
