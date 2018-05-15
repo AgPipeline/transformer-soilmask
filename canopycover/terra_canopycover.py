@@ -88,12 +88,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         # Write the CSV to the same directory as the source file
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
         timestamp = ds_info['name'].split(" - ")[1]
-        # e.g. fullfield_L1_ua-mac_2018-05-01
-        out_csv = self.sensors.create_sensor_path(timestamp, sensor="fullfield", ext="")
-        # e.g. fullfield_L1_ua-mac_2018-05-01.tif
-        #      -->  _rgb_stereovis_ir_sensors_fullfield_sorghum6_shade_may2018_thumb.csv
-        scan_name = resource['name'].replace(out_csv, '').replace(".tif", ".csv")
-        out_csv = out_csv + scan_name
+        out_csv = resource['name'].replace(".tif", "_canopycover.csv")
 
         # TODO: What should happen if CSV already exists? If we're here, there's no completed metadata...
 
