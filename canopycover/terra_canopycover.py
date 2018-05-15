@@ -2,6 +2,7 @@
 
 import json
 import re
+import os
 from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
@@ -75,25 +76,32 @@ class CanopyCoverHeight(TerrarefExtractor):
             # Check metadata to verify we have what we need
             md = download_metadata(connector, host, secret_key, resource['parent']['id'])
             if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
-                self.log_skip(resurce,"metadata indicates it was already processed")
+                self.log_skip(resource,"metadata indicates it was already processed")
                 return CheckMessage.ignore
             return CheckMessage.download
-
-        return CheckMessage.ignore
+        else:
+            self.log_skip(resource,"regex not matched for %s" % resource['name'])
+            return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
         self.start_message(resource)
 
-        tmp_csv = "canopycovertraits.csv"
-        csv_file = open(tmp_csv, 'w')
+        # Write the CSV to the same directory as the source file
+        ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
+        timestamp = ds_info['name'].split(" - ")[1]
+        rootdir = self.sensors.create_sensor_path(timestamp, sensor="fullfield", ext=".csv")
+        out_csv = os.path.basename(rootdir)+resource['name'].replace(".tif", "_canopycover.csv")
+
+        # TODO: What should happen if CSV already exists? If we're here, there's no completed metadata...
+
+        self.log_info(resource, "Writing CSV to %s" % out_csv)
+        csv_file = open(out_csv, 'w')
         (fields, traits) = get_traits_table()
         csv_file.write(','.join(map(str, fields)) + '\n')
 
         # Get full list of experiment plots using date as filter
-        ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
-        timestamp = ds_info['name'].split(" - ")[1]
         all_plots = get_site_boundaries(timestamp, city='Maricopa')
-
+        self.log_info(resource, "found %s plots on %s" % (len(all_plots), timestamp))
         successful_plots = 0
         for plotname in all_plots:
             bounds = all_plots[plotname]
@@ -109,7 +117,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
                 successful_plots += 1
                 if successful_plots % 10 == 0:
-                    self.log_info(resource, "processed %s/%s plots successfully" % (successful_plots, len(all_plots)))
+                    self.log_info(resource, "processed %s/%s plots" % (successful_plots, len(all_plots)))
             except:
                 self.log_error("error generating cc for %s" % plotname)
                 continue
@@ -118,7 +126,6 @@ class CanopyCoverHeight(TerrarefExtractor):
             traits['site'] = plotname
             traits['local_datetime'] = timestamp+"T12:00:00"
             trait_list = generate_traits_list(traits)
-
             csv_file.write(','.join(map(str, trait_list)) + '\n')
 
             # Prepare and submit datapoint
@@ -134,9 +141,11 @@ class CanopyCoverHeight(TerrarefExtractor):
 
         # submit CSV to BETY
         csv_file.close()
-        submit_traits(tmp_csv, betykey=self.bety_key)
+        self.log_info(resource, "submitting CSV to bety")
+        submit_traits(out_csv, betykey=self.bety_key)
 
         # Add metadata to original dataset indicating this was run
+        self.log_info(resource, "updating dataset metadata (%s)" % resource['parent']['id'])
         ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
             "plots_processed": successful_plots,
             "plots_skipped": len(all_plots)-successful_plots,
@@ -144,7 +153,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         }, 'dataset')
         upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
 
-        self.end_message()
+        self.end_message(resource)
 
 if __name__ == "__main__":
     extractor = CanopyCoverHeight()

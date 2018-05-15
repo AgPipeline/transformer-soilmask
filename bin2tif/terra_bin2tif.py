@@ -86,7 +86,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             elif fname.endswith('_right.bin'):
                 img_right = fname
         if None in [img_left, img_right, metadata]:
-            self.log_error("could not locate each of left+right+metadata in processing")
+            self.log_error(resource, "could not locate each of left+right+metadata in processing")
             raise ValueError("could not locate each of left+right+metadata in processing")
 
         # Determine output location & filenames
