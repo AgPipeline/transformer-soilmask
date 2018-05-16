@@ -7,11 +7,11 @@ from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, get_info, upload_metadata
+from pyclowder.files import submit_extraction
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
-    build_metadata, build_dataset_hierarchy
+    build_metadata, build_dataset_hierarchy, upload_to_dataset
 from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, submit_traits, \
     get_site_boundaries
-from terrautils.geostreams import create_datapoint_with_dependencies
 from terrautils.gdal import clip_raster, centroid_from_geojson
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 
@@ -129,30 +129,23 @@ class CanopyCoverHeight(TerrarefExtractor):
             trait_list = generate_traits_list(traits)
             csv_file.write(','.join(map(str, trait_list)) + '\n')
 
-            # Prepare and submit datapoint
-            centroid_lonlat = json.loads(centroid_from_geojson(bounds))["coordinates"]
-            time_fmt = timestamp+"T12:00:00-07:00"
-            dpmetadata = {
-                "source": host + ("" if host.endswith("/") else "/") + "files/" + resource['id'],
-                "canopy_cover": ccVal
-            }
-            create_datapoint_with_dependencies(connector, host, secret_key, "Canopy Cover",
-                                               (centroid_lonlat[1], centroid_lonlat[0]), time_fmt, time_fmt,
-                                               dpmetadata, timestamp)
-
         # submit CSV to BETY
         csv_file.close()
-        self.log_info(resource, "submitting CSV to bety")
-        submit_traits(out_csv, betykey=self.bety_key)
+
+        # Upload this CSV to Clowder
+        fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, resource['parent']['id'], out_csv)
 
         # Add metadata to original dataset indicating this was run
         self.log_info(resource, "updating dataset metadata (%s)" % resource['parent']['id'])
         ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
-            "plots_processed": successful_plots,
-            "plots_skipped": len(all_plots)-successful_plots,
-            "betydb_link": "https://terraref.ncsa.illinois.edu/bety/api/beta/variables?name=canopy_cover"
+            "files_created": [fileid]
         }, 'dataset')
         upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
+
+        # Trigger separate extractors
+        self.log_info(resource, "[%s] triggering uploader extractors" % fileid)
+        submit_extraction(connector, host, secret_key, fileid, "terra.betydb")
+        submit_extraction(connector, host, secret_key, fileid, "terra.geostreams")
 
         self.end_message(resource)
 
