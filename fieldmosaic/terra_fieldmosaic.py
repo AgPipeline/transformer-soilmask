@@ -35,11 +35,16 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         self.darker = self.args.darker
         self.split = self.args.split
 
+        # TODO: Decide what to do with this
+        self.full = False
+
     def check_message(self, connector, host, secret_key, resource, parameters):
         return CheckMessage.bypass
 
     def process_message(self, connector, host, secret_key, resource, parameters):
         self.start_message(resource)
+
+
 
         if type(parameters) is str:
             parameters = json.loads(parameters)
@@ -69,9 +74,10 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
-        if os.path.exists(out_tif_thumb) and os.path.exists(out_tif_full) and not self.overwrite:
-            self.log_skip(resource, "%s already exists; ending process" % out_tif_full)
-            return
+        if os.path.exists(out_tif_thumb) and not self.overwrite:
+            if (not self.full) or os.path.exists(out_tif_full):
+                self.log_skip(resource, "%s already exists; ending process" % out_tif_full)
+                return
 
         if not self.darker or sensor_type != 'rgb':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key, sensor_type,
@@ -149,15 +155,13 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        """ TODO: Temporarily disable full resolution
-        if (not os.path.isfile(out_tif_full)) or self.overwrite:
+        if self.full and (not os.path.isfile(out_tif_full) or self.overwrite):
             logging.info("Converting VRT to %s..." % out_tif_full)
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
                     "%s %s" % (out_vrt, out_tif_full)
             subprocess.call(cmd, shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_full)
-        """
 
         return (created, bytes)
 
@@ -218,14 +222,13 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        """ TODO: Temporarily disable full resolution
-        if (not os.path.isfile(out_tif_full)) or self.overwrite:
-            logging.info("Converting VRT to %s..." % out_tif_full)
-            subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
-                             "%s %s" % (out_vrt, out_tif_full), shell=True)
-            created += 1
-            bytes += os.path.getsize(out_tif_full)
-        """
+        if self.full and (not os.path.isfile(out_tif_full) or self.overwrite):
+            if (not os.path.isfile(out_tif_full)) or self.overwrite:
+                logging.info("Converting VRT to %s..." % out_tif_full)
+                subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
+                                 "%s %s" % (out_vrt, out_tif_full), shell=True)
+                created += 1
+                bytes += os.path.getsize(out_tif_full)
 
         return (created, bytes)
 
