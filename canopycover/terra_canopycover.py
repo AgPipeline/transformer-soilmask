@@ -6,8 +6,8 @@ import os
 from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
-from pyclowder.datasets import download_metadata, get_info, upload_metadata
-from pyclowder.files import submit_extraction
+from pyclowder.datasets import get_info
+from pyclowder.files import submit_extraction, download_metadata, upload_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
     build_metadata, build_dataset_hierarchy, upload_to_dataset
 from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, submit_traits, \
@@ -74,7 +74,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
         if resource['name'].find('fullfield') > -1 and re.match("^.*\d+_rgb_.*thumb.tif", resource['name']):
             # Check metadata to verify we have what we need
-            md = download_metadata(connector, host, secret_key, resource['parent']['id'])
+            md = download_metadata(connector, host, secret_key, resource['id'])
             if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
                 self.log_skip(resource,"metadata indicates it was already processed")
                 return CheckMessage.ignore
@@ -136,11 +136,11 @@ class CanopyCoverHeight(TerrarefExtractor):
         fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, resource['parent']['id'], out_csv)
 
         # Add metadata to original dataset indicating this was run
-        self.log_info(resource, "updating dataset metadata (%s)" % resource['parent']['id'])
-        ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
+        self.log_info(resource, "updating file metadata (%s)" % resource['id'])
+        ext_meta = build_metadata(host, self.extractor_info, resource['id'], {
             "files_created": [fileid]
-        }, 'dataset')
-        upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
+        }, 'file')
+        upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
 
         # Trigger separate extractors
         self.log_info(resource, "[%s] triggering uploader extractors" % fileid)
