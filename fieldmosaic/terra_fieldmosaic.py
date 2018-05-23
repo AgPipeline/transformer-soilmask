@@ -112,7 +112,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             upload_metadata(connector, host, secret_key, id, meta)
 
         if os.path.exists(out_tif_medium) and not med_exists:
-            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
+            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_medium)
             meta = build_metadata(host, self.extractor_info, id, content, 'file')
             upload_metadata(connector, host, secret_key, id, meta)
 
