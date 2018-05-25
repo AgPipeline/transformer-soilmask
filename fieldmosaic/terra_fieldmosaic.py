@@ -70,6 +70,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
+        thumb_exists, med_exists, full_exists = False, False, False
+
         if os.path.exists(out_tif_thumb):
             thumb_exists = True
         if os.path.exists(out_tif_medium):
