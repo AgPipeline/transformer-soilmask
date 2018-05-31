@@ -136,7 +136,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         # Create simple mosaic from geotiff list
         created, bytes = 0, 0
 
-        if (not os.path.isfile(out_vrt)) or self.overwrite:
+        if ((os.path.isfile(out_vrt) and os.path.getsize(out_vrt) == 0) or
+                (not os.path.isfile(out_vrt)) or self.overwrite):
             fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
                 file_path_list = json.load(flist)
@@ -150,7 +151,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
-            self.log_info(resource, "Creating %s..." % out_vrt)
+            self.log_info(resource, "Creating VRT %s..." % out_vrt)
             full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
             os.remove(tiflist)
             created += 1
@@ -187,7 +188,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         # Create dark-pixel mosaic from geotiff list using multipass for darker pixel selection
         created, bytes = 0, 0
 
-        if (not os.path.isfile(out_vrt)) or self.overwrite:
+        if ((os.path.isfile(out_vrt) and os.path.getsize(out_vrt) == 0) or
+                (not os.path.isfile(out_vrt)) or self.overwrite):
             fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
                 file_path_list = json.load(flist)
@@ -201,7 +203,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
-            self.log_info(resource, "Creating %s..." % out_vrt)
+            self.log_info(resource, "Creating VRT %s..." % out_vrt)
             full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
             created += 1
             bytes += os.path.getsize(out_vrt)
