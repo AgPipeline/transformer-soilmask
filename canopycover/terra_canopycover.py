@@ -72,7 +72,7 @@ class CanopyCoverHeight(TerrarefExtractor):
     def check_message(self, connector, host, secret_key, resource, parameters):
         self.start_check(resource)
 
-        if resource['name'].find('fullfield') > -1 and re.match("^.*\d+_rgb_.*thumb.tif", resource['name']):
+        if resource['name'].find('fullfield') > -1 and re.match("^.*\d+_rgb_.*.tif", resource['name']):
             # Check metadata to verify we have what we need
             md = download_metadata(connector, host, secret_key, resource['id'])
             if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
