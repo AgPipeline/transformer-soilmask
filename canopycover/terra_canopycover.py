@@ -112,6 +112,10 @@ class CanopyCoverHeight(TerrarefExtractor):
         self.log_info(resource, "found %s plots on %s" % (len(all_plots), timestamp))
         successful_plots = 0
         for plotname in all_plots:
+            if plotname.find("KSU") > -1:
+                self.log_info(resource, "skipping %s" % plotname)
+                continue
+
             bounds = all_plots[plotname]
             centroid_lonlat = json.loads(centroid_from_geojson(bounds))["coordinates"]
 
@@ -162,7 +166,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         # Trigger separate extractors
         self.log_info(resource, "[%s] triggering uploader extractors" % fileid)
         submit_extraction(connector, host, secret_key, fileid, "terra.betydb")
-        submit_extraction(connector, host, secret_key, fileid, "terra.geostreams")
+        submit_extraction(connector, host, secret_key, geoid, "terra.geostreams")
 
         self.end_message(resource)
 
