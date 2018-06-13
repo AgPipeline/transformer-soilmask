@@ -158,14 +158,15 @@ class CanopyCoverHeight(TerrarefExtractor):
         geoid  = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, resource['parent']['id'], out_geo)
 
         # Add metadata to original dataset indicating this was run
-        self.log_info(resource, "updating file metadata (%s)" % resource['id'])
+        self.log_info(resource, "updating file metadata")
         ext_meta = build_metadata(host, self.extractor_info, resource['id'], {
             "files_created": [fileid, geoid]}, 'file')
         upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
 
         # Trigger separate extractors
-        self.log_info(resource, "[%s] triggering uploader extractors" % fileid)
+        self.log_info(resource, "triggering BETY extractor on %s" % fileid)
         submit_extraction(connector, host, secret_key, fileid, "terra.betydb")
+        self.log_info(resource, "triggering geostreams extractor on %s" % geoid)
         submit_extraction(connector, host, secret_key, geoid, "terra.geostreams")
 
         self.end_message(resource)
