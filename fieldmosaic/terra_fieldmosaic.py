@@ -7,7 +7,7 @@ import subprocess
 import json
 
 from pyclowder.utils import CheckMessage
-from pyclowder.files import upload_metadata, download_info
+from pyclowder.files import upload_metadata, download_info, submit_extraction
 from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy, \
     upload_to_dataset, create_empty_collection, create_empty_dataset
 
@@ -18,9 +18,9 @@ import shadeRemoval as shade
 def add_local_arguments(parser):
     # add any additional arguments to parser
     parser.add_argument('--darker', type=bool, default=os.getenv('MOSAIC_DARKER', False),
-                             help="whether to use multipass mosiacking to select darker pixels")
+                        help="whether to use multipass mosiacking to select darker pixels")
     parser.add_argument('--split', type=int, default=os.getenv('MOSAIC_SPLIT', 2),
-                             help="number of splits to use if --darker is True")
+                        help="number of splits to use if --darker is True")
 
 class FullFieldMosaicStitcher(TerrarefExtractor):
     def __init__(self):
@@ -35,16 +35,11 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         self.darker = self.args.darker
         self.split = self.args.split
 
-        # TODO: Decide what to do with this
-        self.full = False
-
     def check_message(self, connector, host, secret_key, resource, parameters):
         return CheckMessage.bypass
 
     def process_message(self, connector, host, secret_key, resource, parameters):
         self.start_message(resource)
-
-
 
         if type(parameters) is str:
             parameters = json.loads(parameters)
@@ -71,22 +66,30 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type, scan_name])
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
+        out_tif_medium = out_tif_full.replace(".tif", "_10pct.tif")
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
-        if os.path.exists(out_tif_thumb) and not self.overwrite:
-            if (not self.full) or os.path.exists(out_tif_full):
-                self.log_skip(resource, "%s already exists; ending process" % out_tif_full)
-                return
+        thumb_exists, med_exists, full_exists = False, False, False
+
+        if os.path.exists(out_tif_thumb):
+            thumb_exists = True
+        if os.path.exists(out_tif_medium):
+            med_exists = True
+        if os.path.exists(out_tif_full):
+            full_exists = True
+        if thumb_exists and med_exists and full_exists and not self.overwrite:
+            self.log_skip(resource, "all outputs already exist")
+            return
 
         if not self.darker or sensor_type != 'rgb':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key, sensor_type,
-                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters,
-                                                               resource)
+                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full,
+                                                               out_tif_medium, parameters, resource)
         else:
             (nu_created, nu_bytes) = self.generateDarkerMosaic(connector, host, secret_key, sensor_type,
-                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters,
-                                                               resource)
+                                                               out_dir, out_vrt, out_tif_thumb, out_tif_full,
+                                                               out_tif_medium, parameters, resource)
         self.created += nu_created
         self.bytes += nu_bytes
 
@@ -104,24 +107,37 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             "file_ids": parameters["file_paths"]
         }
 
-        if os.path.exists(out_tif_thumb):
-            thumbid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_thumb)
-            thumbmeta = build_metadata(host, self.extractor_info, thumbid, content, 'file')
-            upload_metadata(connector, host, secret_key, thumbid, thumbmeta)
+        # If we newly created these files, upload to Clowder
+        if os.path.exists(out_tif_thumb) and not thumb_exists:
+            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_thumb)
+            meta = build_metadata(host, self.extractor_info, id, content, 'file')
+            upload_metadata(connector, host, secret_key, id, meta)
 
-        if os.path.exists(out_tif_full):
-            fullid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
-            fullmeta = build_metadata(host, self.extractor_info, fullid, content, 'file')
-            upload_metadata(connector, host, secret_key, fullid, fullmeta)
+        if os.path.exists(out_tif_medium) and not med_exists:
+            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_medium)
+            meta = build_metadata(host, self.extractor_info, id, content, 'file')
+            upload_metadata(connector, host, secret_key, id, meta)
+
+        if os.path.exists(out_tif_full) and not full_exists:
+            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
+            meta = build_metadata(host, self.extractor_info, id, content, 'file')
+            upload_metadata(connector, host, secret_key, id, meta)
+
+            # Trigger downstream extractions on full resolution
+            if sensor_type == 'ir':
+                submit_extraction(connector, host, secret_key, id, "terra.multispectral.meantemp")
+            elif sensor_type == 'rgb':
+                submit_extraction(connector, host, secret_key, id, "terra.stereo-rgb.canopycover")
 
         self.end_message(resource)
 
-    def generateSingleMosaic(self, connector, host, secret_key, sensor_type,
-                             out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters, resource):
+    def generateSingleMosaic(self, connector, host, secret_key, sensor_type, out_dir,
+                             out_vrt, out_tif_thumb, out_tif_full, out_tif_medium, parameters, resource):
         # Create simple mosaic from geotiff list
         created, bytes = 0, 0
 
-        if (not os.path.isfile(out_vrt)) or self.overwrite:
+        if ((os.path.isfile(out_vrt) and os.path.getsize(out_vrt) == 0) or
+                (not os.path.isfile(out_vrt)) or self.overwrite):
             fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
                 file_path_list = json.load(flist)
@@ -135,42 +151,45 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
-            self.log_info(resource, "Creating %s..." % out_vrt)
+            self.log_info(resource, "Creating VRT %s..." % out_vrt)
             full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
             os.remove(tiflist)
             created += 1
             bytes += os.path.getsize(out_vrt)
 
         if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
-            # Convert VRT to full-field GeoTIFF (low-res then high-res)
             self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
-            if sensor_type == 'ir':
-                pct = '20'
-            else:
-                pct = '2'
-
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
-                    "-outsize %s%% %s%% %s %s" % (pct, pct, out_vrt, out_tif_thumb)
+                  "-outsize %s%% %s%% %s %s" % (2, 2, out_vrt, out_tif_thumb)
             subprocess.call(cmd, shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        if self.full and (not os.path.isfile(out_tif_full) or self.overwrite):
+        if (not os.path.isfile(out_tif_medium)) or self.overwrite:
+            self.log_info(resource, "Converting VRT to %s..." % out_tif_medium)
+            cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
+                  "-outsize %s%% %s%% %s %s" % (10, 10, out_vrt, out_tif_medium)
+            subprocess.call(cmd, shell=True)
+            created += 1
+            bytes += os.path.getsize(out_tif_medium)
+
+        if (not os.path.isfile(out_tif_full)) or self.overwrite:
             logging.info("Converting VRT to %s..." % out_tif_full)
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
-                    "%s %s" % (out_vrt, out_tif_full)
+                  "%s %s" % (out_vrt, out_tif_full)
             subprocess.call(cmd, shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_full)
 
         return (created, bytes)
 
-    def generateDarkerMosaic(self, connector, host, secret_key, sensor_type,
-                             out_dir, out_vrt, out_tif_thumb, out_tif_full, parameters, resource):
+    def generateDarkerMosaic(self, connector, host, secret_key, sensor_type, out_dir,
+                             out_vrt, out_tif_thumb, out_tif_full, out_tif_medium, parameters, resource):
         # Create dark-pixel mosaic from geotiff list using multipass for darker pixel selection
         created, bytes = 0, 0
 
-        if (not os.path.isfile(out_vrt)) or self.overwrite:
+        if ((os.path.isfile(out_vrt) and os.path.getsize(out_vrt) == 0) or
+                (not os.path.isfile(out_vrt)) or self.overwrite):
             fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
             with open(fileidpath) as flist:
                 file_path_list = json.load(flist)
@@ -184,7 +203,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                     tifftxt.write("%s\n" % filepath)
 
             # Create VRT from every GeoTIFF
-            self.log_info(resource, "Creating %s..." % out_vrt)
+            self.log_info(resource, "Creating VRT %s..." % out_vrt)
             full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
             created += 1
             bytes += os.path.getsize(out_vrt)
@@ -210,23 +229,24 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             bytes += os.path.getsize(out_vrt)
 
         if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
-            # Convert VRT to full-field GeoTIFF (low-res then high-res)
             self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
-            if sensor_type == 'ir':
-                pct = '20'
-            else:
-                pct = '2'
-
             subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
-                             "-outsize %s%% %s%% %s %s" % (pct, pct, out_vrt, out_tif_thumb), shell=True)
+                            "-outsize %s%% %s%% %s %s" % (2, 2, out_vrt, out_tif_thumb), shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
+
+        if (not os.path.isfile(out_tif_medium)) or self.overwrite:
+            self.log_info(resource, "Converting VRT to %s..." % out_tif_medium)
+            subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
+                            "-outsize %s%% %s%% %s %s" % (10, 10, out_vrt, out_tif_medium), shell=True)
+            created += 1
+            bytes += os.path.getsize(out_tif_medium)
 
         if self.full and (not os.path.isfile(out_tif_full) or self.overwrite):
             if (not os.path.isfile(out_tif_full)) or self.overwrite:
                 logging.info("Converting VRT to %s..." % out_tif_full)
                 subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
-                                 "%s %s" % (out_vrt, out_tif_full), shell=True)
+                                "%s %s" % (out_vrt, out_tif_full), shell=True)
                 created += 1
                 bytes += os.path.getsize(out_tif_full)
 
