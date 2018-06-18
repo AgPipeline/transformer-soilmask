@@ -2,14 +2,15 @@
 
 import os
 import logging
-import requests
 import subprocess
 import json
+from matplotlib import pyplot as plt
 
 from pyclowder.utils import CheckMessage
 from pyclowder.files import upload_metadata, download_info, submit_extraction
 from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy, \
     upload_to_dataset, create_empty_collection, create_empty_dataset
+from terrautils.formats import create_image
 
 import full_day_to_tiles
 import shadeRemoval as shade
@@ -67,6 +68,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type, scan_name])
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
         out_tif_medium = out_tif_full.replace(".tif", "_10pct.tif")
+        out_png = out_tif_full.replace(".tif", ".png")
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
@@ -117,6 +119,14 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_medium)
             meta = build_metadata(host, self.extractor_info, id, content, 'file')
             upload_metadata(connector, host, secret_key, id, meta)
+
+            # Create PNG thumbnail
+            self.log_info(resource, "Converting 10pct to %s..." % out_png)
+            px_array = plt.imread(out_tif_medium)
+            if sensor_type == 'ir':
+                create_image(px_array, out_png, True)
+            elif sensor_type == 'rgb':
+                plt.imsave(out_png, px_array)
 
         if os.path.exists(out_tif_full) and not full_exists:
             id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
