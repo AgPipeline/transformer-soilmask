@@ -6,12 +6,12 @@ import os
 from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
-from pyclowder.datasets import download_metadata, get_info, upload_metadata
+from pyclowder.datasets import get_info
+from pyclowder.files import submit_extraction, download_metadata, upload_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
-    build_metadata, build_dataset_hierarchy
+    build_metadata, build_dataset_hierarchy, upload_to_dataset
 from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, submit_traits, \
     get_site_boundaries
-from terrautils.geostreams import create_datapoint_with_dependencies
 from terrautils.gdal import clip_raster, centroid_from_geojson
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 
@@ -72,9 +72,9 @@ class CanopyCoverHeight(TerrarefExtractor):
     def check_message(self, connector, host, secret_key, resource, parameters):
         self.start_check(resource)
 
-        if resource['name'].find('fullfield') > -1 and re.match("^.*\d+_rgb_.*thumb.tif", resource['name']):
+        if resource['name'].find('fullfield') > -1 and re.match("^.*\d+_rgb_.*.tif", resource['name']):
             # Check metadata to verify we have what we need
-            md = download_metadata(connector, host, secret_key, resource['parent']['id'])
+            md = download_metadata(connector, host, secret_key, resource['id'])
             if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
                 self.log_skip(resource,"metadata indicates it was already processed")
                 return CheckMessage.ignore
@@ -89,23 +89,35 @@ class CanopyCoverHeight(TerrarefExtractor):
         # Write the CSV to the same directory as the source file
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
         timestamp = ds_info['name'].split(" - ")[1]
+        time_fmt = timestamp+"T12:00:00-07:00"
         rootdir = self.sensors.create_sensor_path(timestamp, sensor="fullfield", ext=".csv")
         out_csv = os.path.join(os.path.dirname(rootdir),
-                               resource['name'].replace(".tif", "_canopycover.csv"))
+                               resource['name'].replace(".tif", "_canopycover_bety.csv"))
+        out_geo = os.path.join(os.path.dirname(rootdir),
+                               resource['name'].replace(".tif", "_canopycover_geo.csv"))
 
         # TODO: What should happen if CSV already exists? If we're here, there's no completed metadata...
 
-        self.log_info(resource, "Writing CSV to %s" % out_csv)
+        self.log_info(resource, "Writing BETY CSV to %s" % out_csv)
         csv_file = open(out_csv, 'w')
         (fields, traits) = get_traits_table()
         csv_file.write(','.join(map(str, fields)) + '\n')
+
+        self.log_info(resource, "Writing Geostreams CSV to %s" % out_geo)
+        geo_file = open(out_geo, 'w')
+        geo_file.write(','.join(['site', 'trait', 'lat', 'lon', 'dp_time', 'source', 'value', 'timestamp']) + '\n')
 
         # Get full list of experiment plots using date as filter
         all_plots = get_site_boundaries(timestamp, city='Maricopa')
         self.log_info(resource, "found %s plots on %s" % (len(all_plots), timestamp))
         successful_plots = 0
         for plotname in all_plots:
+            if plotname.find("KSU") > -1:
+                self.log_info(resource, "skipping %s" % plotname)
+                continue
+
             bounds = all_plots[plotname]
+            centroid_lonlat = json.loads(centroid_from_geojson(bounds))["coordinates"]
 
             # Use GeoJSON string to clip full field to this plot
             try:
@@ -115,6 +127,16 @@ class CanopyCoverHeight(TerrarefExtractor):
                     continue
 
                 ccVal = terraref.stereo_rgb.calculate_canopycover(rollaxis(pxarray,0,3))
+
+                # Prepare and submit datapoint
+                geo_file.write(','.join([plotname,
+                                         'Canopy Cover',
+                                         str(centroid_lonlat[1]),
+                                         str(centroid_lonlat[0]),
+                                         time_fmt,
+                                         host + ("" if host.endswith("/") else "/") + "files/" + resource['id'],
+                                         str(ccVal),
+                                         timestamp]) + '\n')
 
                 successful_plots += 1
                 if successful_plots % 10 == 0:
@@ -129,30 +151,24 @@ class CanopyCoverHeight(TerrarefExtractor):
             trait_list = generate_traits_list(traits)
             csv_file.write(','.join(map(str, trait_list)) + '\n')
 
-            # Prepare and submit datapoint
-            centroid_lonlat = json.loads(centroid_from_geojson(bounds))["coordinates"]
-            time_fmt = timestamp+"T12:00:00-07:00"
-            dpmetadata = {
-                "source": host + ("" if host.endswith("/") else "/") + "files/" + resource['id'],
-                "canopy_cover": ccVal
-            }
-            create_datapoint_with_dependencies(connector, host, secret_key, "Canopy Cover",
-                                               (centroid_lonlat[1], centroid_lonlat[0]), time_fmt, time_fmt,
-                                               dpmetadata, timestamp)
-
-        # submit CSV to BETY
         csv_file.close()
-        self.log_info(resource, "submitting CSV to bety")
-        submit_traits(out_csv, betykey=self.bety_key)
+        geo_file.close()
+
+        # Upload this CSV to Clowder
+        fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, resource['parent']['id'], out_csv)
+        geoid  = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, resource['parent']['id'], out_geo)
 
         # Add metadata to original dataset indicating this was run
-        self.log_info(resource, "updating dataset metadata (%s)" % resource['parent']['id'])
-        ext_meta = build_metadata(host, self.extractor_info, resource['parent']['id'], {
-            "plots_processed": successful_plots,
-            "plots_skipped": len(all_plots)-successful_plots,
-            "betydb_link": "https://terraref.ncsa.illinois.edu/bety/api/beta/variables?name=canopy_cover"
-        }, 'dataset')
-        upload_metadata(connector, host, secret_key, resource['parent']['id'], ext_meta)
+        self.log_info(resource, "updating file metadata")
+        ext_meta = build_metadata(host, self.extractor_info, resource['id'], {
+            "files_created": [fileid, geoid]}, 'file')
+        upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
+
+        # Trigger separate extractors
+        self.log_info(resource, "triggering BETY extractor on %s" % fileid)
+        submit_extraction(connector, host, secret_key, fileid, "terra.betydb")
+        self.log_info(resource, "triggering geostreams extractor on %s" % geoid)
+        submit_extraction(connector, host, secret_key, geoid, "terra.geostreams")
 
         self.end_message(resource)
 
