@@ -105,7 +105,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
         self.log_info(resource, "Writing Geostreams CSV to %s" % out_geo)
         geo_file = open(out_geo, 'w')
-        geo_file.write(','.join(['trait', 'lat', 'lon', 'dp_time', 'source', 'value', 'timestamp']) + '\n')
+        geo_file.write(','.join(['site', 'trait', 'lat', 'lon', 'dp_time', 'source', 'value', 'timestamp']) + '\n')
 
         # Get full list of experiment plots using date as filter
         all_plots = get_site_boundaries(timestamp, city='Maricopa')
@@ -129,7 +129,8 @@ class CanopyCoverHeight(TerrarefExtractor):
                 ccVal = terraref.stereo_rgb.calculate_canopycover(rollaxis(pxarray,0,3))
 
                 # Prepare and submit datapoint
-                geo_file.write(','.join(['Canopy Cover',
+                geo_file.write(','.join([plotname,
+                                         'Canopy Cover',
                                          str(centroid_lonlat[1]),
                                          str(centroid_lonlat[0]),
                                          time_fmt,
