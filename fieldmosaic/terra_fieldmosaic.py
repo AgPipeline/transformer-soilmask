@@ -82,7 +82,9 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             med_exists = True
         if os.path.exists(out_tif_full):
             full_exists = True
-        if thumb_exists and med_exists and full_exists and not self.overwrite:
+        if os.path.exists(out_png):
+            png_exists = True
+        if thumb_exists and med_exists and full_exists and png_exists and not self.overwrite:
             self.log_skip(resource, "all outputs already exist")
             return
 
@@ -94,6 +96,22 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             (nu_created, nu_bytes) = self.generateDarkerMosaic(connector, host, secret_key, sensor_type,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full,
                                                                out_tif_medium, parameters, resource)
+
+        if not png_exists:
+            # Create PNG thumbnail
+            self.log_info(resource, "Converting 10pct to %s..." % out_png)
+            px_img = Image.open(out_tif_medium)
+            if sensor_type == 'ir':
+                # Get some additional info so we can scale and assign colormap
+                ncols, nrows = px_img.size
+                px_array = array(px_img.getdata()).reshape((nrows, ncols))
+                create_image(px_array, out_png, True)
+            elif sensor_type == 'rgb':
+                px_img.save(out_png)
+
+            self.created += 1
+            self.bytes += os.path.getsize(out_png)
+
         self.created += nu_created
         self.bytes += nu_bytes
 
@@ -122,16 +140,10 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             meta = build_metadata(host, self.extractor_info, id, content, 'file')
             upload_metadata(connector, host, secret_key, id, meta)
 
-            # Create PNG thumbnail
-            self.log_info(resource, "Converting 10pct to %s..." % out_png)
-            px_img = Image.open(out_tif_medium)
-            if sensor_type == 'ir':
-                # Get some additional info so we can scale and assign colormap
-                ncols, nrows = px_img.size
-                px_array = array(px_img.getdata()).reshape((nrows, ncols))
-                create_image(px_array, out_png, True)
-            elif sensor_type == 'rgb':
-                px_img.save(out_png)
+        if os.path.exists(out_png) and not png_exists:
+            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_png)
+            meta = build_metadata(host, self.extractor_info, id, content, 'file')
+            upload_metadata(connector, host, secret_key, id, meta)
 
         if os.path.exists(out_tif_full) and not full_exists:
             id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
