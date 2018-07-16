@@ -5,6 +5,8 @@ import logging
 import subprocess
 import json
 from matplotlib import pyplot as plt
+from PIL import Image
+from numpy import array
 
 from pyclowder.utils import CheckMessage
 from pyclowder.files import upload_metadata, download_info, submit_extraction
@@ -122,11 +124,14 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
             # Create PNG thumbnail
             self.log_info(resource, "Converting 10pct to %s..." % out_png)
-            px_array = plt.imread(out_tif_medium)
+            px_img = Image.open(out_tif_medium)
             if sensor_type == 'ir':
+                # Get some additional info so we can scale and assign colormap
+                ncols, nrows = px_img.size
+                px_array = array(px_img.getdata()).reshape((nrows, ncols))
                 create_image(px_array, out_png, True)
             elif sensor_type == 'rgb':
-                plt.imsave(out_png, px_array)
+                px_img.save(out_png)
 
         if os.path.exists(out_tif_full) and not full_exists:
             id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
