@@ -11,7 +11,7 @@ from numpy import array
 from pyclowder.utils import CheckMessage
 from pyclowder.files import upload_metadata, download_info, submit_extraction
 from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy, \
-    upload_to_dataset, create_empty_collection, create_empty_dataset
+    upload_to_dataset, create_empty_collection, create_empty_dataset, file_exists
 from terrautils.formats import create_image
 
 import full_day_to_tiles
@@ -76,13 +76,13 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         thumb_exists, med_exists, full_exists, png_exists = False, False, False, False
 
-        if os.path.exists(out_tif_thumb):
+        if file_exists(out_tif_thumb):
             thumb_exists = True
-        if os.path.exists(out_tif_medium):
+        if file_exists(out_tif_medium):
             med_exists = True
-        if os.path.exists(out_tif_full):
+        if file_exists(out_tif_full):
             full_exists = True
-        if os.path.exists(out_png):
+        if file_exists(out_png):
             png_exists = True
         if thumb_exists and med_exists and full_exists and png_exists and not self.overwrite:
             self.log_skip(resource, "all outputs already exist")
@@ -130,22 +130,22 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         }
 
         # If we newly created these files, upload to Clowder
-        if os.path.exists(out_tif_thumb) and not thumb_exists:
+        if file_exists(out_tif_thumb) and not thumb_exists:
             id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_thumb)
             meta = build_metadata(host, self.extractor_info, id, content, 'file')
             upload_metadata(connector, host, secret_key, id, meta)
 
-        if os.path.exists(out_tif_medium) and not med_exists:
+        if file_exists(out_tif_medium) and not med_exists:
             id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_medium)
             meta = build_metadata(host, self.extractor_info, id, content, 'file')
             upload_metadata(connector, host, secret_key, id, meta)
 
-        if os.path.exists(out_png) and not png_exists:
+        if file_exists(out_png) and not png_exists:
             id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_png)
             meta = build_metadata(host, self.extractor_info, id, content, 'file')
             upload_metadata(connector, host, secret_key, id, meta)
 
-        if os.path.exists(out_tif_full) and not full_exists:
+        if file_exists(out_tif_full) and not full_exists:
             id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
             meta = build_metadata(host, self.extractor_info, id, content, 'file')
             upload_metadata(connector, host, secret_key, id, meta)
@@ -184,7 +184,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_vrt)
 
-        if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
+        if (not file_exists(out_tif_thumb)) or self.overwrite:
             self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
                   "-outsize %s%% %s%% %s %s" % (2, 2, out_vrt, out_tif_thumb)
@@ -192,7 +192,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        if (not os.path.isfile(out_tif_medium)) or self.overwrite:
+        if (not file_exists(out_tif_medium)) or self.overwrite:
             self.log_info(resource, "Converting VRT to %s..." % out_tif_medium)
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
                   "-outsize %s%% %s%% %s %s" % (10, 10, out_vrt, out_tif_medium)
@@ -200,7 +200,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_medium)
 
-        if (not os.path.isfile(out_tif_full)) or self.overwrite:
+        if (not file_exists(out_tif_full)) or self.overwrite:
             logging.info("Converting VRT to %s..." % out_tif_full)
             cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
                   "%s %s" % (out_vrt, out_tif_full)
@@ -255,21 +255,21 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_vrt)
 
-        if (not os.path.isfile(out_tif_thumb)) or self.overwrite:
+        if (not file_exists(out_tif_thumb)) or self.overwrite:
             self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
             subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
                             "-outsize %s%% %s%% %s %s" % (2, 2, out_vrt, out_tif_thumb), shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        if (not os.path.isfile(out_tif_medium)) or self.overwrite:
+        if (not file_exists(out_tif_medium)) or self.overwrite:
             self.log_info(resource, "Converting VRT to %s..." % out_tif_medium)
             subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
                             "-outsize %s%% %s%% %s %s" % (10, 10, out_vrt, out_tif_medium), shell=True)
             created += 1
             bytes += os.path.getsize(out_tif_medium)
 
-        if self.full and (not os.path.isfile(out_tif_full) or self.overwrite):
+        if self.full and (not file_exists(out_tif_full) or self.overwrite):
             if (not os.path.isfile(out_tif_full)) or self.overwrite:
                 logging.info("Converting VRT to %s..." % out_tif_full)
                 subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
