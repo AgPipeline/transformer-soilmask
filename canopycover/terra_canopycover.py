@@ -9,7 +9,7 @@ from pyclowder.utils import CheckMessage
 from pyclowder.datasets import get_info
 from pyclowder.files import submit_extraction, download_metadata, upload_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
-    build_metadata, build_dataset_hierarchy, upload_to_dataset
+    build_metadata, build_dataset_hierarchy, upload_to_dataset, file_exists
 from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, submit_traits, \
     get_site_boundaries
 from terrautils.gdal import clip_raster, centroid_from_geojson

@@ -15,7 +15,7 @@ from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
-    build_metadata, build_dataset_hierarchy, upload_to_dataset
+    build_metadata, build_dataset_hierarchy, upload_to_dataset, file_exists
 from terrautils.formats import create_geotiff, create_image
 from terrautils.spatial import geojson_to_tuples
 
@@ -57,7 +57,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             lbase = self.sensors.get_sensor_path(timestamp, opts=['left'], ext='')
             rbase = self.sensors.get_sensor_path(timestamp, opts=['right'], ext='')
             out_dir = os.path.dirname(lbase)
-            if (os.path.isfile(lbase+'tif') and os.path.isfile(rbase+'tif')):
+            if (file_exists(lbase+'tif') and file_exists(rbase+'tif')):
                 self.log_skip(resource, "outputs found in %s" % out_dir)
                 return CheckMessage.ignore
 
@@ -116,7 +116,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         upload_metadata(connector, host, secret_key, target_dsid, lemna_md)
 
 
-        if (not os.path.isfile(left_tiff)) or self.overwrite:
+        if (not file_exists(left_tiff)) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % left_tiff)
             left_image = terraref.stereo_rgb.process_raw(left_shape, img_left, None)
 
@@ -132,7 +132,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
 
-        if (not os.path.isfile(right_tiff)) or self.overwrite:
+        if (not file_exists(right_tiff)) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % right_tiff)
             right_image = terraref.stereo_rgb.process_raw(right_shape, img_right, None)
 
