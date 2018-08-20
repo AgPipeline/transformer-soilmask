@@ -8,7 +8,9 @@
   "contexts": [],
   "repository": {"repType": "git",
     "repUrl": "https://github.com/terraref/extractors-stereo-rgb.git"},
-  "process": {},
+  "process": {
+    "dataset": []
+  },
   "external_services": [],
   "dependencies": [],
   "bibtex": []

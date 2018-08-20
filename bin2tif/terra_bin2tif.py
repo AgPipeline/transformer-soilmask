@@ -64,12 +64,12 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         # Check metadata to verify we have what we need
         md = download_metadata(connector, host, secret_key, resource['id'])
         if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
-            self.log_skip("metadata indicates it was already processed")
+            self.log_skip(resource, "metadata indicates it was already processed")
             return CheckMessage.ignore
         if get_terraref_metadata(md):
             return CheckMessage.download
         else:
-            self.log_skip("no terraref metadata found")
+            self.log_skip(resource, "no terraref metadata found")
             return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
