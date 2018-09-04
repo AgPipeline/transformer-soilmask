@@ -3,6 +3,7 @@
 import json
 import re
 import os
+import yaml
 from numpy import asarray, rollaxis
 
 from pyclowder.utils import CheckMessage
@@ -121,7 +122,7 @@ class CanopyCoverHeight(TerrarefExtractor):
 
             # Use GeoJSON string to clip full field to this plot
             try:
-                (pxarray, geotrans) = clip_raster(resource['local_paths'][0], bounds)
+                (pxarray, geotrans) = clip_raster(resource['local_paths'][0], [yaml.safe_load(bounds)])
                 if len(pxarray.shape) < 3:
                     self.log_error(resource, "unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
                     continue
