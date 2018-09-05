@@ -15,6 +15,7 @@ from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, sub
     get_site_boundaries
 from terrautils.gdal import clip_raster, centroid_from_geojson
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
+from terrautils.spatial import geojson_to_tuples_betydb
 
 import terraref.stereo_rgb
 
@@ -118,11 +119,12 @@ class CanopyCoverHeight(TerrarefExtractor):
                 continue
 
             bounds = all_plots[plotname]
+            tuples = geojson_to_tuples_betydb(yaml.safe_load(bounds))
             centroid_lonlat = json.loads(centroid_from_geojson(bounds))["coordinates"]
 
             # Use GeoJSON string to clip full field to this plot
             try:
-                (pxarray, geotrans) = clip_raster(resource['local_paths'][0], [yaml.safe_load(bounds)])
+                pxarray = clip_raster(resource['local_paths'][0], tuples)
                 if len(pxarray.shape) < 3:
                     self.log_error(resource, "unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
                     continue
