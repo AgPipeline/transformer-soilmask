@@ -125,27 +125,30 @@ class CanopyCoverHeight(TerrarefExtractor):
             # Use GeoJSON string to clip full field to this plot
             try:
                 pxarray = clip_raster(resource['local_paths'][0], tuples)
-                if len(pxarray.shape) < 3:
-                    self.log_error(resource, "unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
+                if pxarray is not None:
+                    if len(pxarray.shape) < 3:
+                        self.log_error(resource, "unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
+                        continue
+
+                    ccVal = terraref.stereo_rgb.calculate_canopycover(rollaxis(pxarray,0,3))
+
+                    # Prepare and submit datapoint
+                    geo_file.write(','.join([plotname,
+                                             'Canopy Cover',
+                                             str(centroid_lonlat[1]),
+                                             str(centroid_lonlat[0]),
+                                             time_fmt,
+                                             host + ("" if host.endswith("/") else "/") + "files/" + resource['id'],
+                                             str(ccVal),
+                                             timestamp]) + '\n')
+
+                    successful_plots += 1
+                    if successful_plots % 10 == 0:
+                        self.log_info(resource, "processed %s/%s plots" % (successful_plots, len(all_plots)))
+                else:
                     continue
-
-                ccVal = terraref.stereo_rgb.calculate_canopycover(rollaxis(pxarray,0,3))
-
-                # Prepare and submit datapoint
-                geo_file.write(','.join([plotname,
-                                         'Canopy Cover',
-                                         str(centroid_lonlat[1]),
-                                         str(centroid_lonlat[0]),
-                                         time_fmt,
-                                         host + ("" if host.endswith("/") else "/") + "files/" + resource['id'],
-                                         str(ccVal),
-                                         timestamp]) + '\n')
-
-                successful_plots += 1
-                if successful_plots % 10 == 0:
-                    self.log_info(resource, "processed %s/%s plots" % (successful_plots, len(all_plots)))
             except:
-                self.log_error("error generating cc for %s" % plotname)
+                self.log_error(resource, "error generating cc for %s" % plotname)
                 continue
 
             traits['canopy_cover'] = str(ccVal)
