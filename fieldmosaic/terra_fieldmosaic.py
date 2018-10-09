@@ -86,6 +86,9 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if thumb_exists and med_exists and full_exists and png_exists and not self.overwrite:
             self.log_skip(resource, "all outputs already exist")
             return
+        elif thumb_exists and med_exists and full_exists and not self.overwrite:
+            self.log_skip(resource, "all outputs already exist (10% PNG thumbnail must still be generated)")
+            return
 
         if not self.darker or sensor_type != 'rgb':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key, sensor_type,
