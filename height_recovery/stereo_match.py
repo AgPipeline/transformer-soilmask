@@ -34,8 +34,8 @@ def main():
     
     
     '''
-    in_dir = '/Users/nijiang/Desktop/pythonTest/stereoTop/2018-06-29'
-    calib_dir = '/Users/nijiang/Desktop/pythonTest/stereoTop/calibResult_s6'
+    in_dir = ''
+    calib_dir = ''
     
     boardSize = (7,7)
     squareSize = 5.525
@@ -46,9 +46,9 @@ def main():
     
     
     
-    in_dir = '/Users/nijiang/Desktop/pythonTest/stereoTop/2018-03-20'
-    out_dir = '/Users/nijiang/Desktop/pythonTest/stereoToHeight/2018-06-29'
-    calib_dir = '/Users/nijiang/Desktop/pythonTest/stereoTop/calibResult_s6'
+    in_dir = ''
+    out_dir = ''
+    calib_dir = ''
     stereo_image_to_disparity(calib_dir, in_dir,
                                in_dir)
     
@@ -57,8 +57,6 @@ def main():
     full_day_stereo_to_height(calib_dir, in_dir, out_dir)
     stereo_height_data_integrate_per_day(out_dir, out_dir)
     '''
-    #compare_hists('/Users/nijiang/Desktop/heightDistribution/origin_updated_height/10-16_3dTop_height.npy',
-    #compare_hists('/Users/nijiang/Desktop/heightDistribution/origin_updated_height/10-16_3dTop_height.npy','/Users/nijiang/Desktop/pythonTest/stereoToHeight/stereoResult/2016-10-16_stereoHeight.npy', '/Users/nijiang/Desktop/pythonTest/stereoToHeight/10-16-plots')
     
     return
 
