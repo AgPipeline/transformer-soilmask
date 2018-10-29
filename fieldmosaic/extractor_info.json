@@ -1,7 +1,7 @@
 {
   "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
   "name": "terra.geotiff.fieldmosaic",
-  "version": "1.3",
+  "version": "1.4",
   "description": "GeoTIFF Field Mosaic Stitcher",
   "author": "Max Burnette <mburnet2@illinois.edu>",
   "contributors": ["Zongyang Li"],

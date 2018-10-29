@@ -4,7 +4,6 @@ import os
 import logging
 import subprocess
 import json
-from matplotlib import pyplot as plt
 from PIL import Image
 from numpy import array
 
@@ -67,7 +66,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         scan_name = parameters["scan_type"] if "scan_type" in parameters else ""
         timestamp = dataset_name.split(" - ")[1]
 
-        out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type, scan_name])
+        out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type, scan_name]).replace(" ", "_")
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
         out_tif_medium = out_tif_full.replace(".tif", "_10pct.tif")
         out_png = out_tif_full.replace(".tif", ".png")
@@ -87,6 +86,9 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if thumb_exists and med_exists and full_exists and png_exists and not self.overwrite:
             self.log_skip(resource, "all outputs already exist")
             return
+        elif thumb_exists and med_exists and full_exists and not self.overwrite:
+            self.log_skip(resource, "all outputs already exist (10% PNG thumbnail must still be generated)")
+            return
 
         if not self.darker or sensor_type != 'rgb':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key, sensor_type,
@@ -100,14 +102,16 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if not png_exists:
             # Create PNG thumbnail
             self.log_info(resource, "Converting 10pct to %s..." % out_png)
-            px_img = Image.open(out_tif_medium)
+            """px_img = Image.open(out_tif_medium)
             if sensor_type == 'ir':
                 # Get some additional info so we can scale and assign colormap
                 ncols, nrows = px_img.size
                 px_array = array(px_img.getdata()).reshape((nrows, ncols))
                 create_image(px_array, out_png, True)
             elif sensor_type == 'rgb':
-                px_img.save(out_png)
+                px_img.save(out_png)"""
+            cmd = "gdal_translate -of PNG %s %s" % (out_tif_medium, out_png)
+            subprocess.call(cmd, shell=True)
 
             self.created += 1
             self.bytes += os.path.getsize(out_png)
@@ -163,26 +167,25 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         # Create simple mosaic from geotiff list
         created, bytes = 0, 0
 
-        if ((os.path.isfile(out_vrt) and os.path.getsize(out_vrt) == 0) or
-                (not os.path.isfile(out_vrt)) or self.overwrite):
-            fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
-            with open(fileidpath) as flist:
-                file_path_list = json.load(flist)
-            self.log_info(resource, "processing %s TIFs without dark flag" % len(file_path_list))
+        #if (os.path.isfile(out_vrt) and os.path.getsize(out_vrt) == 0) or (not os.path.isfile(out_vrt)) or self.overwrite:
+        fileidpath = self.remapMountPath(connector, str(parameters['file_paths']))
+        with open(fileidpath) as flist:
+            file_path_list = json.load(flist)
+        self.log_info(resource, "processing %s TIFs without dark flag" % len(file_path_list))
 
-            # Write input list to tmp file
-            tiflist = "tiflist.txt"
-            with open(tiflist, "w") as tifftxt:
-                for tpath in file_path_list:
-                    filepath = self.remapMountPath(connector, tpath)
-                    tifftxt.write("%s\n" % filepath)
+        # Write input list to tmp file
+        tiflist = "tiflist.txt"
+        with open(tiflist, "w") as tifftxt:
+            for tpath in file_path_list:
+                filepath = self.remapMountPath(connector, tpath)
+                tifftxt.write("%s\n" % filepath)
 
-            # Create VRT from every GeoTIFF
-            self.log_info(resource, "Creating VRT %s..." % out_vrt)
-            full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
-            os.remove(tiflist)
-            created += 1
-            bytes += os.path.getsize(out_vrt)
+        # Create VRT from every GeoTIFF
+        self.log_info(resource, "Creating VRT %s..." % out_vrt)
+        full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
+        os.remove(tiflist)
+        created += 1
+        bytes += os.path.getsize(out_vrt)
 
         if (not file_exists(out_tif_thumb)) or self.overwrite:
             self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
