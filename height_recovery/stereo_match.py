@@ -14,9 +14,12 @@ from scipy.stats.stats import pearsonr
 import cv2
 from datetime import date
 
+BASELINE = 217.3468 # in mm
+
+convt = terra_common.CoordinateConverter()
 
 def main():
-    '''
+    
     args = options()
 
     if args.mode == 'one':
@@ -28,28 +31,32 @@ def main():
         process_one_month_data(args.calib_dir, args.in_dir, args.out_dir)
     
     return
+    
+    
     '''
-    '''
+    in_dir = ''
+    calib_dir = ''
+    
     boardSize = (7,7)
-    squareSize = 5.6
+    squareSize = 5.525
     img_size = (3296, 2472)
     stereo_calibrate(in_dir, boardSize, squareSize, img_size, calib_dir)
     
-    in_dir = '/Users/nijiang/Desktop/pythonTest/stereoTop/2016-10-16'
-    out_dir = '/Users/nijiang/Desktop/pythonTest/stereoToHeight/2016-10-16-2'
-    calib_dir = '/Users/nijiang/Desktop/pythonTest/stereoTop/calibResult'
-    '''
     
-    '''
-    in_dir = '/projects/arpae/terraref/sites/ua-mac/raw_data/stereoTop/2016-10-16'
-    out_dir = '/projects/arpae/terraref/users/zongyang/stereoToHeight/2016-10-16'
-    calib_dir = '/home/zongyang/stereo_height/codes/calibResult'
-    #stereo_image_to_disparity(calib_dir, in_dir, out_dir)
+    
+    
+    
+    in_dir = ''
+    out_dir = ''
+    calib_dir = ''
+    stereo_image_to_disparity(calib_dir, in_dir,
+                               in_dir)
+    
+    
+      
     full_day_stereo_to_height(calib_dir, in_dir, out_dir)
     stereo_height_data_integrate_per_day(out_dir, out_dir)
     '''
-    #compare_hists('/Users/nijiang/Desktop/heightDistribution/origin_updated_height/10-16_3dTop_height.npy',
-    compare_hists('/Users/nijiang/Desktop/heightDistribution/origin_updated_height/10-16_3dTop_height.npy','/Users/nijiang/Desktop/pythonTest/stereoToHeight/stereoResult/2016-10-16_stereoHeight.npy', '/Users/nijiang/Desktop/pythonTest/stereoToHeight/10-16-plots')
     
     return
 
@@ -183,6 +190,18 @@ def full_day_stereo_to_height(calib_dir, in_dir, out_dir):
     
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
+        
+    # boundary query
+    str_date = os.path.basename(in_dir)
+    print(str_date)
+    try:
+        q_flag = convt.bety_query(str_date, True)
+        #q_flag = convt.bety_query('2017-03-20', True)
+        if not q_flag:
+            print('Bety query failed')
+            return
+    except Exception as ex:
+            fail(str_date + str(ex))
     
     list_dirs = os.walk(in_dir)
     for root, dirs, files in list_dirs:
@@ -437,21 +456,21 @@ def generate_height_hist(metadata, bin_left, bin_right, out_dir, calib, imgSize)
     # disparity_to_distance
     Q = calib.disp_to_depth_mat
     focuLength = Q[2][3] / 4.0 # shrink twice
-    baseLine = 217.3468 # in mm
     center_position = get_position(metadata)
-    Z = disparity_to_distance(disp, focuLength, baseLine)
+    Z = disparity_to_distance(disp, focuLength, BASELINE)
     heightMap = center_position[2]*1000 - Z
+    disp = (np.rot90(disp))
     #heightMap = heightMap[mask3]
     
     # calculate a plot number for each pixel, 1728 plots by default
     fov = get_fov(metadata, center_position[2], imgSize)
-    convt = terra_common.StereoPixelConverter()
-    plotNum, pixelBoundary = convt.getPlotNumForPixel(center_position, fov)
-    
+    plotNum, pixelBoundary = convt.getPlotNumForPixel(center_position, fov, disp.shape)
+    if len(plotNum) == 0:
+        return
     
     # save plant level images
     leaf_mask = np.zeros_like(cv2.cvtColor(imgL, cv2.COLOR_BGR2GRAY))
-    disp = (np.rot90(disp))
+    
     cv2.imwrite(os.path.join(out_dir, 'disp.png'), disp)
     for plot, bound in zip(plotNum, pixelBoundary):
         roi_img = disp[:, bound[0]:bound[1]]
@@ -505,11 +524,9 @@ def get_plot_num(meta):
     
     center_position, hh = parse_metadata(meta)
     
-    convt = terra_common.CoordinateConverter()
+    plot_row, plot_col = convt.fieldPosition_to_fieldPartition(center_position[0], center_position[1])
     
-    plot_row, plot_col = convt.fieldPosition_to_fieldPartition_s2_1728(center_position[0], center_position[1])
-    
-    plotNum = convt.fieldPartition_to_plotNum_s2_1728(plot_row, plot_col)
+    plotNum = convt.fieldPartition_to_plotNum(plot_row, plot_col)
     
     return plotNum
 
@@ -577,6 +594,7 @@ def stereo_calibrate(in_dir, boardSize, squareSize, imgSize, out_dir):
     
     calibrator = calibration.StereoCalibrator(boardSize[0], boardSize[1], squareSize, imgSize)
     list_dirs = os.walk(in_dir)
+    img_count = 0
     for root, dirs, files in list_dirs:
         for d in dirs:
             i_path = os.path.join(in_dir, d)
@@ -586,6 +604,10 @@ def stereo_calibrate(in_dir, boardSize, squareSize, imgSize, out_dir):
             left_file = os.path.join(i_path, 'left.jpg')
             right_file = os.path.join(i_path, 'right.jpg')
             if not os.path.exists(left_file) or not os.path.exists(right_file):
+                continue
+            
+            img_count += 1
+            if img_count > 25:
                 continue
             
             print(left_file)
