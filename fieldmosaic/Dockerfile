@@ -1,12 +1,8 @@
-FROM terraref/terrautils:1.2
+FROM terraref/terrautils:1.4
 MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
 # Install any programs needed
-RUN useradd -u 49044 extractor \
-    && mkdir -p /home/extractor/sites/ua-mac/raw_data \
-    && mkdir -p /home/extractor/sites/ua-mac/Level_1 \
-    && mkdir -p /home/extractor/sites/ua-mac/Level_1/fullfield \
-    && chown -R extractor /home/extractor
+RUN useradd -u 49044 extractor
 
 RUN wget https://raw.githubusercontent.com/GitHubRGI/geopackage-python/master/Tiling/gdal2tiles_parallel.py \
  && mv gdal2tiles_parallel.py /home/extractor/gdal2tiles_parallel.py \
@@ -31,4 +27,5 @@ CMD ["extractor"]
 ENV RABBITMQ_EXCHANGE="terra" \
     RABBITMQ_VHOST="%2F" \
     RABBITMQ_QUEUE="terra.geotiff.fieldmosaic" \
-    MAIN_SCRIPT="terra_fieldmosaic.py"
+    MAIN_SCRIPT="terra_fieldmosaic.py" \
+    CLOWDER_SPACE="5bdc8f174f0cb2fdaaf3148e"

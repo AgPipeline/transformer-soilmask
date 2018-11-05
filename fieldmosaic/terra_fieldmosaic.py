@@ -4,14 +4,13 @@ import os
 import logging
 import subprocess
 import json
-from PIL import Image
-from numpy import array
 
 from pyclowder.utils import CheckMessage
 from pyclowder.files import upload_metadata, download_info, submit_extraction
-from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy, \
-    upload_to_dataset, create_empty_collection, create_empty_dataset, file_exists
-from terrautils.formats import create_image
+from terrautils.extractors import TerrarefExtractor, build_metadata, \
+    upload_to_dataset, create_empty_collection, create_empty_dataset, file_exists, \
+    check_file_in_dataset, build_dataset_hierarchy_crawl
+from terrautils.lemnatec import _get_experiment_metadata
 
 import full_day_to_tiles
 import shadeRemoval as shade
@@ -50,44 +49,57 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if type(parameters) is unicode:
             parameters = json.loads(str(parameters))
 
-        # Input path will suggest which sensor we are seeing
-        sensor_type = None
-        for f in resource['files']:
-            filepath = f['filepath']
-            for sens in ["rgb_geotiff", "ir_geotiff", "laser3d_heightmap"]:
-                if filepath.find(sens) > -1:
-                    sensor_type = sens.split("_")[0]
-                    break
-            if sensor_type is not None:
-                break
-
         # dataset_name = "Full Field - 2017-01-01"
         dataset_name = parameters["output_dataset"]
         scan_name = parameters["scan_type"] if "scan_type" in parameters else ""
         timestamp = dataset_name.split(" - ")[1]
 
+        # Input path will suggest which sensor we are seeing
+        sensor_type = None
+        expmd = None
+        for f in resource['files']:
+            filepath = f['filepath']
+            if filepath.find("rgb_geotiff") > -1:
+                sensor_type = "rgb"
+                expmd = _get_experiment_metadata(timestamp.split("__")[0], 'stereoTop')
+            elif filepath.find("ir_geotiff") > -1:
+                sensor_type = "ir"
+                expmd = _get_experiment_metadata(timestamp.split("__")[0], 'flirIrCamera')
+            elif filepath.find("laser3d_heightmap") > -1:
+                sensor_type = "laser3d"
+                expmd = _get_experiment_metadata(timestamp.split("__")[0], 'scanner3DTop')
+            if sensor_type is not None:
+                break
+
+        season_name = None
+        experiment_name = None
+        if expmd and len(expmd) > 0:
+            for experiment in expmd:
+                if 'name' in experiment:
+                    if ":" in experiment['name']:
+                        season_name = experiment['name'].split(": ")[0]
+                        experiment_name = experiment['name'].split(": ")[1]
+                    else:
+                        experiment_name = experiment['name']
+                        season_name = None
+                    break
+
         out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type, scan_name]).replace(" ", "_")
+        # replace /fullfield/ with eg /rgb_fullfield/
+        out_tif_full = out_tif_full.replace('/fullfield/', '/%s_fullfield/' % sensor_type)
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
         out_tif_medium = out_tif_full.replace(".tif", "_10pct.tif")
         out_png = out_tif_full.replace(".tif", ".png")
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
-        thumb_exists, med_exists, full_exists, png_exists = False, False, False, False
-
-        if file_exists(out_tif_thumb):
-            thumb_exists = True
-        if file_exists(out_tif_medium):
-            med_exists = True
-        if file_exists(out_tif_full):
-            full_exists = True
-        if file_exists(out_png):
-            png_exists = True
-        if thumb_exists and med_exists and full_exists and png_exists and not self.overwrite:
+        found_all = True
+        for output_file in []:
+            if not file_exists(output_file):
+                found_all = False
+                break
+        if found_all and not self.overwrite:
             self.log_skip(resource, "all outputs already exist")
-            return
-        elif thumb_exists and med_exists and full_exists and not self.overwrite:
-            self.log_skip(resource, "all outputs already exist (10% PNG thumbnail must still be generated)")
             return
 
         if not self.darker or sensor_type != 'rgb':
@@ -98,31 +110,23 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             (nu_created, nu_bytes) = self.generateDarkerMosaic(connector, host, secret_key, sensor_type,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full,
                                                                out_tif_medium, parameters, resource)
-
-        if not png_exists:
-            # Create PNG thumbnail
-            self.log_info(resource, "Converting 10pct to %s..." % out_png)
-            """px_img = Image.open(out_tif_medium)
-            if sensor_type == 'ir':
-                # Get some additional info so we can scale and assign colormap
-                ncols, nrows = px_img.size
-                px_array = array(px_img.getdata()).reshape((nrows, ncols))
-                create_image(px_array, out_png, True)
-            elif sensor_type == 'rgb':
-                px_img.save(out_png)"""
-            cmd = "gdal_translate -of PNG %s %s" % (out_tif_medium, out_png)
-            subprocess.call(cmd, shell=True)
-
-            self.created += 1
-            self.bytes += os.path.getsize(out_png)
-
         self.created += nu_created
         self.bytes += nu_bytes
 
+        # Create PNG thumbnail
+        self.log_info(resource, "Converting 10pct to %s..." % out_png)
+        cmd = "gdal_translate -of PNG %s %s" % (out_tif_medium, out_png)
+        subprocess.call(cmd, shell=True)
+        self.created += 1
+        self.bytes += os.path.getsize(out_png)
+
+        self.log_info(resource, "Hierarchy: %s / %s / %s / %s / %s" % (
+            season_name, experiment_name, self.sensors.get_display_name(), timestamp[:4], timestamp[5:7]))
+
         # Get dataset ID or create it, creating parent collections as needed
-        target_dsid = build_dataset_hierarchy(host, secret_key, self.clowder_user, self.clowder_pass, self.clowderspace,
-                                              self.sensors.get_display_name(), timestamp[:4],
-                                              timestamp[5:7], leaf_ds_name=dataset_name)
+        target_dsid = build_dataset_hierarchy_crawl(host, secret_key, self.clowder_user, self.clowder_pass, self.clowderspace,
+                                              season_name, experiment_name, self.sensors.get_display_name(),
+                                              timestamp[:4], timestamp[5:7], leaf_ds_name=dataset_name)
 
         # Upload full field image to Clowder
         content = {
@@ -134,31 +138,19 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         }
 
         # If we newly created these files, upload to Clowder
-        if file_exists(out_tif_thumb) and not thumb_exists:
-            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_thumb)
-            meta = build_metadata(host, self.extractor_info, id, content, 'file')
-            upload_metadata(connector, host, secret_key, id, meta)
+        for checked_file in [out_tif_thumb, out_tif_medium, out_tif_full, out_png]:
+            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, checked_file, remove=self.overwrite)
+            if not found_in_dest or self.overwrite:
+                id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, checked_file)
+                meta = build_metadata(host, self.extractor_info, id, content, 'file')
+                upload_metadata(connector, host, secret_key, id, meta)
 
-        if file_exists(out_tif_medium) and not med_exists:
-            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_medium)
-            meta = build_metadata(host, self.extractor_info, id, content, 'file')
-            upload_metadata(connector, host, secret_key, id, meta)
-
-        if file_exists(out_png) and not png_exists:
-            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_png)
-            meta = build_metadata(host, self.extractor_info, id, content, 'file')
-            upload_metadata(connector, host, secret_key, id, meta)
-
-        if file_exists(out_tif_full) and not full_exists:
-            id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, out_tif_full)
-            meta = build_metadata(host, self.extractor_info, id, content, 'file')
-            upload_metadata(connector, host, secret_key, id, meta)
-
-            # Trigger downstream extractions on full resolution
-            if sensor_type == 'ir':
-                submit_extraction(connector, host, secret_key, id, "terra.multispectral.meantemp")
-            elif sensor_type == 'rgb':
-                submit_extraction(connector, host, secret_key, id, "terra.stereo-rgb.canopycover")
+                if checked_file == out_tif_full:
+                    # Trigger downstream extractions on full resolution
+                    if sensor_type == 'ir':
+                        submit_extraction(connector, host, secret_key, id, "terra.multispectral.meantemp")
+                    elif sensor_type == 'rgb':
+                        submit_extraction(connector, host, secret_key, id, "terra.stereo-rgb.canopycover")
 
         self.end_message(resource)
 
