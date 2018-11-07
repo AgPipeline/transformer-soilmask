@@ -257,9 +257,9 @@ def rgb2gray(rgb):
     gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
     return gray
 
-def gen_saturated_mask(img):
+def gen_saturated_mask(img, kernelSize):
     
-    binMask = gen_plant_mask(img)
+    binMask = gen_plant_mask(img, kernelSize)
     binMask = remove_small_area_mask(binMask, 500)  # 500 is a parameter for number of pixels to be removed as small area 
     binMask = remove_small_holes_mask(binMask, 300) # 300 is a parameter for number of pixels to be filled as small holes
     
@@ -269,9 +269,9 @@ def gen_saturated_mask(img):
     
     return binMask
 
-def gen_mask(img):
+def gen_mask(img, kernelSize):
     
-    binMask = gen_plant_mask(img)
+    binMask = gen_plant_mask(img, kernelSize)
     binMask = remove_small_area_mask(binMask, SMALL_AREA_THRESHOLD)
     binMask = remove_small_holes_mask(binMask, 3000) # 3000 is a parameter for number of pixels to be filled as small holes
     
@@ -306,9 +306,9 @@ def gen_cc_enhanced(input_path, kernelSize=3):
     # saturated image process
     # over_rate is percentage of high value pixels(higher than SATUTATE_THRESHOLD) in the grayscale image, if over_rate > 0.15, try to fix it use gen_saturated_mask()
     if over_rate > 0.15:
-        binMask = gen_saturated_mask(img)
+        binMask = gen_saturated_mask(img, kernelSize)
     else:   # nomal image process
-        binMask = gen_mask(img)
+        binMask = gen_mask(img, kernelSize)
         
     c = np.count_nonzero(binMask)
     ratio = c/float(binMask.size)
