@@ -10,15 +10,17 @@ JPG and TIF formats.
 import os
 import shutil
 import tempfile
-
+import yaml
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
     build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists
 from terrautils.formats import create_geotiff, create_image
-from terrautils.spatial import geojson_to_tuples
+from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb
 from terrautils.lemnatec import _get_experiment_metadata
+from terrautils.gdal import centroid_from_geojson, clip_raster
+from terrautils.betydb import add_arguments, get_site_boundaries
 import terraref.stereo_rgb
 
 
@@ -151,52 +153,95 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         level1_md = build_metadata(host, self.extractor_info, target_dsid, terra_md_trim, 'dataset')
         upload_metadata(connector, host, secret_key, target_dsid, level1_md)
 
-        ##
-        self.log_info(resource, "determining image shapes & gps bounds")
         left_shape = terraref.stereo_rgb.get_image_shape(metadata, 'left')
         right_shape = terraref.stereo_rgb.get_image_shape(metadata, 'right')
-
-        left_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['left']['bounding_box'])
-        right_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['right']['bounding_box'])
-        out_tmp_tiff = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-
+        gps_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['stereoTop']['bounding_box'])
 
         if (not file_exists(left_tiff)) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % left_tiff)
             left_image = terraref.stereo_rgb.process_raw(left_shape, img_left, None)
+            out_tmp_tiff_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
+             # Rename output.tif after creation to avoid long path errors
+            create_geotiff(left_image, gps_bounds, out_tmp_tiff_left, None, True, self.extractor_info, terra_md_full)
 
-            # Rename output.tif after creation to avoid long path errors
-            create_geotiff(left_image, left_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
             # TODO: we're moving zero byte files
-            shutil.move(out_tmp_tiff, left_tiff)
-            if left_tiff not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_tiff)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+            if os.path.getsize(out_tmp_tiff_left) > 0:
+                shutil.move(out_tmp_tiff_left, left_tiff)
+                if left_tiff not in resource['local_paths']:
+                    fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
+                                               left_tiff)
+                    uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+                else:
+                    self.log_info(resource, "file found in dataset already; not re-uploading")
+                self.created += 1
+                self.bytes += os.path.getsize(left_tiff)
             else:
-                self.log_info(resource, "file found in dataset already; not re-uploading")
-            self.created += 1
-            self.bytes += os.path.getsize(left_tiff)
+                self.log_info("Zero bytes file generated")
 
         if (not file_exists(right_tiff)) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % right_tiff)
-            right_image = terraref.stereo_rgb.process_raw(right_shape, img_right, None)
-
-            create_geotiff(right_image, right_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
-            shutil.move(out_tmp_tiff, right_tiff)
-            if right_tiff not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,right_tiff)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+            right_image = terraref.stereo_rgb.process_raw(left_shape, img_right, None)
+            out_tmp_tiff_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
+            # Rename output.tif after creation to avoid long path errors
+            create_geotiff(right_image, gps_bounds, out_tmp_tiff_right, None, True, self.extractor_info, terra_md_full)
+            if os.path.getsize(out_tmp_tiff_right) > 0:
+                shutil.move(out_tmp_tiff_right, right_tiff)
+                if left_tiff not in resource['local_paths']:
+                    fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
+                                               left_tiff)
+                    uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+                else:
+                    self.log_info(resource, "file found in dataset already; not re-uploading")
+                self.created += 1
+                self.bytes += os.path.getsize(left_tiff)
             else:
-                self.log_info(resource, "file found in dataset already; not re-uploading")
-            self.created += 1
-            self.bytes += os.path.getsize(right_tiff)
+                self.log_info("Zero bytes file generated")
 
+
+        # Plot dir is the day under Level_1_Plots/ir_geotiff/day
+        # TODO
+        # 1. Should this be done above, each in the block for left, right?
+        # 2. Or just check if both left and right tiff not zero byte files here?
+        self.log_info(resource, "Attempting to clip into plot shards")
+        plot_path = os.path.dirname(os.path.dirname(left_tiff.replace("/Level_1/", "/Level_1_Plots/")))
+        shard_name = os.path.basename(left_tiff)
+
+        all_plots = get_site_boundaries(timestamp, city='Maricopa')
+        for plotname in all_plots:
+            if plotname.find("KSU") > -1:
+                continue
+
+            bounds = all_plots[plotname]
+            tuples = geojson_to_tuples_betydb(yaml.safe_load(bounds))
+            shard_path = os.path.join(plot_path, plotname, shard_name)
+            if not os.path.exists(os.path.dirname(shard_path)):
+                os.makedirs(os.path.dirname(shard_path))
+            clip_raster(left_tiff, tuples, out_path=shard_path)
+
+        self.log_info(resource, "Attempting to clip into plot shards")
+        plot_path = os.path.dirname(os.path.dirname(left_tiff.replace("/Level_1/", "/Level_1_Plots/")))
+        shard_name = os.path.basename(right_tiff)
+
+        all_plots = get_site_boundaries(timestamp, city='Maricopa')
+        for plotname in all_plots:
+            if plotname.find("KSU") > -1:
+                continue
+
+            bounds = all_plots[plotname]
+            tuples = geojson_to_tuples_betydb(yaml.safe_load(bounds))
+            shard_path = os.path.join(plot_path, plotname, shard_name)
+            if not os.path.exists(os.path.dirname(shard_path)):
+                os.makedirs(os.path.dirname(shard_path))
+            clip_raster(right_tiff, tuples, out_path=shard_path)
+
+        
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        ext_meta = build_metadata(host, self.extractor_info, resource['id'], {
-                "files_created": uploaded_file_ids
-            }, 'dataset')
-        self.log_info(resource, "uploading extractor metadata")
-        upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
+        extractor_md = build_metadata(host, self.extractor_info, target_dsid, {
+            "files_created": uploaded_file_ids
+        }, 'dataset')
+        self.log_info(resource, "uploading extractor metadata to raw dataset")
+        remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
+        upload_metadata(connector, host, secret_key, resource['id'], extractor_md)
 
         self.end_message(resource)
 
