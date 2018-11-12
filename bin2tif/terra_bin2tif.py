@@ -245,6 +245,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
 
         self.end_message(resource)
 
+
 if __name__ == "__main__":
     extractor = StereoBin2JpgTiff()
     extractor.start()
