@@ -234,7 +234,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                 os.makedirs(os.path.dirname(shard_path))
             clip_raster(right_tiff, tuples, out_path=shard_path)
 
-        
+
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
         extractor_md = build_metadata(host, self.extractor_info, target_dsid, {
             "files_created": uploaded_file_ids
