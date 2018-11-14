@@ -14,7 +14,7 @@ import yaml
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
-from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
+from terrautils.extractors import TerrarefExtractor, is_latest_file, check_file_in_dataset, load_json_file, \
     build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists
 from terrautils.formats import create_geotiff, create_image
 from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb
@@ -167,7 +167,9 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             # TODO: we're moving zero byte files
             if os.path.getsize(out_tmp_tiff_left) > 0:
                 shutil.move(out_tmp_tiff_left, left_tiff)
-                if left_tiff not in resource['local_paths']:
+                found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_tiff,
+                                                      remove=self.overwrite)
+                if not found_in_dest or self.overwrite:
                     fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
                                                left_tiff)
                     uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
@@ -186,7 +188,9 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             create_geotiff(right_image, gps_bounds, out_tmp_tiff_right, None, True, self.extractor_info, terra_md_full)
             if os.path.getsize(out_tmp_tiff_right) > 0:
                 shutil.move(out_tmp_tiff_right, right_tiff)
-                if left_tiff not in resource['local_paths']:
+                found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_tiff,
+                                                      remove=self.overwrite)
+                if not found_in_dest or self.overwrite:
                     fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
                                                left_tiff)
                     uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
