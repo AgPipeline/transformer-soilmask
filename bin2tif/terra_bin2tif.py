@@ -202,37 +202,38 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         # TODO
         # 1. Should this be done above, each in the block for left, right?
         # 2. Or just check if both left and right tiff not zero byte files here?
-        self.log_info(resource, "Attempting to clip into plot shards")
-        plot_path = os.path.dirname(os.path.dirname(left_tiff.replace("/Level_1/", "/Level_1_Plots/")))
-        shard_name = os.path.basename(left_tiff)
+        if False:
+            self.log_info(resource, "Attempting to clip into plot shards")
+            plot_path = os.path.dirname(os.path.dirname(left_tiff.replace("/Level_1/", "/Level_1_Plots/")))
+            shard_name = os.path.basename(left_tiff)
 
-        all_plots = get_site_boundaries(timestamp, city='Maricopa')
-        for plotname in all_plots:
-            if plotname.find("KSU") > -1:
-                continue
+            all_plots = get_site_boundaries(timestamp, city='Maricopa')
+            for plotname in all_plots:
+                if plotname.find("KSU") > -1:
+                    continue
 
-            bounds = all_plots[plotname]
-            tuples = geojson_to_tuples_betydb(yaml.safe_load(bounds))
-            shard_path = os.path.join(plot_path, plotname, shard_name)
-            if not os.path.exists(os.path.dirname(shard_path)):
-                os.makedirs(os.path.dirname(shard_path))
-            clip_raster(left_tiff, tuples, out_path=shard_path)
+                bounds = all_plots[plotname]
+                tuples = geojson_to_tuples_betydb(yaml.safe_load(bounds))
+                shard_path = os.path.join(plot_path, plotname, shard_name)
+                if not os.path.exists(os.path.dirname(shard_path)):
+                    os.makedirs(os.path.dirname(shard_path))
+                clip_raster(left_tiff, tuples, out_path=shard_path)
 
-        self.log_info(resource, "Attempting to clip into plot shards")
-        plot_path = os.path.dirname(os.path.dirname(left_tiff.replace("/Level_1/", "/Level_1_Plots/")))
-        shard_name = os.path.basename(right_tiff)
+            self.log_info(resource, "Attempting to clip into plot shards")
+            plot_path = os.path.dirname(os.path.dirname(left_tiff.replace("/Level_1/", "/Level_1_Plots/")))
+            shard_name = os.path.basename(right_tiff)
 
-        all_plots = get_site_boundaries(timestamp, city='Maricopa')
-        for plotname in all_plots:
-            if plotname.find("KSU") > -1:
-                continue
+            all_plots = get_site_boundaries(timestamp, city='Maricopa')
+            for plotname in all_plots:
+                if plotname.find("KSU") > -1:
+                    continue
 
-            bounds = all_plots[plotname]
-            tuples = geojson_to_tuples_betydb(yaml.safe_load(bounds))
-            shard_path = os.path.join(plot_path, plotname, shard_name)
-            if not os.path.exists(os.path.dirname(shard_path)):
-                os.makedirs(os.path.dirname(shard_path))
-            clip_raster(right_tiff, tuples, out_path=shard_path)
+                bounds = all_plots[plotname]
+                tuples = geojson_to_tuples_betydb(yaml.safe_load(bounds))
+                shard_path = os.path.join(plot_path, plotname, shard_name)
+                if not os.path.exists(os.path.dirname(shard_path)):
+                    os.makedirs(os.path.dirname(shard_path))
+                clip_raster(right_tiff, tuples, out_path=shard_path)
 
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
