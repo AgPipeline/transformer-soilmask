@@ -180,7 +180,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
 
         if (not file_exists(right_tiff)) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % right_tiff)
-            right_image = terraref.stereo_rgb.process_raw(left_shape, img_right, None)
+            right_image = terraref.stereo_rgb.process_raw(right_shape, img_right, None)
             out_tmp_tiff_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
             # Rename output.tif after creation to avoid long path errors
             create_geotiff(right_image, gps_bounds, out_tmp_tiff_right, None, True, self.extractor_info, terra_md_full)
