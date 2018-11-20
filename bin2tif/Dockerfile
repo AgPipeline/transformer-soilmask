@@ -1,14 +1,8 @@
-FROM terraref/terrautils:1.2
+FROM terraref/terrautils:1.4
 MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
-# Install any programs needed
-# TODO: Can we remove this user ID and mount files as Max?
-RUN useradd -u 49044 extractor \
-    && apt-get install -y -q gfortran \
-    && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /home/extractor/sites/ua-mac/raw_data \
-    && mkdir -p /home/extractor/sites/ua-mac/Level_1/stereoTop_geotiff \
-    && chown -R extractor /home/extractor
+# Create user with necessary user ID for writing permissions on filesystem
+RUN useradd -u 49044 extractor
 
 RUN pip install terraref-stereo-rgb
 
@@ -26,4 +20,6 @@ CMD ["extractor"]
 ENV RABBITMQ_EXCHANGE="terra" \
     RABBITMQ_VHOST="%2F" \
     RABBITMQ_QUEUE="terra.stereo-rgb.bin2tif" \
-    MAIN_SCRIPT="terra_bin2tif.py"
+    MAIN_SCRIPT="terra.stereo-rgb.bin2tif.py" \
+    CLOWDER_SPACE="5bdc8f174f0cb2fdaaf3148e"
+
