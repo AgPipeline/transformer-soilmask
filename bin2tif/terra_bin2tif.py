@@ -13,12 +13,13 @@ import tempfile
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
-from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
-from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_file, \
-    build_metadata, build_dataset_hierarchy, upload_to_dataset, file_exists
+from terrautils.metadata import get_extractor_metadata, get_terraref_metadata, \
+    get_season_and_experiment
+from terrautils.extractors import TerrarefExtractor, is_latest_file, check_file_in_dataset, load_json_file, \
+    build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists, \
+    contains_required_files
 from terrautils.formats import create_geotiff, create_image
-from terrautils.spatial import geojson_to_tuples
-
+from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb
 import terraref.stereo_rgb
 
 
@@ -32,41 +33,28 @@ class StereoBin2JpgTiff(TerrarefExtractor):
     def check_message(self, connector, host, secret_key, resource, parameters):
         if "rulechecked" in parameters and parameters["rulechecked"]:
             return CheckMessage.download
-        self.start_check(resource)
 
         if not is_latest_file(resource):
             self.log_skip(resource, "not latest file")
             return CheckMessage.ignore
 
         # Check for a left and right BIN file - skip if not found
-        found_left = False
-        found_right = False
-        for f in resource['files']:
-            if 'filename' in f:
-                if f['filename'].endswith('_left.bin'):
-                    found_left = True
-                elif f['filename'].endswith('_right.bin'):
-                    found_right = True
-        if not (found_left and found_right):
-            self.log_skip(resource, "found left: %s, right: %s" % (found_left, found_right))
+        if not contains_required_files(resource, ['_left.bin', '_right.bin']):
+            self.log_skip(resource, "missing required files")
             return CheckMessage.ignore
-
-        # Check if outputs already exist unless overwrite is forced - skip if found
-        if not self.overwrite:
-            timestamp = resource['dataset_info']['name'].split(" - ")[1]
-            lbase = self.sensors.get_sensor_path(timestamp, opts=['left'], ext='')
-            rbase = self.sensors.get_sensor_path(timestamp, opts=['right'], ext='')
-            out_dir = os.path.dirname(lbase)
-            if (file_exists(lbase+'tif') and file_exists(rbase+'tif')):
-                self.log_skip(resource, "outputs found in %s" % out_dir)
-                return CheckMessage.ignore
 
         # Check metadata to verify we have what we need
         md = download_metadata(connector, host, secret_key, resource['id'])
-        if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
-            self.log_skip(resource, "metadata indicates it was already processed")
-            return CheckMessage.ignore
         if get_terraref_metadata(md):
+            if get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
+                # Make sure outputs properly exist
+                timestamp = resource['dataset_info']['name'].split(" - ")[1]
+                left_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
+                right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
+                if file_exists(left_tiff) and file_exists(right_tiff):
+                    self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
+                    return CheckMessage.ignore
+            # Have TERRA-REF metadata, but not any from this extractor
             return CheckMessage.download
         else:
             self.log_skip(resource, "no terraref metadata found")
@@ -80,78 +68,88 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         for fname in resource['local_paths']:
             if fname.endswith('_dataset_metadata.json'):
                 all_dsmd = load_json_file(fname)
-                metadata = get_terraref_metadata(all_dsmd, 'stereoTop')
+                terra_md_full = get_terraref_metadata(all_dsmd, 'stereoTop')
             elif fname.endswith('_left.bin'):
                 img_left = fname
             elif fname.endswith('_right.bin'):
                 img_right = fname
-        if None in [img_left, img_right, metadata]:
-            self.log_error(resource, "could not locate each of left+right+metadata in processing")
-            raise ValueError("could not locate each of left+right+metadata in processing")
+        if None in [img_left, img_right, terra_md_full]:
+            raise ValueError("could not locate all files & metadata in processing")
 
-        # Determine output location & filenames
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
+
+        # Fetch experiment name from terra metadata
+        season_name, experiment_name, updated_experiment = get_season_and_experiment(timestamp, terra_md_full)
+        if None in [season_name, experiment_name]:
+            raise ValueError("season and experiment could not be determined")
+
+        # Determine output directory
+        self.log_info(resource, "Hierarchy: %s / %s / %s / %s / %s / %s / %s" % (season_name, experiment_name, self.sensors.get_display_name(),
+                                                                                 timestamp[:4], timestamp[5:7], timestamp[8:10], timestamp))
+        target_dsid = build_dataset_hierarchy_crawl(host, secret_key, self.clowder_user, self.clowder_pass, self.clowderspace,
+                                              season_name, experiment_name, self.sensors.get_display_name(),
+                                              timestamp[:4], timestamp[5:7], timestamp[8:10],
+                                              leaf_ds_name=self.sensors.get_display_name() + ' - ' + timestamp)
         left_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
         right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
         uploaded_file_ids = []
 
-        self.log_info(resource, "determining image shapes & gps bounds")
+        # Attach LemnaTec source metadata to Level_1 product
+        self.log_info(resource, "uploading LemnaTec metadata to ds [%s]" % target_dsid)
+        remove_metadata(connector, host, secret_key, target_dsid, self.extractor_info['name'])
+        terra_md_trim = get_terraref_metadata(all_dsmd)
+        if updated_experiment is not None:
+            terra_md_trim['experiment_metadata'] = updated_experiment
+        terra_md_trim['raw_data_source'] = host + ("" if host.endswith("/") else "/") + "datasets/" + resource['id']
+        level1_md = build_metadata(host, self.extractor_info, target_dsid, terra_md_trim, 'dataset')
+        upload_metadata(connector, host, secret_key, target_dsid, level1_md)
+
+        # Preprocessing of image location and dimensions
         left_shape = terraref.stereo_rgb.get_image_shape(metadata, 'left')
         right_shape = terraref.stereo_rgb.get_image_shape(metadata, 'right')
-
-        left_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['left']['bounding_box'])
-        right_gps_bounds = geojson_to_tuples(metadata['spatial_metadata']['right']['bounding_box'])
-        out_tmp_tiff = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-
-        target_dsid = build_dataset_hierarchy(host, secret_key, self.clowder_user, self.clowder_pass, self.clowderspace,
-                                              self.sensors.get_display_name(),
-                                              timestamp[:4], timestamp[5:7], timestamp[8:10],
-                                              leaf_ds_name=self.sensors.get_display_name()+' - '+timestamp)
-
-        # Upload original Lemnatec metadata to new Level_1 dataset
-        md = get_terraref_metadata(all_dsmd)
-        md['raw_data_source'] = host + ("" if host.endswith("/") else "/") + "datasets/" + resource['id']
-        lemna_md = build_metadata(host, self.extractor_info, target_dsid, md, 'dataset')
-        self.log_info(resource, "uploading LemnaTec metadata")
-        upload_metadata(connector, host, secret_key, target_dsid, lemna_md)
-
+        gps_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['stereoTop']['bounding_box'])
 
         if (not file_exists(left_tiff)) or self.overwrite:
+            # Perform actual processing
             self.log_info(resource, "creating & uploading %s" % left_tiff)
             left_image = terraref.stereo_rgb.process_raw(left_shape, img_left, None)
+            out_tmp_tiff_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
+            create_geotiff(left_image, gps_bounds, out_tmp_tiff_left, None, True, self.extractor_info, terra_md_full)
 
             # Rename output.tif after creation to avoid long path errors
-            create_geotiff(left_image, left_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
-            # TODO: we're moving zero byte files
-            shutil.move(out_tmp_tiff, left_tiff)
-            if left_tiff not in resource['local_paths']:
+            shutil.move(out_tmp_tiff_left, left_tiff)
+            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_tiff, remove=self.overwrite)
+            if not found_in_dest or self.overwrite:
                 fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_tiff)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
-            else:
-                self.log_info(resource, "file found in dataset already; not re-uploading")
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
 
         if (not file_exists(right_tiff)) or self.overwrite:
+            # Perform actual processing
             self.log_info(resource, "creating & uploading %s" % right_tiff)
             right_image = terraref.stereo_rgb.process_raw(right_shape, img_right, None)
+            out_tmp_tiff_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
+            create_geotiff(right_image, gps_bounds, out_tmp_tiff_right, None, True, self.extractor_info, terra_md_full)
 
-            create_geotiff(right_image, right_gps_bounds, out_tmp_tiff, None, False, self.extractor_info, metadata)
-            shutil.move(out_tmp_tiff, right_tiff)
-            if right_tiff not in resource['local_paths']:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,right_tiff)
+            # Rename output.tif after creation to avoid long path errors
+            shutil.move(out_tmp_tiff_right, right_tiff)
+            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_tiff, remove=self.overwrite)
+            if not found_in_dest or self.overwrite:
+                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, right_tiff)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
-            else:
-                self.log_info(resource, "file found in dataset already; not re-uploading")
             self.created += 1
-            self.bytes += os.path.getsize(right_tiff)
+            self.bytes += os.path.getsize(left_tiff)
+
+        # TODO: Submit this dataset to the plot-clipper extractor
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        ext_meta = build_metadata(host, self.extractor_info, resource['id'], {
-                "files_created": uploaded_file_ids
-            }, 'dataset')
-        self.log_info(resource, "uploading extractor metadata")
-        upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
+        extractor_md = build_metadata(host, self.extractor_info, target_dsid, {
+            "files_created": uploaded_file_ids
+        }, 'dataset')
+        self.log_info(resource, "uploading extractor metadata to raw dataset")
+        remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
+        upload_metadata(connector, host, secret_key, resource['id'], extractor_md)
 
         self.end_message(resource)
 
