@@ -2,8 +2,10 @@ FROM terraref/terrautils:1.4
 MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
 # Install any programs needed
-RUN useradd -u 49044 extractor
-
+RUN useradd -u 49044 extractor \
+    && mkdir /home/extractor \
+    && chown extractor /home/extractor
+    
 RUN wget https://raw.githubusercontent.com/GitHubRGI/geopackage-python/master/Tiling/gdal2tiles_parallel.py \
  && mv gdal2tiles_parallel.py /home/extractor/gdal2tiles_parallel.py \
  && pip install opencv-python
