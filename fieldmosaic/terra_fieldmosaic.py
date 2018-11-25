@@ -23,7 +23,7 @@ def add_local_arguments(parser):
                         help="whether to use multipass mosiacking to select darker pixels")
     parser.add_argument('--split', type=int, default=os.getenv('MOSAIC_SPLIT', 2),
                         help="number of splits to use if --darker is True")
-    parser.add_argument('--thumb', type=bool, default=os.getenv('THUMBNAIL_ONLY', False),
+    parser.add_argument('--thumb', action='store_true',
                         help="whether to only generate a 2% thumbnail image")
 
 class FullFieldMosaicStitcher(TerrarefExtractor):
@@ -261,7 +261,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             created += 1
             bytes += os.path.getsize(out_tif_thumb)
 
-        if not self.thumb
+        if not self.thumb:
             if (not file_exists(out_tif_medium)) or self.overwrite:
                 self.log_info(resource, "Converting VRT to %s..." % out_tif_medium)
                 subprocess.call("gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 "+
