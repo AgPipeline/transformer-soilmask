@@ -88,7 +88,11 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_dir = os.path.dirname(out_vrt)
 
         found_all = True
-        for output_file in []:
+        if self.thumb:
+            output_files = [out_tif_thumb]
+        else:
+            output_files = [out_tif_full, out_tif_medium, out_png]
+        for output_file in output_files:
             if not file_exists(output_file):
                 found_all = False
                 break
