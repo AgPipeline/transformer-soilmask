@@ -179,12 +179,14 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 filepath = self.remapMountPath(connector, tpath)
                 tifftxt.write("%s\n" % filepath)
 
-        # Create VRT from every GeoTIFF
-        self.log_info(resource, "Creating VRT %s..." % out_vrt)
-        full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
-        os.remove(tiflist)
-        created += 1
-        bytes += os.path.getsize(out_vrt)
+        if (self.thumb and ((not file_exists(out_vrt)) or self.overwrite)) or (
+                    not self.thumb and (not file_exists(out_vrt))):
+            # Create VRT from every GeoTIFF
+            self.log_info(resource, "Creating VRT %s..." % out_vrt)
+            full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
+            os.remove(tiflist)
+            created += 1
+            bytes += os.path.getsize(out_vrt)
 
         if (not file_exists(out_tif_thumb)) or self.overwrite:
             self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
