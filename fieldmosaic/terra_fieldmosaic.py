@@ -64,12 +64,15 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             if f['filepath'].find("rgb_geotiff") > -1:
                 sensor_type = "rgb"
                 sensor_name = "stereoTop"
+                sensor_lookup = "rgb_fullfield"
             elif f['filepath'].find("ir_geotiff") > -1:
                 sensor_type = "ir"
                 sensor_name = "flirIrCamera"
+                sensor_lookup = "ir_fullfield"
             elif f['filepath'].find("laser3d_heightmap") > -1:
                 sensor_type = "laser3d"
                 sensor_name = "scanner3DTop"
+                sensor_lookup = "laser3d_fullfield"
             if sensor_type is not None:
                 break
 
@@ -78,9 +81,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if None in [season_name, experiment_name]:
             raise ValueError("season and experiment could not be determined")
 
-        out_tif_full = self.sensors.create_sensor_path(timestamp, opts=[sensor_type, scan_name]).replace(" ", "_")
-        # replace /fullfield/ with eg /rgb_fullfield/
-        out_tif_full = out_tif_full.replace('/fullfield/', '/%s_fullfield/' % sensor_type)
+        out_tif_full = self.sensors.create_sensor_path(timestamp, sensor=sensor_lookup,
+                                                       opts=[scan_name]).replace(" ", "_")
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
         out_tif_medium = out_tif_full.replace(".tif", "_10pct.tif")
         out_png = out_tif_full.replace(".tif", ".png")
@@ -124,7 +126,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         # Get dataset ID or create it, creating parent collections as needed
         target_dsid = build_dataset_hierarchy_crawl(host, secret_key, self.clowder_user, self.clowder_pass, self.clowderspace,
-                                              season_name, experiment_name, self.sensors.get_display_name(),
+                                              season_name, experiment_name, self.sensors.get_display_name(sensor=sensor_lookup),
                                               timestamp[:4], timestamp[5:7], leaf_ds_name=dataset_name)
 
         # Upload full field image to Clowder
