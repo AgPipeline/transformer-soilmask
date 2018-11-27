@@ -59,21 +59,18 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         timestamp = dataset_name.split(" - ")[1]
 
         # Input path will suggest which sensor we are seeing
-        sensor_name, sensor_type = None, None
+        sensor_name, sensor_lookup = None, None
         for f in resource['files']:
             if f['filepath'].find("rgb_geotiff") > -1:
-                sensor_type = "rgb"
                 sensor_name = "stereoTop"
                 sensor_lookup = "rgb_fullfield"
             elif f['filepath'].find("ir_geotiff") > -1:
-                sensor_type = "ir"
                 sensor_name = "flirIrCamera"
                 sensor_lookup = "ir_fullfield"
             elif f['filepath'].find("laser3d_heightmap") > -1:
-                sensor_type = "laser3d"
                 sensor_name = "scanner3DTop"
                 sensor_lookup = "laser3d_fullfield"
-            if sensor_type is not None:
+            if sensor_lookup is not None:
                 break
 
         # Fetch experiment name from terra metadata
@@ -102,12 +99,12 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             self.log_skip(resource, "all outputs already exist")
             return
 
-        if not self.darker or sensor_type != 'rgb':
-            (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key, sensor_type,
+        if not self.darker or sensor_lookup != 'rgb_fullfield':
+            (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full,
                                                                out_tif_medium, parameters, resource)
         else:
-            (nu_created, nu_bytes) = self.generateDarkerMosaic(connector, host, secret_key, sensor_type,
+            (nu_created, nu_bytes) = self.generateDarkerMosaic(connector, host, secret_key,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full,
                                                                out_tif_medium, parameters, resource)
         self.created += nu_created
@@ -122,7 +119,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             self.bytes += os.path.getsize(out_png)
 
         self.log_info(resource, "Hierarchy: %s / %s / %s / %s / %s" % (
-            season_name, experiment_name, self.sensors.get_display_name(), timestamp[:4], timestamp[5:7]))
+            season_name, experiment_name, self.sensors.get_display_name(sensor=sensor_lookup), timestamp[:4], timestamp[5:7]))
 
         # Get dataset ID or create it, creating parent collections as needed
         target_dsid = build_dataset_hierarchy_crawl(host, secret_key, self.clowder_user, self.clowder_pass, self.clowderspace,
@@ -148,9 +145,9 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
                 if checked_file == out_tif_full:
                     # Trigger downstream extractions on full resolution
-                    if sensor_type == 'ir':
+                    if sensor_lookup == 'ir_fullfield':
                         submit_extraction(connector, host, secret_key, id, "terra.multispectral.meantemp")
-                    elif sensor_type == 'rgb':
+                    elif sensor_lookup == 'rgb_fullfield':
                         submit_extraction(connector, host, secret_key, id, "terra.stereo-rgb.canopycover")
 
         if self.thumb:
@@ -163,7 +160,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         self.end_message(resource)
 
-    def generateSingleMosaic(self, connector, host, secret_key, sensor_type, out_dir,
+    def generateSingleMosaic(self, connector, host, secret_key, out_dir,
                              out_vrt, out_tif_thumb, out_tif_full, out_tif_medium, parameters, resource):
         # Create simple mosaic from geotiff list
         created, bytes = 0, 0
@@ -217,7 +214,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         return (created, bytes)
 
-    def generateDarkerMosaic(self, connector, host, secret_key, sensor_type, out_dir,
+    def generateDarkerMosaic(self, connector, host, secret_key, out_dir,
                              out_vrt, out_tif_thumb, out_tif_full, out_tif_medium, parameters, resource):
         # Create dark-pixel mosaic from geotiff list using multipass for darker pixel selection
         created, bytes = 0, 0
