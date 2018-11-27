@@ -136,8 +136,13 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         }
 
         # If we newly created these files, upload to Clowder
-        for checked_file in [out_tif_thumb, out_tif_medium, out_tif_full, out_png]:
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, checked_file, remove=self.overwrite)
+        if self.thumb:
+            generated_files = [out_tif_thumb]
+        else:
+            generated_files = [out_tif_medium, out_tif_full, out_png]
+        for checked_file in generated_files:
+            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, checked_file, remove=self.overwrite,
+                                                  replacements=[("ir_fullfield", "fullfield"), ("L2", "L1")])
             if not found_in_dest or self.overwrite:
                 id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, checked_file)
                 meta = build_metadata(host, self.extractor_info, id, content, 'file')
