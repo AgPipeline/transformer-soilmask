@@ -157,7 +157,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         if self.thumb:
             # TODO: Add parameters support to pyclowder submit_extraction()
-            r = requests.post("%sapi/%s/%s/extractions?key=%s" % (host, 'file', resource['id'], secret_key),
+            r = requests.post("%sapi/%s/%s/extractions?key=%s" % (host, 'datasets', resource['id'], secret_key),
                               headers={"Content-Type":"application/json"},
                               data=json.dumps({"extractor": 'terra.geotiff.fieldmosaic_full',
                                                "parameters": parameters}))
