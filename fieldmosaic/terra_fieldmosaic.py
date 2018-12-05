@@ -96,7 +96,15 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 found_all = False
                 break
         if found_all and not self.overwrite:
-            self.log_skip(resource, "all outputs already exist")
+            if self.thumb:
+                self.log_info(resource, "thumb output already exists; triggering terra.geotiff.fieldmosaic_full")
+                r = requests.post("%sapi/%s/%s/extractions?key=%s" % (host, 'datasets', resource['id'], secret_key),
+                                  headers={"Content-Type":"application/json"},
+                                  data=json.dumps({"extractor": 'terra.geotiff.fieldmosaic_full',
+                                                   "parameters": parameters}))
+                r.raise_for_status()
+            else:
+                self.log_skip(resource, "all outputs already exist")
             return
 
         if not self.darker or sensor_lookup != 'rgb_fullfield':
@@ -157,6 +165,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
 
         if self.thumb:
             # TODO: Add parameters support to pyclowder submit_extraction()
+            self.log_info(resource, "triggering terra.geotiff.fieldmosaic_full")
             r = requests.post("%sapi/%s/%s/extractions?key=%s" % (host, 'datasets', resource['id'], secret_key),
                               headers={"Content-Type":"application/json"},
                               data=json.dumps({"extractor": 'terra.geotiff.fieldmosaic_full',
