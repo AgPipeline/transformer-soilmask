@@ -78,6 +78,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         if None in [season_name, experiment_name]:
             raise ValueError("season and experiment could not be determined")
 
+        # Determine output file paths
         out_tif_full = self.sensors.create_sensor_path(timestamp, sensor=sensor_lookup,
                                                        opts=[scan_name]).replace(" ", "_")
         out_tif_thumb = out_tif_full.replace(".tif", "_thumb.tif")
@@ -86,6 +87,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
+        # If outputs already exist, we don't need to do anything else
         found_all = True
         if self.thumb:
             output_files = [out_tif_thumb]
@@ -107,6 +109,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 self.log_skip(resource, "all outputs already exist")
             return
 
+        # Perform actual field stitching
         if not self.darker or sensor_lookup != 'rgb_fullfield':
             (nu_created, nu_bytes) = self.generateSingleMosaic(connector, host, secret_key,
                                                                out_dir, out_vrt, out_tif_thumb, out_tif_full,

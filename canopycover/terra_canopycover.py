@@ -13,9 +13,8 @@ from terrautils.extractors import TerrarefExtractor, is_latest_file, load_json_f
     build_metadata, build_dataset_hierarchy, upload_to_dataset, file_exists
 from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, submit_traits, \
     get_site_boundaries
-from terrautils.gdal import clip_raster, centroid_from_geojson
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
-from terrautils.spatial import geojson_to_tuples_betydb
+from terrautils.spatial import geojson_to_tuples_betydb, clip_raster, centroid_from_geojson
 
 import terraref.stereo_rgb
 
