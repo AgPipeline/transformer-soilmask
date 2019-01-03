@@ -19,6 +19,12 @@ class ganEnhancementExtractor(TerrarefExtractor):
 
         def process_message(self, connector, host, secret_key, resource, parameters):
             self.start_message(resource)
+            for fname in resource['local_paths']:
+                current_ratio, current_binMask, current_rgbMask = gen_cc_enhanced(fname)
+                # TODO how to save or use these?
+                # TODO this would be if we do this on a dataset, rather than individual files
+
+
 
 if __name__ == "__main__":
     extractor = ganEnhancementExtractor()
