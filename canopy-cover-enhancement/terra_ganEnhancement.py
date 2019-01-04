@@ -7,6 +7,7 @@ from pyclowder.utils import CheckMessage
 from terrautils.extractors import TerrarefExtractor
 
 class ganEnhancementExtractor(TerrarefExtractor):
+
     def __init__(self):
         super(ganEnhancementExtractor, self).__init__()
 
