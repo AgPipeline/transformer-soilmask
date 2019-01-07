@@ -1,6 +1,13 @@
 import os
 import shutil
 import tempfile
+from pyclowder.utils import CheckMessage
+from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
+from terrautils.metadata import get_extractor_metadata, get_terraref_metadata, \
+    get_season_and_experiment
+from terrautils.extractors import TerrarefExtractor, is_latest_file, check_file_in_dataset, load_json_file, \
+    build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists, \
+    contains_required_files
 import cv2
 from PIL import Image
 import numpy as np
@@ -235,19 +242,40 @@ class ganEnhancementExtractor(TerrarefExtractor):
     def __init__(self):
         super(ganEnhancementExtractor, self).__init__()
 
-        add_local_arguments(self.parser)
-
-        # assign local arguments
-        self.SATURATE_THRESHOLD = self.args.saturate_threshold
-        self.MAX_PIXEL_VAL = self.args.max_pixel_val
-        self.SMALL_AREA_THRESHOLD = self.args.small_area_threshold
-
         # parse command line and load default logging configuration
         self.setup(sensor='ganEnhancement')
 
     def check_message(self, connector, host, secret_key, resource, parameters):
-        # TODO not sure what rules should be checked here, returning true
-        return CheckMessage.download
+        if "rulechecked" in parameters and parameters["rulechecked"]:
+            return CheckMessage.download
+
+        if not is_latest_file(resource):
+            self.log_skip(resource, "not latest file")
+            return CheckMessage.ignore
+
+            # Check for a left and right BIN file - skip if not found
+        if not contains_required_files(resource, ['_left.bin', '_right.bin']):
+            self.log_skip(resource, "missing required files")
+            return CheckMessage.ignore
+
+            # Check metadata to verify we have what we need
+        md = download_metadata(connector, host, secret_key, resource['id'])
+        if get_terraref_metadata(md):
+            if get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
+                # Make sure outputs properly exist
+                timestamp = resource['dataset_info']['name'].split(" - ")[1]
+                left_gan_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_gan'])
+                left_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_mask'])
+                right_gan_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_gan'])
+                right_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_mask'])
+                if file_exists(left_gan_tiff) and file_exists(right_gan_tiff) and file_exists(left_mask_tiff) and file_exists(right_mask_tiff):
+                    self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
+                    return CheckMessage.ignore
+            # Have TERRA-REF metadata, but not any from this extractor
+            return CheckMessage.download
+        else:
+            self.log_skip(resource, "no terraref metadata found")
+            return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
         self.start_message(resource)
