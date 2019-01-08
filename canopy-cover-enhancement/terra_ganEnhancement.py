@@ -267,11 +267,9 @@ class ganEnhancementExtractor(TerrarefExtractor):
             if get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
                 # Make sure outputs properly exist
                 timestamp = resource['dataset_info']['name'].split(" - ")[1]
-                left_gan_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_gan'])
-                left_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_mask'])
-                right_gan_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_gan'])
-                right_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_mask'])
-                if file_exists(left_gan_tiff) and file_exists(right_gan_tiff) and file_exists(left_mask_tiff) and file_exists(right_mask_tiff):
+                left_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_rgb_mask'])
+                right_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_rgb_mask'])
+                if file_exists(left_mask_tiff) and file_exists(right_mask_tiff):
                     self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
                     return CheckMessage.ignore
             # Have TERRA-REF metadata, but not any from this extractor
@@ -312,10 +310,9 @@ class ganEnhancementExtractor(TerrarefExtractor):
                                                     season_name, experiment_name, self.sensors.get_display_name(),
                                                     timestamp[:4], timestamp[5:7], timestamp[8:10],
                                                     leaf_ds_name=self.sensors.get_display_name() + ' - ' + timestamp)
-        left_gan_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_gan'])
-        right_gan_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_gan'])
-        left_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_mask'])
-        right_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_mask'])
+
+        left_rgb_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_rgb_mask'])
+        right_rgb_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_rgb_mask'])
         uploaded_file_ids = []
 
         # Attach LemnaTec source metadata to Level_1 product
@@ -331,69 +328,38 @@ class ganEnhancementExtractor(TerrarefExtractor):
         #current_ratio, current_binMask, current_rgbMask = gen_cc_enhanced(fname)
         gps_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['stereoTop']['bounding_box'])
 
-        if not file_exists(left_gan_tiff) or self.overwrite:
-            self.log_info(resource, "creating & uploading %s" % left_gan_tiff)
-            left_ratio, left_mask, left_gan = gen_cc_enhanced(img_left)
-            out_tmp_gan_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(left_gan, gps_bounds, out_tmp_gan_left, None, True, self.extractor_info, terra_md_full)
-            # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_gan_left, left_gan)
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_gan,
-                                                  remove=self.overwrite)
-            if not found_in_dest or self.overwrite:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
-                                           left_gan)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
-            self.created += 1
-            self.bytes += os.path.getsize(left_gan)
-
-        if not file_exists(left_mask_tiff) or self.overwrite:
-            self.log_info(resource, "creating & uploading %s" % left_mask_tiff)
-            left_ratio, left_mask, left_gan = gen_cc_enhanced(img_left)
+        if not file_exists(left_rgb_mask_tiff) or self.overwrite:
+            self.log_info(resource, "creating & uploading %s" % left_rgb_mask_tiff)
+            left_ratio, left_mask, left_rgb = gen_cc_enhanced(img_left)
             out_tmp_mask_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(left_mask, gps_bounds, out_tmp_mask_left, None, True, self.extractor_info, terra_md_full)
+            create_geotiff(left_rgb, gps_bounds, out_tmp_mask_left, None, True, self.extractor_info, terra_md_full)
             # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_mask_left, left_mask)
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_mask,
+            shutil.move(out_tmp_mask_left, left_rgb)
+            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
                                                   remove=self.overwrite)
             if not found_in_dest or self.overwrite:
                 fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
-                                           left_mask)
+                                           left_rgb)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
-            self.bytes += os.path.getsize(left_mask)
+            self.bytes += os.path.getsize(left_rgb)
 
-        if not file_exists(right_gan_tiff) or self.overwrite:
-            self.log_info(resource, "creating & uploading %s" % right_gan_tiff)
-            right_ratio, right_mask, right_gan = gen_cc_enhanced(img_right)
-            out_tmp_gan_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(right_gan, gps_bounds, out_tmp_gan_right, None, True, self.extractor_info, terra_md_full)
-            # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_gan_right, right_gan)
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_gan_tiff,
-                                                  remove=self.overwrite)
-            if not found_in_dest or self.overwrite:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
-                                           right_gan)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
-            self.created += 1
-            self.bytes += os.path.getsize(right_gan)
 
-        if not file_exists(right_mask_tiff) or self.overwrite:
-            self.log_info(resource, "creating & uploading %s" % right_mask_tiff)
-            right_ratio, right_mask, left_gan = gen_cc_enhanced(img_right)
+        if not file_exists(right_rgb_mask_tiff) or self.overwrite:
+            self.log_info(resource, "creating & uploading %s" % right_rgb_mask_tiff)
+            right_ratio, right_mask, right_rgb = gen_cc_enhanced(img_right)
             out_tmp_mask_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(right_mask, gps_bounds, out_tmp_mask_right, None, True, self.extractor_info, terra_md_full)
+            create_geotiff(right_rgb, gps_bounds, out_tmp_mask_right, None, True, self.extractor_info, terra_md_full)
             # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_mask_right, right_mask)
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_mask_tiff,
+            shutil.move(out_tmp_mask_right, right_rgb)
+            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_rgb_mask_tiff,
                                                   remove=self.overwrite)
             if not found_in_dest or self.overwrite:
                 fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
-                                           left_mask)
+                                           right_rgb)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
-            self.bytes += os.path.getsize(right_mask)
+            self.bytes += os.path.getsize(right_rgb)
 
 
 if __name__ == "__main__":
