@@ -331,7 +331,7 @@ class ganEnhancementExtractor(TerrarefExtractor):
         #current_ratio, current_binMask, current_rgbMask = gen_cc_enhanced(fname)
         gps_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['stereoTop']['bounding_box'])
 
-        if (not file_exists(left_gan_tiff) or self.overwrite):
+        if not file_exists(left_gan_tiff) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % left_gan_tiff)
             left_ratio, left_mask, left_gan = gen_cc_enhanced(img_left)
             out_tmp_gan_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
@@ -347,7 +347,7 @@ class ganEnhancementExtractor(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(left_gan)
 
-        if (not file_exists(left_mask_tiff) or self.overwrite):
+        if not file_exists(left_mask_tiff) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % left_mask_tiff)
             left_ratio, left_mask, left_gan = gen_cc_enhanced(img_left)
             out_tmp_mask_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
@@ -363,7 +363,7 @@ class ganEnhancementExtractor(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(left_mask)
 
-        if (not file_exists(right_gan_tiff) or self.overwrite):
+        if not file_exists(right_gan_tiff) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % right_gan_tiff)
             right_ratio, right_mask, right_gan = gen_cc_enhanced(img_right)
             out_tmp_gan_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
@@ -379,7 +379,7 @@ class ganEnhancementExtractor(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(right_gan)
 
-        if (not file_exists(right_mask_tiff) or self.overwrite):
+        if not file_exists(right_mask_tiff) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % right_mask_tiff)
             right_ratio, right_mask, left_gan = gen_cc_enhanced(img_right)
             out_tmp_mask_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
@@ -394,6 +394,7 @@ class ganEnhancementExtractor(TerrarefExtractor):
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
             self.bytes += os.path.getsize(right_mask)
+
 
 if __name__ == "__main__":
     extractor = ganEnhancementExtractor()
