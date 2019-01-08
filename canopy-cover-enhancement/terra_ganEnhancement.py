@@ -325,7 +325,6 @@ class ganEnhancementExtractor(TerrarefExtractor):
         level1_md = build_metadata(host, self.extractor_info, target_dsid, terra_md_trim, 'dataset')
         upload_metadata(connector, host, secret_key, target_dsid, level1_md)
 
-        #current_ratio, current_binMask, current_rgbMask = gen_cc_enhanced(fname)
         gps_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['stereoTop']['bounding_box'])
 
         if not file_exists(left_rgb_mask_tiff) or self.overwrite:
@@ -343,7 +342,6 @@ class ganEnhancementExtractor(TerrarefExtractor):
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_rgb)
-
 
         if not file_exists(right_rgb_mask_tiff) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % right_rgb_mask_tiff)
