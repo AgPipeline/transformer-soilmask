@@ -11,11 +11,12 @@ RUN useradd -u 49044 extractor \
 RUN pip install terraref-stereo-rgb
 RUN pip install opencv-python
 RUN apt update && apt install -y libsm6 libxext6 libxrender-dev
-RUN apt-get install python-matplotlib python-numpy python-pil python-scipy
-RUN apt-get install build-essential cython
-RUN apt-get install python-skimage
+RUN apt-get install python-matplotlib python-numpy python-pil python-scipy -y
+RUN apt-get install build-essential cython -y
+RUN apt-get install python-skimage -y
 RUN pip install Pillow
-RUN pip install torch torchvision
+RUN pip install torch
+RUN pip install torchvision
 
 # command to run when starting docker
 COPY entrypoint.sh extractor_info.json *.py /home/extractor/
