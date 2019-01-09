@@ -41,7 +41,6 @@ def getImageQuality(imgfile):
 
     return NRMAC
 
-
 def gen_plant_mask(colorImg, kernelSize=3):
     r = colorImg[:, :, 2]
     g = colorImg[:, :, 1]
@@ -62,7 +61,6 @@ def gen_plant_mask(colorImg, kernelSize=3):
 
     return mask_1
 
-
 def remove_small_area_mask(maskImg, min_area_size):
     mask_array = maskImg > 0
     rel_array = morphology.remove_small_objects(mask_array, min_area_size)
@@ -72,7 +70,6 @@ def remove_small_area_mask(maskImg, min_area_size):
 
     return rel_img
 
-
 def remove_small_holes_mask(maskImg, max_hole_size):
     mask_array = maskImg > 0
     rel_array = morphology.remove_small_holes(mask_array, max_hole_size)
@@ -80,7 +77,6 @@ def remove_small_holes_mask(maskImg, max_hole_size):
     rel_img[rel_array] = MAX_PIXEL_VAL
 
     return rel_img
-
 
 # add saturated area into basic mask
 def saturated_pixel_classification(gray_img, baseMask, saturatedMask, dilateSize=0):
@@ -128,8 +124,6 @@ def over_saturation_pocess(rgb_img, init_mask, threshold=SATURATE_THRESHOLD):
 
     return rel_img
 
-
-
 def gen_saturated_mask(img, kernelSize):
     binMask = gen_plant_mask(img, kernelSize)
     binMask = remove_small_area_mask(binMask,
@@ -143,7 +137,6 @@ def gen_saturated_mask(img, kernelSize):
 
     return binMask
 
-
 def gen_mask(img, kernelSize):
     binMask = gen_plant_mask(img, kernelSize)
     binMask = remove_small_area_mask(binMask, SMALL_AREA_THRESHOLD)
@@ -152,18 +145,15 @@ def gen_mask(img, kernelSize):
 
     return binMask
 
-
 def gen_rgb_mask(img, binMask):
     rgbMask = cv2.bitwise_and(img, img, mask=binMask)
 
     return rgbMask
 
-
 def rgb2gray(rgb):
     r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
     gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
     return gray
-
 
 def MAC(im1, im2, im):  # main function: Multiscale Autocorrelation (MAC)
     h, v, c = im1.shape
@@ -182,7 +172,6 @@ def MAC(im1, im2, im):  # main function: Multiscale Autocorrelation (MAC)
     NRMAC = np.mean(FM)
     return NRMAC
 
-
 # check how many percent of pix close to 255 or 0
 def check_saturation(img):
     grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -195,7 +184,6 @@ def check_saturation(img):
 
     return over_rate, low_rate
 
-
 # gen average pixel value from grayscale image
 def check_brightness(img):
     grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -203,7 +191,6 @@ def check_brightness(img):
     aveValue = np.average(grayImg)
 
     return aveValue
-
 
 # abandon low quality images, mask enhanced
 def gen_cc_enhanced(input_path, kernelSize=3):
@@ -238,7 +225,7 @@ def gen_cc_enhanced(input_path, kernelSize=3):
     return ratio, binMask, rgbMask
 
 
-class ganEnhancementExtractor(TerrarefExtractor):
+class rgbEnhancementExtractor(TerrarefExtractor):
 
     # TODO should we ignore winter wheat seasons?
 
@@ -361,5 +348,5 @@ class ganEnhancementExtractor(TerrarefExtractor):
 
 
 if __name__ == "__main__":
-    extractor = ganEnhancementExtractor()
+    extractor = rgbEnhancementExtractor()
     extractor.start()
