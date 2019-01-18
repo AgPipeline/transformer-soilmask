@@ -64,7 +64,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         self.start_message(resource)
 
         # Get left/right files and metadata
-        img_left, img_right, metadata = None, None, None
+        img_left, img_right, terra_md_full = None, None, None
         for fname in resource['local_paths']:
             if fname.endswith('_dataset_metadata.json'):
                 all_dsmd = load_json_file(fname)
@@ -79,7 +79,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
 
         # Fetch experiment name from terra metadata
-        season_name, experiment_name, updated_experiment = get_season_and_experiment(timestamp, terra_md_full)
+        season_name, experiment_name, updated_experiment = get_season_and_experiment(timestamp, 'stereoTop', terra_md_full)
         if None in [season_name, experiment_name]:
             raise ValueError("season and experiment could not be determined")
 
