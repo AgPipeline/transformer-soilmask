@@ -1,6 +1,11 @@
 import os
 import shutil
 import tempfile
+import cv2
+import numpy as np
+from PIL import Image
+from skimage import morphology
+
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata, \
@@ -8,30 +13,13 @@ from terrautils.metadata import get_extractor_metadata, get_terraref_metadata, \
 from terrautils.extractors import TerrarefExtractor, is_latest_file, check_file_in_dataset, load_json_file, \
     build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists, \
     contains_required_files
-import cv2
-from PIL import Image
-import numpy as np
-#from ganEnhancement import gen_cc_enhanced
-from skimage import morphology
 from terrautils.formats import create_geotiff, create_image
 from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb
-import terraref.stereo_rgb
-from pyclowder.utils import CheckMessage
-from terrautils.extractors import TerrarefExtractor
 
 
 SATURATE_THRESHOLD = 245
 MAX_PIXEL_VAL = 255
 SMALL_AREA_THRESHOLD = 200
-
-def add_local_arguments(parser):
-    # add any additional arguments to parser
-    parser.add_argument('--saturate_threshold', type=int, default=os.getenv('SATURATE_THRESHOLD', 245),
-                        help="saturate threshold")
-    parser.add_argument('--max_pixel_val', type=int, default=os.getenv('MAX_PIXEL_VAL', 255),
-                        help="maximum pixel value")
-    parser.add_argument('--small_area_threshold', type=int, default=os.getenv('SMALL_AREA_THRESHOLD', 200),
-                        help="small area threshold")
 
 def getImageQuality(imgfile):
     img = Image.open(imgfile)
@@ -78,8 +66,8 @@ def remove_small_holes_mask(maskImg, max_hole_size):
 
     return rel_img
 
-# add saturated area into basic mask
 def saturated_pixel_classification(gray_img, baseMask, saturatedMask, dilateSize=0):
+    # add saturated area into basic mask
     saturatedMask = morphology.binary_dilation(saturatedMask, morphology.diamond(dilateSize))
 
     rel_img = np.zeros_like(gray_img)
@@ -102,8 +90,8 @@ def saturated_pixel_classification(gray_img, baseMask, saturatedMask, dilateSize
 
     return rel_mask
 
-# connected component analysis for over saturation pixels
 def over_saturation_pocess(rgb_img, init_mask, threshold=SATURATE_THRESHOLD):
+    # connected component analysis for over saturation pixels
     gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
 
     mask_over = gray_img > threshold
@@ -172,8 +160,8 @@ def MAC(im1, im2, im):  # main function: Multiscale Autocorrelation (MAC)
     NRMAC = np.mean(FM)
     return NRMAC
 
-# check how many percent of pix close to 255 or 0
 def check_saturation(img):
+    # check how many percent of pix close to 255 or 0
     grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     m1 = grayImg > SATURATE_THRESHOLD
@@ -184,16 +172,16 @@ def check_saturation(img):
 
     return over_rate, low_rate
 
-# gen average pixel value from grayscale image
 def check_brightness(img):
+    # gen average pixel value from grayscale image
     grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     aveValue = np.average(grayImg)
 
     return aveValue
 
-# abandon low quality images, mask enhanced
 def gen_cc_enhanced(input_path, kernelSize=3):
+    # abandon low quality images, mask enhanced
     img = cv2.imread(input_path)
 
     # calculate image scores
@@ -227,13 +215,11 @@ def gen_cc_enhanced(input_path, kernelSize=3):
 
 class rgbEnhancementExtractor(TerrarefExtractor):
 
-    # TODO should we ignore winter wheat seasons?
-
     def __init__(self):
-        super(ganEnhancementExtractor, self).__init__()
+        super(rgbEnhancementExtractor, self).__init__()
 
         # parse command line and load default logging configuration
-        self.setup(sensor='ganEnhancement')
+        self.setup(sensor='rgb_mask')
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         if "rulechecked" in parameters and parameters["rulechecked"]:
@@ -244,7 +230,7 @@ class rgbEnhancementExtractor(TerrarefExtractor):
             return CheckMessage.ignore
 
             # Check for a left and right BIN file - skip if not found
-        if not contains_required_files(resource, ['_left.bin', '_right.bin']):
+        if not contains_required_files(resource, ['_left.tif', '_right.tif']):
             self.log_skip(resource, "missing required files")
             return CheckMessage.ignore
 
@@ -254,8 +240,8 @@ class rgbEnhancementExtractor(TerrarefExtractor):
             if get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
                 # Make sure outputs properly exist
                 timestamp = resource['dataset_info']['name'].split(" - ")[1]
-                left_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_rgb_mask'])
-                right_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_rgb_mask'])
+                left_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
+                right_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
                 if file_exists(left_mask_tiff) and file_exists(right_mask_tiff):
                     self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
                     return CheckMessage.ignore
@@ -274,15 +260,16 @@ class rgbEnhancementExtractor(TerrarefExtractor):
             if fname.endswith('_dataset_metadata.json'):
                 all_dsmd = load_json_file(fname)
                 terra_md_full = get_terraref_metadata(all_dsmd, 'stereoTop')
-            elif fname.endswith('_left.bin'):
+            elif fname.endswith('_left.tif'):
                 img_left = fname
-            elif fname.endswith('_right.bin'):
+            elif fname.endswith('_right.tif'):
                 img_right = fname
         if None in [img_left, img_right, terra_md_full]:
             raise ValueError("could not locate all files & metadata in processing")
 
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
 
+        """ CURRENTLY MASK IS STORED ALONGSIDE ORIGINAL DATASET
         # Fetch experiment name from terra metadata
         season_name, experiment_name, updated_experiment = get_season_and_experiment(timestamp, terra_md_full)
         if None in [season_name, experiment_name]:
@@ -297,26 +284,21 @@ class rgbEnhancementExtractor(TerrarefExtractor):
                                                     season_name, experiment_name, self.sensors.get_display_name(),
                                                     timestamp[:4], timestamp[5:7], timestamp[8:10],
                                                     leaf_ds_name=self.sensors.get_display_name() + ' - ' + timestamp)
+        """
+        target_dsid = resource['id']
 
-        left_rgb_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left_rgb_mask'])
-        right_rgb_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['right_rgb_mask'])
+        left_rgb_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
+        right_rgb_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
         uploaded_file_ids = []
-
-        # Attach LemnaTec source metadata to Level_1 product
-        self.log_info(resource, "uploading LemnaTec metadata to ds [%s]" % target_dsid)
-        remove_metadata(connector, host, secret_key, target_dsid, self.extractor_info['name'])
-        terra_md_trim = get_terraref_metadata(all_dsmd)
-        if updated_experiment is not None:
-            terra_md_trim['experiment_metadata'] = updated_experiment
-        terra_md_trim['raw_data_source'] = host + ("" if host.endswith("/") else "/") + "datasets/" + resource['id']
-        level1_md = build_metadata(host, self.extractor_info, target_dsid, terra_md_trim, 'dataset')
-        upload_metadata(connector, host, secret_key, target_dsid, level1_md)
+        right_ratio, left_ratio = 0, 0
 
         gps_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['stereoTop']['bounding_box'])
 
         if not file_exists(left_rgb_mask_tiff) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % left_rgb_mask_tiff)
+
             left_ratio, left_mask, left_rgb = gen_cc_enhanced(img_left)
+
             out_tmp_mask_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
             create_geotiff(left_rgb, gps_bounds, out_tmp_mask_left, None, True, self.extractor_info, terra_md_full)
             # Rename output.tif after creation to avoid long path errors
@@ -324,15 +306,16 @@ class rgbEnhancementExtractor(TerrarefExtractor):
             found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
                                                   remove=self.overwrite)
             if not found_in_dest or self.overwrite:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
-                                           left_rgb)
+                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_rgb)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_rgb)
 
         if not file_exists(right_rgb_mask_tiff) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % right_rgb_mask_tiff)
+
             right_ratio, right_mask, right_rgb = gen_cc_enhanced(img_right)
+
             out_tmp_mask_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
             create_geotiff(right_rgb, gps_bounds, out_tmp_mask_right, None, True, self.extractor_info, terra_md_full)
             # Rename output.tif after creation to avoid long path errors
@@ -345,6 +328,18 @@ class rgbEnhancementExtractor(TerrarefExtractor):
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
             self.bytes += os.path.getsize(right_rgb)
+
+        # Tell Clowder this is completed so subsequent file updates don't daisy-chain
+        extractor_md = build_metadata(host, self.extractor_info, target_dsid, {
+            "files_created": uploaded_file_ids,
+            "right_mask_ratio": right_ratio,
+            "left_mask_ratio": left_ratio
+        }, 'dataset')
+        self.log_info(resource, "uploading extractor metadata to Lv1 dataset")
+        remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
+        upload_metadata(connector, host, secret_key, resource['id'], extractor_md)
+
+        self.end_message(resource)
 
 
 if __name__ == "__main__":
