@@ -4,14 +4,11 @@ import os
 import logging
 import subprocess
 import json
-from PIL import Image
-from numpy import array
 
 from pyclowder.utils import CheckMessage
 from pyclowder.files import upload_metadata, download_info, submit_extraction
 from terrautils.extractors import TerrarefExtractor, build_metadata, build_dataset_hierarchy, \
     upload_to_dataset, create_empty_collection, create_empty_dataset, file_exists
-from terrautils.formats import create_image
 
 import full_day_to_tiles
 import shadeRemoval as shade

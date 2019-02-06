@@ -1,7 +1,7 @@
 {
   "@context": "http://clowder.ncsa.illinois.edu/contexts/extractors.jsonld",
   "name": "terra.stereo-rgb.rgbmask",
-  "version": "1.4",
+  "version": "1.0",
   "description": "Stereo RGB Image Enhancement & Masking",
   "author": "Max Burnette <mburnet2@illinois.edu>",
   "contributors": ["Zongyang Li", "Todd Nicholson"],

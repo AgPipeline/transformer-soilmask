@@ -12,12 +12,10 @@ import shutil
 import tempfile
 
 from pyclowder.utils import CheckMessage
-from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata
-from terrautils.metadata import get_extractor_metadata, get_terraref_metadata, \
-    get_season_and_experiment
+from pyclowder.datasets import download_metadata, upload_metadata, remove_metadata, submit_extraction
+from terrautils.metadata import get_extractor_metadata, get_terraref_metadata, get_season_and_experiment
 from terrautils.extractors import TerrarefExtractor, is_latest_file, check_file_in_dataset, load_json_file, \
-    build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists, \
-    contains_required_files
+    build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists, contains_required_files
 from terrautils.formats import create_geotiff, create_image
 from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb
 import terraref.stereo_rgb
@@ -53,7 +51,12 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                 right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
                 if file_exists(left_tiff) and file_exists(right_tiff):
                     self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
+                    self.log_info(resource, "triggering downstream extractors")
+                    submit_extraction(connector, host, secret_key, resource['id'], "terra.stereo-rgb.rgbmask")
+                    submit_extraction(connector, host, secret_key, resource['id'], "terra.stereo-rgb.nrmac")
+                    submit_extraction(connector, host, secret_key, resource['id'], "terra.plotclipper")
                     return CheckMessage.ignore
+
             # Have TERRA-REF metadata, but not any from this extractor
             return CheckMessage.download
         else:
@@ -79,7 +82,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         timestamp = resource['dataset_info']['name'].split(" - ")[1]
 
         # Fetch experiment name from terra metadata
-        season_name, experiment_name, updated_experiment = get_season_and_experiment(timestamp, terra_md_full)
+        season_name, experiment_name, updated_experiment = get_season_and_experiment(timestamp, 'stereoTop', terra_md_full)
         if None in [season_name, experiment_name]:
             raise ValueError("season and experiment could not be determined")
 
@@ -105,16 +108,17 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         upload_metadata(connector, host, secret_key, target_dsid, level1_md)
 
         # Preprocessing of image location and dimensions
-        left_shape = terraref.stereo_rgb.get_image_shape(metadata, 'left')
-        right_shape = terraref.stereo_rgb.get_image_shape(metadata, 'right')
-        gps_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['stereoTop']['bounding_box'])
+        left_shape = terraref.stereo_rgb.get_image_shape(terra_md_full, 'left')
+        right_shape = terraref.stereo_rgb.get_image_shape(terra_md_full, 'right')
+        gps_bounds_left = geojson_to_tuples(terra_md_full['spatial_metadata']['left']['bounding_box'])
+        gps_bounds_right = geojson_to_tuples(terra_md_full['spatial_metadata']['right']['bounding_box'])
 
         if (not file_exists(left_tiff)) or self.overwrite:
             # Perform actual processing
             self.log_info(resource, "creating & uploading %s" % left_tiff)
             left_image = terraref.stereo_rgb.process_raw(left_shape, img_left, None)
             out_tmp_tiff_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(left_image, gps_bounds, out_tmp_tiff_left, None, True, self.extractor_info, terra_md_full)
+            create_geotiff(left_image, gps_bounds_left, out_tmp_tiff_left, None, True, self.extractor_info, terra_md_full)
 
             # Rename output.tif after creation to avoid long path errors
             shutil.move(out_tmp_tiff_left, left_tiff)
@@ -130,7 +134,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.log_info(resource, "creating & uploading %s" % right_tiff)
             right_image = terraref.stereo_rgb.process_raw(right_shape, img_right, None)
             out_tmp_tiff_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(right_image, gps_bounds, out_tmp_tiff_right, None, True, self.extractor_info, terra_md_full)
+            create_geotiff(right_image, gps_bounds_right, out_tmp_tiff_right, None, True, self.extractor_info, terra_md_full)
 
             # Rename output.tif after creation to avoid long path errors
             shutil.move(out_tmp_tiff_right, right_tiff)
@@ -141,15 +145,20 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
 
-        # TODO: Submit this dataset to the plot-clipper extractor
+        # Trigger additional extractors
+        self.log_info(resource, "triggering downstream extractors")
+        submit_extraction(connector, host, secret_key, target_dsid, "terra.stereo-rgb.rgbmask")
+        submit_extraction(connector, host, secret_key, target_dsid, "terra.stereo-rgb.nrmac")
+        submit_extraction(connector, host, secret_key, target_dsid, "terra.plotclipper_tif")
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        extractor_md = build_metadata(host, self.extractor_info, target_dsid, {
-            "files_created": uploaded_file_ids
-        }, 'dataset')
-        self.log_info(resource, "uploading extractor metadata to raw dataset")
-        remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
-        upload_metadata(connector, host, secret_key, resource['id'], extractor_md)
+        if len(uploaded_file_ids) > 0:
+            extractor_md = build_metadata(host, self.extractor_info, target_dsid, {
+                "files_created": uploaded_file_ids
+            }, 'dataset')
+            self.log_info(resource, "uploading extractor metadata to raw dataset")
+            remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
+            upload_metadata(connector, host, secret_key, resource['id'], extractor_md)
 
         self.end_message(resource)
 
