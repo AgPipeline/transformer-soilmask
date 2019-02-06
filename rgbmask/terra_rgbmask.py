@@ -186,16 +186,14 @@ def gen_cc_enhanced(input_path, kernelSize=3):
     # calculate image scores
     over_rate, low_rate = check_saturation(img)
 
-    aveValue = check_brightness(img)
-
-    quality_score = getImageQuality(input_path)
-
+    # TODO: disabling this check for now because it's crashing extractor - generate mask regardless
     # if low score, return None
     # low_rate is percentage of low value pixels(lower than 20) in the grayscale image, if low_rate > 0.1, return
     # aveValue is average pixel value of grayscale image, if aveValue lower than 30 or higher than 195, return
     # quality_score is a score from Multiscale Autocorrelation (MAC), if quality_score lower than 13, return
 
-    # TODO: disabling this check for now because it's crashing extractor - generate mask regardless
+    #aveValue = check_brightness(img)
+    #quality_score = getImageQuality(input_path)
     #if low_rate > 0.1 or aveValue < 30 or aveValue > 195 or quality_score < 13:
     #    return None, None, None
 
@@ -211,7 +209,7 @@ def gen_cc_enhanced(input_path, kernelSize=3):
 
     rgbMask = gen_rgb_mask(img, binMask)
 
-    return ratio, binMask, rgbMask
+    return ratio, rgbMask
 
 
 def add_local_arguments(parser):
@@ -295,10 +293,12 @@ class rgbEnhancementExtractor(TerrarefExtractor):
         if not file_exists(left_rgb_mask_tiff) or self.overwrite:
             self.log_info(resource, "creating & uploading %s" % left_rgb_mask_tiff)
 
-            left_ratio, left_mask, left_rgb = gen_cc_enhanced(img_left)
+            left_ratio, left_rgb = gen_cc_enhanced(img_left)
+            # Bands must be reordered to avoid swapping R and B
+            left_rgb = cv2.cvtColor(left_rgb, cv2.COLOR_BGR2RGB)
 
             out_tmp_mask_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(left_rgb, left_bounds, out_tmp_mask_left, None, True, self.extractor_info, terra_md_full)
+            create_geotiff(left_rgb, left_bounds, out_tmp_mask_left, None, False, self.extractor_info, terra_md_full)
             # Rename output.tif after creation to avoid long path errors
             shutil.move(out_tmp_mask_left, left_rgb_mask_tiff)
             found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
@@ -313,10 +313,12 @@ class rgbEnhancementExtractor(TerrarefExtractor):
         if not self.leftonly and (not file_exists(right_rgb_mask_tiff) or self.overwrite):
             self.log_info(resource, "creating & uploading %s" % right_rgb_mask_tiff)
 
-            right_ratio, right_mask, right_rgb = gen_cc_enhanced(img_right)
+            right_ratio, right_rgb = gen_cc_enhanced(img_right)
+            # Bands must be reordered to avoid swapping R and B
+            right_rgb = cv2.cvtColor(right_rgb, cv2.COLOR_BGR2RGB)
 
             out_tmp_mask_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(right_rgb, right_bounds, out_tmp_mask_right, None, True, self.extractor_info, terra_md_full)
+            create_geotiff(right_rgb, right_bounds, out_tmp_mask_right, None, False, self.extractor_info, terra_md_full)
             # Rename output.tif after creation to avoid long path errors
             shutil.move(out_tmp_mask_right, right_rgb_mask_tiff)
             found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_rgb_mask_tiff,
