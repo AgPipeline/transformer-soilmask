@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import cv2
 import numpy as np
+from osgeo import gdal
 from PIL import Image
 from skimage import morphology
 
@@ -181,7 +182,10 @@ def check_brightness(img):
 
 def gen_cc_enhanced(input_path, kernelSize=3):
     # abandon low quality images, mask enhanced
-    img = cv2.imread(input_path)
+    # TODO: cv2 has problems with some RGB geotiffs...
+    # img = cv2.imread(input_path)
+    img = np.rollaxis(gdal.Open(input_path).ReadAsArray().astype(np.uint8), 0, 3)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # calculate image scores
     over_rate, low_rate = check_saturation(img)
@@ -297,10 +301,10 @@ class rgbEnhancementExtractor(TerrarefExtractor):
             # Bands must be reordered to avoid swapping R and B
             left_rgb = cv2.cvtColor(left_rgb, cv2.COLOR_BGR2RGB)
 
-            out_tmp_mask_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(left_rgb, left_bounds, out_tmp_mask_left, None, False, self.extractor_info, terra_md_full)
+            #out_tmp_mask_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
+            create_geotiff(left_rgb, left_bounds, left_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
             # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_mask_left, left_rgb_mask_tiff)
+            #shutil.move(out_tmp_mask_left, left_rgb_mask_tiff)
             found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
                                                   remove=self.overwrite)
             if not found_in_dest or self.overwrite:
@@ -314,8 +318,6 @@ class rgbEnhancementExtractor(TerrarefExtractor):
             self.log_info(resource, "creating & uploading %s" % right_rgb_mask_tiff)
 
             right_ratio, right_rgb = gen_cc_enhanced(img_right)
-            # Bands must be reordered to avoid swapping R and B
-            right_rgb = cv2.cvtColor(right_rgb, cv2.COLOR_BGR2RGB)
 
             out_tmp_mask_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
             create_geotiff(right_rgb, right_bounds, out_tmp_mask_right, None, False, self.extractor_info, terra_md_full)

@@ -87,6 +87,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
+        # TODO: Check for L1 version of VRT and _thumb and if the JSON contents match, copy instead of regenerating
+
         # If outputs already exist, we don't need to do anything else
         found_all = True
         if self.thumb:

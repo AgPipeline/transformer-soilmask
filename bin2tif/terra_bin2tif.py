@@ -51,16 +51,13 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                 right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
                 if file_exists(left_tiff) and file_exists(right_tiff):
                     self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
-                    self.log_info(resource, "triggering downstream extractors")
-                    submit_extraction(connector, host, secret_key, resource['id'], "terra.stereo-rgb.rgbmask")
-                    submit_extraction(connector, host, secret_key, resource['id'], "terra.stereo-rgb.nrmac")
-                    submit_extraction(connector, host, secret_key, resource['id'], "terra.plotclipper")
                     return CheckMessage.ignore
 
             # Have TERRA-REF metadata, but not any from this extractor
             return CheckMessage.download
         else:
-            self.log_skip(resource, "no terraref metadata found")
+            self.log_error(resource, "no terraref metadata found; sending to cleaner")
+            submit_extraction(connector, host, secret_key, resource['id'], "terra.metadata.cleaner")
             return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
@@ -107,15 +104,20 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         level1_md = build_metadata(host, self.extractor_info, target_dsid, terra_md_trim, 'dataset')
         upload_metadata(connector, host, secret_key, target_dsid, level1_md)
 
-        # Preprocessing of image location and dimensions
-        left_shape = terraref.stereo_rgb.get_image_shape(terra_md_full, 'left')
-        right_shape = terraref.stereo_rgb.get_image_shape(terra_md_full, 'right')
-        gps_bounds_left = geojson_to_tuples(terra_md_full['spatial_metadata']['left']['bounding_box'])
-        gps_bounds_right = geojson_to_tuples(terra_md_full['spatial_metadata']['right']['bounding_box'])
+        try:
+            left_shape = terraref.stereo_rgb.get_image_shape(terra_md_full, 'left')
+            gps_bounds_left = geojson_to_tuples(terra_md_full['spatial_metadata']['left']['bounding_box'])
+            right_shape = terraref.stereo_rgb.get_image_shape(terra_md_full, 'right')
+            gps_bounds_right = geojson_to_tuples(terra_md_full['spatial_metadata']['right']['bounding_box'])
+        except KeyError:
+            self.log_error(resource, "spatial metadata not properly identified; sending to cleaner")
+            submit_extraction(connector, host, secret_key, resource['id'], "terra.metadata.cleaner")
+            return
 
         if (not file_exists(left_tiff)) or self.overwrite:
             # Perform actual processing
             self.log_info(resource, "creating & uploading %s" % left_tiff)
+
             left_image = terraref.stereo_rgb.process_raw(left_shape, img_left, None)
             out_tmp_tiff_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
             create_geotiff(left_image, gps_bounds_left, out_tmp_tiff_left, None, True, self.extractor_info, terra_md_full)
@@ -132,6 +134,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         if (not file_exists(right_tiff)) or self.overwrite:
             # Perform actual processing
             self.log_info(resource, "creating & uploading %s" % right_tiff)
+
             right_image = terraref.stereo_rgb.process_raw(right_shape, img_right, None)
             out_tmp_tiff_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
             create_geotiff(right_image, gps_bounds_right, out_tmp_tiff_right, None, True, self.extractor_info, terra_md_full)
