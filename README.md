@@ -30,4 +30,6 @@ _Input_
 
 Computes geometric and texture properties using the [computeFeatures](https://rdrr.io/bioc/EBImage/man/computeFeatures.html) functions in the EBImage R package 
 
+### RGB image quality enhancement extractor
+This extractor is designed to improve the RGB image (Gantry or UAS imaging systems) quality in term of visualization from four different aspects: illumination, contrast, noise, and color.
 
