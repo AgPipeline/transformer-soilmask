@@ -14,7 +14,7 @@ from terrautils.metadata import get_extractor_metadata, get_terraref_metadata, \
 from terrautils.extractors import TerrarefExtractor, is_latest_file, check_file_in_dataset, load_json_file, \
     build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists, contains_required_files
 from terrautils.formats import create_geotiff, create_image
-from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb
+from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb, compress_geotiff
 
 
 SATURATE_THRESHOLD = 245
@@ -301,10 +301,8 @@ class rgbEnhancementExtractor(TerrarefExtractor):
             # Bands must be reordered to avoid swapping R and B
             left_rgb = cv2.cvtColor(left_rgb, cv2.COLOR_BGR2RGB)
 
-            #out_tmp_mask_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
             create_geotiff(left_rgb, left_bounds, left_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
-            # Rename output.tif after creation to avoid long path errors
-            #shutil.move(out_tmp_mask_left, left_rgb_mask_tiff)
+            compress_geotiff(left_rgb_mask_tiff)
             found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
                                                   remove=self.overwrite)
             if not found_in_dest or self.overwrite:
@@ -319,10 +317,8 @@ class rgbEnhancementExtractor(TerrarefExtractor):
 
             right_ratio, right_rgb = gen_cc_enhanced(img_right)
 
-            out_tmp_mask_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(right_rgb, right_bounds, out_tmp_mask_right, None, False, self.extractor_info, terra_md_full)
-            # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_mask_right, right_rgb_mask_tiff)
+            create_geotiff(right_rgb, right_bounds, right_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
+            compress_geotiff(right_rgb_mask_tiff)
             found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_rgb_mask_tiff,
                                                   remove=self.overwrite)
             if not found_in_dest or self.overwrite:
