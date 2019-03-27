@@ -50,9 +50,11 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                 left_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
                 right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
                 if file_exists(left_tiff) and file_exists(right_tiff):
-                    self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
-                    return CheckMessage.ignore
-
+                    if contains_required_files(resource, [os.path.basename(left_tiff), os.path.basename(right_tiff)]):
+                        self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
+                        return CheckMessage.ignore
+                    else:
+                        self.log_info(resource, "output files exist but not yet uploaded")
             # Have TERRA-REF metadata, but not any from this extractor
             return CheckMessage.download
         else:
@@ -116,37 +118,33 @@ class StereoBin2JpgTiff(TerrarefExtractor):
 
         if (not file_exists(left_tiff)) or self.overwrite:
             # Perform actual processing
-            self.log_info(resource, "creating & uploading %s" % left_tiff)
-
+            self.log_info(resource, "creating %s" % left_tiff)
             left_image = terraref.stereo_rgb.process_raw(left_shape, img_left, None)
-            out_tmp_tiff_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(left_image, gps_bounds_left, out_tmp_tiff_left, None, True, self.extractor_info, terra_md_full)
-
-            # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_tiff_left, left_tiff)
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_tiff, remove=self.overwrite)
-            if not found_in_dest or self.overwrite:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_tiff)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+            create_geotiff(left_image, gps_bounds_left, left_tiff, None, True,
+                           self.extractor_info, terra_md_full, compress=True)
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
+        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_tiff, remove=self.overwrite)
+        if not found_in_dest or self.overwrite:
+            self.log_info(resource, "uploading %s" % left_tiff)
+            fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_tiff)
+            uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+
 
         if (not file_exists(right_tiff)) or self.overwrite:
             # Perform actual processing
-            self.log_info(resource, "creating & uploading %s" % right_tiff)
-
+            self.log_info(resource, "creating %s" % right_tiff)
             right_image = terraref.stereo_rgb.process_raw(right_shape, img_right, None)
-            out_tmp_tiff_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(right_image, gps_bounds_right, out_tmp_tiff_right, None, True, self.extractor_info, terra_md_full)
-
-            # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_tiff_right, right_tiff)
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_tiff, remove=self.overwrite)
-            if not found_in_dest or self.overwrite:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, right_tiff)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+            create_geotiff(right_image, gps_bounds_right, right_tiff, None, True,
+                           self.extractor_info, terra_md_full, compress=True)
             self.created += 1
-            self.bytes += os.path.getsize(left_tiff)
+            self.bytes += os.path.getsize(right_tiff)
+        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_tiff, remove=self.overwrite)
+        if not found_in_dest or self.overwrite:
+            self.log_info(resource, "uploading %s" % right_tiff)
+            fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, right_tiff)
+            uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+
 
         # Trigger additional extractors
         self.log_info(resource, "triggering downstream extractors")

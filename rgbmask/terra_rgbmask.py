@@ -13,8 +13,8 @@ from terrautils.metadata import get_extractor_metadata, get_terraref_metadata, \
     get_season_and_experiment
 from terrautils.extractors import TerrarefExtractor, is_latest_file, check_file_in_dataset, load_json_file, \
     build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists, contains_required_files
-from terrautils.formats import create_geotiff, create_image
-from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb, compress_geotiff
+from terrautils.formats import create_geotiff, create_image, compress_geotiff
+from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb
 
 
 SATURATE_THRESHOLD = 245
