@@ -124,6 +124,7 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                            self.extractor_info, terra_md_full, compress=True)
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
+        # Check if the file should be uploaded, even if it was already created
         found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_tiff, remove=self.overwrite)
         if not found_in_dest or self.overwrite:
             self.log_info(resource, "uploading %s" % left_tiff)
@@ -139,12 +140,12 @@ class StereoBin2JpgTiff(TerrarefExtractor):
                            self.extractor_info, terra_md_full, compress=True)
             self.created += 1
             self.bytes += os.path.getsize(right_tiff)
+        # Check if the file should be uploaded, even if it was already created
         found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_tiff, remove=self.overwrite)
         if not found_in_dest or self.overwrite:
             self.log_info(resource, "uploading %s" % right_tiff)
             fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, right_tiff)
             uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
-
 
         # Trigger additional extractors
         self.log_info(resource, "triggering downstream extractors")

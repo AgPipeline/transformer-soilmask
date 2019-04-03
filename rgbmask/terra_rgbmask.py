@@ -295,7 +295,7 @@ class rgbEnhancementExtractor(TerrarefExtractor):
         right_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['right']['bounding_box'])
 
         if not file_exists(left_rgb_mask_tiff) or self.overwrite:
-            self.log_info(resource, "creating & uploading %s" % left_rgb_mask_tiff)
+            self.log_info(resource, "creating %s" % left_rgb_mask_tiff)
 
             left_ratio, left_rgb = gen_cc_enhanced(img_left)
             # Bands must be reordered to avoid swapping R and B
@@ -303,30 +303,37 @@ class rgbEnhancementExtractor(TerrarefExtractor):
 
             create_geotiff(left_rgb, left_bounds, left_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
             compress_geotiff(left_rgb_mask_tiff)
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
-                                                  remove=self.overwrite)
-            if not found_in_dest or self.overwrite:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
-                                           left_rgb_mask_tiff)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
             self.created += 1
             self.bytes += os.path.getsize(left_rgb_mask_tiff)
 
-        if not self.leftonly and (not file_exists(right_rgb_mask_tiff) or self.overwrite):
-            self.log_info(resource, "creating & uploading %s" % right_rgb_mask_tiff)
+        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
+                                              remove=self.overwrite)
+        if not found_in_dest:
+            self.log_info(resource, "uploading %s" % left_rgb_mask_tiff)
+            fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
+                                       left_rgb_mask_tiff)
+            uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
 
-            right_ratio, right_rgb = gen_cc_enhanced(img_right)
 
-            create_geotiff(right_rgb, right_bounds, right_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
-            compress_geotiff(right_rgb_mask_tiff)
+        if not self.leftonly:
+            if not file_exists(right_rgb_mask_tiff) or self.overwrite:
+
+
+                right_ratio, right_rgb = gen_cc_enhanced(img_right)
+
+                create_geotiff(right_rgb, right_bounds, right_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
+                compress_geotiff(right_rgb_mask_tiff)
+                self.created += 1
+                self.bytes += os.path.getsize(right_rgb_mask_tiff)
+
             found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_rgb_mask_tiff,
                                                   remove=self.overwrite)
-            if not found_in_dest or self.overwrite:
+            if not found_in_dest:
+                self.log_info(resource, "uploading %s" % right_rgb_mask_tiff)
                 fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
                                            right_rgb_mask_tiff)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
-            self.created += 1
-            self.bytes += os.path.getsize(right_rgb_mask_tiff)
+
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
         md = {
