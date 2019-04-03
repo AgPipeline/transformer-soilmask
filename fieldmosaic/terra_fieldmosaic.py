@@ -87,6 +87,8 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         out_vrt = out_tif_full.replace(".tif", ".vrt")
         out_dir = os.path.dirname(out_vrt)
 
+        # TODO: Check for L1 version of VRT and _thumb and if the JSON contents match, copy instead of regenerating
+
         # If outputs already exist, we don't need to do anything else
         found_all = True
         if self.thumb:
@@ -121,7 +123,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         self.created += nu_created
         self.bytes += nu_bytes
 
-        if not self.thumb:
+        if not self.thumb and os.path.isfile(out_tif_medium):
             # Create PNG thumbnail
             self.log_info(resource, "Converting 10pct to %s..." % out_png)
             cmd = "gdal_translate -of PNG %s %s" % (out_tif_medium, out_png)
@@ -152,19 +154,20 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         else:
             generated_files = [out_tif_medium, out_tif_full, out_png]
         for checked_file in generated_files:
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, checked_file, remove=self.overwrite,
-                                                  replacements=[("ir_fullfield", "fullfield"), ("L2", "L1")])
-            if not found_in_dest or self.overwrite:
-                id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, checked_file)
-                meta = build_metadata(host, self.extractor_info, id, content, 'file')
-                upload_metadata(connector, host, secret_key, id, meta)
+            if os.path.isfile(checked_file):
+                found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, checked_file, remove=self.overwrite,
+                                                      replacements=[("ir_fullfield", "fullfield"), ("L2", "L1")])
+                if not found_in_dest or self.overwrite:
+                    id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, checked_file)
+                    meta = build_metadata(host, self.extractor_info, id, content, 'file')
+                    upload_metadata(connector, host, secret_key, id, meta)
 
-                if checked_file == out_tif_full:
-                    # Trigger downstream extractions on full resolution
-                    if sensor_lookup == 'ir_fullfield':
-                        submit_extraction(connector, host, secret_key, id, "terra.multispectral.meantemp")
-                    elif sensor_lookup == 'rgb_fullfield':
-                        submit_extraction(connector, host, secret_key, id, "terra.stereo-rgb.canopycover")
+                    if checked_file == out_tif_full:
+                        # Trigger downstream extractions on full resolution
+                        if sensor_lookup == 'ir_fullfield':
+                            submit_extraction(connector, host, secret_key, id, "terra.multispectral.meantemp")
+                        elif sensor_lookup == 'rgb_fullfield' and checked_file.endswith("_mask.tif"):
+                            submit_extraction(connector, host, secret_key, id, "terra.stereo-rgb.canopycover")
 
         if self.thumb:
             # TODO: Add parameters support to pyclowder submit_extraction()
@@ -205,29 +208,35 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             bytes += os.path.getsize(out_vrt)
 
         if (not file_exists(out_tif_thumb)) or self.overwrite:
-            self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
-            cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
-                  "-outsize %s%% %s%% %s %s" % (2, 2, out_vrt, out_tif_thumb)
-            subprocess.call(cmd, shell=True)
-            created += 1
-            bytes += os.path.getsize(out_tif_thumb)
+            # Omit _mask.vrt from 2%
+            if not (out_vrt.endswith('_mask.vrt')):
+                self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
+                cmd = "gdal_translate -co COMPRESS=LZW -co BIGTIFF=YES -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
+                      "-outsize %s%% %s%% %s %s" % (2, 2, out_vrt, out_tif_thumb)
+                subprocess.call(cmd, shell=True)
+                created += 1
+                bytes += os.path.getsize(out_tif_thumb)
 
         if not self.thumb:
             if (not file_exists(out_tif_medium)) or self.overwrite:
-                self.log_info(resource, "Converting VRT to %s..." % out_tif_medium)
-                cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
-                      "-outsize %s%% %s%% %s %s" % (10, 10, out_vrt, out_tif_medium)
-                subprocess.call(cmd, shell=True)
-                created += 1
-                bytes += os.path.getsize(out_tif_medium)
+                # Omit _mask.vrt and _nrmac.vrt from 10%
+                if not (out_vrt.endswith('_mask.vrt') or out_vrt.endswith('_nrmac.vrt')):
+                    self.log_info(resource, "Converting VRT to %s..." % out_tif_medium)
+                    cmd = "gdal_translate -co COMPRESS=LZW -co BIGTIFF=YES -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
+                          "-outsize %s%% %s%% %s %s" % (10, 10, out_vrt, out_tif_medium)
+                    subprocess.call(cmd, shell=True)
+                    created += 1
+                    bytes += os.path.getsize(out_tif_medium)
 
             if (not file_exists(out_tif_full)) or self.overwrite:
-                logging.info("Converting VRT to %s..." % out_tif_full)
-                cmd = "gdal_translate -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
-                      "%s %s" % (out_vrt, out_tif_full)
-                subprocess.call(cmd, shell=True)
-                created += 1
-                bytes += os.path.getsize(out_tif_full)
+                # Omit _nrmac.vrt from 100%
+                if not out_vrt.endswith('_nrmac.vrt'):
+                    logging.info("Converting VRT to %s..." % out_tif_full)
+                    cmd = "gdal_translate -co COMPRESS=LZW -co BIGTIFF=YES -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
+                          "%s %s" % (out_vrt, out_tif_full)
+                    subprocess.call(cmd, shell=True)
+                    created += 1
+                    bytes += os.path.getsize(out_tif_full)
 
         return (created, bytes)
 

@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
 import json
-import re
 import os
 import yaml
-from numpy import asarray, rollaxis
+from numpy import asarray, rollaxis, count_nonzero
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import get_info
@@ -52,6 +51,23 @@ def generate_traits_list(traits):
 
     return trait_list
 
+def calculate_canopycover_masked(pxarray):
+    """Return greenness percentage of given numpy array of pixels.
+
+    Arguments:
+      pxarray (numpy array): rgb image
+
+    Returns:
+      (float): greenness percentage
+    """
+
+    # For masked images, all nonzero pixels are considered canopy
+    nz = count_nonzero(pxarray)
+    ratio = nz/float(pxarray.size)
+    # Scale ratio from 0-1 to 0-100
+    ratio *= 100.0
+
+    return ratio
 
 def add_local_arguments(parser):
     # add any additional arguments to parser
@@ -73,7 +89,7 @@ class CanopyCoverHeight(TerrarefExtractor):
     def check_message(self, connector, host, secret_key, resource, parameters):
         self.start_check(resource)
 
-        if resource['name'].find('fullfield') > -1 and re.match("^.*\d+_rgb_.*.tif", resource['name']):
+        if resource['name'].startswith('rgb_fullfield') > -1 and resource['name'].endswith('_mask.tif'):
             # Check metadata to verify we have what we need
             md = download_metadata(connector, host, secret_key, resource['id'])
             if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
@@ -81,7 +97,7 @@ class CanopyCoverHeight(TerrarefExtractor):
                 return CheckMessage.ignore
             return CheckMessage.download
         else:
-            self.log_skip(resource,"regex not matched for %s" % resource['name'])
+            self.log_skip(resource,"expected filename mismatch: %s" % resource['name'])
             return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
@@ -91,7 +107,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         ds_info = get_info(connector, host, secret_key, resource['parent']['id'])
         timestamp = ds_info['name'].split(" - ")[1]
         time_fmt = timestamp+"T12:00:00-07:00"
-        rootdir = self.sensors.create_sensor_path(timestamp, sensor="fullfield", ext=".csv")
+        rootdir = self.sensors.create_sensor_path(timestamp, sensor="rgb_fullfield", ext=".csv")
         out_csv = os.path.join(os.path.dirname(rootdir),
                                resource['name'].replace(".tif", "_canopycover_bety.csv"))
         out_geo = os.path.join(os.path.dirname(rootdir),
@@ -129,7 +145,7 @@ class CanopyCoverHeight(TerrarefExtractor):
                         self.log_error(resource, "unexpected array shape for %s (%s)" % (plotname, pxarray.shape))
                         continue
 
-                    ccVal = terraref.stereo_rgb.calculate_canopycover(rollaxis(pxarray,0,3))
+                    ccVal = calculate_canopycover_masked(rollaxis(pxarray,0,3))
 
                     # Prepare and submit datapoint
                     geo_file.write(','.join([plotname,

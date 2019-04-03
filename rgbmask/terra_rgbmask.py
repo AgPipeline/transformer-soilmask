@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import cv2
 import numpy as np
+from osgeo import gdal
 from PIL import Image
 from skimage import morphology
 
@@ -12,7 +13,7 @@ from terrautils.metadata import get_extractor_metadata, get_terraref_metadata, \
     get_season_and_experiment
 from terrautils.extractors import TerrarefExtractor, is_latest_file, check_file_in_dataset, load_json_file, \
     build_metadata, build_dataset_hierarchy_crawl, upload_to_dataset, file_exists, contains_required_files
-from terrautils.formats import create_geotiff, create_image
+from terrautils.formats import create_geotiff, create_image, compress_geotiff
 from terrautils.spatial import geojson_to_tuples, geojson_to_tuples_betydb
 
 
@@ -181,7 +182,10 @@ def check_brightness(img):
 
 def gen_cc_enhanced(input_path, kernelSize=3):
     # abandon low quality images, mask enhanced
-    img = cv2.imread(input_path)
+    # TODO: cv2 has problems with some RGB geotiffs...
+    # img = cv2.imread(input_path)
+    img = np.rollaxis(gdal.Open(input_path).ReadAsArray().astype(np.uint8), 0, 3)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # calculate image scores
     over_rate, low_rate = check_saturation(img)
@@ -291,44 +295,45 @@ class rgbEnhancementExtractor(TerrarefExtractor):
         right_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['right']['bounding_box'])
 
         if not file_exists(left_rgb_mask_tiff) or self.overwrite:
-            self.log_info(resource, "creating & uploading %s" % left_rgb_mask_tiff)
+            self.log_info(resource, "creating %s" % left_rgb_mask_tiff)
 
             left_ratio, left_rgb = gen_cc_enhanced(img_left)
             # Bands must be reordered to avoid swapping R and B
             left_rgb = cv2.cvtColor(left_rgb, cv2.COLOR_BGR2RGB)
 
-            out_tmp_mask_left = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(left_rgb, left_bounds, out_tmp_mask_left, None, False, self.extractor_info, terra_md_full)
-            # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_mask_left, left_rgb_mask_tiff)
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
-                                                  remove=self.overwrite)
-            if not found_in_dest or self.overwrite:
-                fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
-                                           left_rgb_mask_tiff)
-                uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+            create_geotiff(left_rgb, left_bounds, left_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
+            compress_geotiff(left_rgb_mask_tiff)
             self.created += 1
             self.bytes += os.path.getsize(left_rgb_mask_tiff)
 
-        if not self.leftonly and (not file_exists(right_rgb_mask_tiff) or self.overwrite):
-            self.log_info(resource, "creating & uploading %s" % right_rgb_mask_tiff)
+        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
+                                              remove=self.overwrite)
+        if not found_in_dest:
+            self.log_info(resource, "uploading %s" % left_rgb_mask_tiff)
+            fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
+                                       left_rgb_mask_tiff)
+            uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
 
-            right_ratio, right_rgb = gen_cc_enhanced(img_right)
-            # Bands must be reordered to avoid swapping R and B
-            right_rgb = cv2.cvtColor(right_rgb, cv2.COLOR_BGR2RGB)
 
-            out_tmp_mask_right = os.path.join(tempfile.gettempdir(), resource['id'].encode('utf8'))
-            create_geotiff(right_rgb, right_bounds, out_tmp_mask_right, None, False, self.extractor_info, terra_md_full)
-            # Rename output.tif after creation to avoid long path errors
-            shutil.move(out_tmp_mask_right, right_rgb_mask_tiff)
+        if not self.leftonly:
+            if not file_exists(right_rgb_mask_tiff) or self.overwrite:
+
+
+                right_ratio, right_rgb = gen_cc_enhanced(img_right)
+
+                create_geotiff(right_rgb, right_bounds, right_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
+                compress_geotiff(right_rgb_mask_tiff)
+                self.created += 1
+                self.bytes += os.path.getsize(right_rgb_mask_tiff)
+
             found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_rgb_mask_tiff,
                                                   remove=self.overwrite)
-            if not found_in_dest or self.overwrite:
+            if not found_in_dest:
+                self.log_info(resource, "uploading %s" % right_rgb_mask_tiff)
                 fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
                                            right_rgb_mask_tiff)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
-            self.created += 1
-            self.bytes += os.path.getsize(right_rgb_mask_tiff)
+
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
         md = {
