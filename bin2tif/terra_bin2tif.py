@@ -32,6 +32,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         if "rulechecked" in parameters and parameters["rulechecked"]:
             return CheckMessage.download
 
+        self.start_check(resource)
+
         if not is_latest_file(resource):
             self.log_skip(resource, "not latest file")
             return CheckMessage.ignore
