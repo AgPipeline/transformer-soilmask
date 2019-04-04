@@ -11,22 +11,23 @@
 # Created:     03/05/2019
 """
 
-#
+import os
+import numpy as np
+import cv2
+from skimage.restoration import denoise_wavelet
+from scipy import ndimage
+from osgeo import gdal
+
 from pyclowder.utils import CheckMessage
-from pyclowder.files import download_metadata, upload_metadata
-from pyclowder.datasets import download_metadata as download_ds_metadata
-from terrautils.extractors import TerrarefExtractor, build_metadata, upload_to_dataset
+from pyclowder.datasets import remove_metadata, download_metadata, upload_metadata
+from terrautils.extractors import TerrarefExtractor, build_metadata, upload_to_dataset, is_latest_file, \
+    contains_required_files, file_exists, load_json_file, check_file_in_dataset
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.formats import create_geotiff
 from terrautils.spatial import geojson_to_tuples
-#
-import numpy as np
-from skimage.restoration import denoise_wavelet
-from scipy import ndimage
-from PIL import Image
-#
-#
-def image_enhance(self, Im):
+
+
+def image_enhance(Im):
     # wavelet based denoising
     Im = np.uint8(255*denoise_wavelet(Im, multichannel=True))
     I = np.float32(Im)
@@ -88,62 +89,145 @@ def image_enhance(self, Im):
     enhanced_image = np.uint8(output)
     return enhanced_image
 
-
-def getEnhancedImage(self, imgfile):
-    img = Image.open(imgfile)
-    img = np.array(img)
+def getEnhancedImage(imgfile):
+    #img = Image.open(imgfile)
+    #img = np.array(img)
+    img = np.rollaxis(gdal.Open(imgfile).ReadAsArray().astype(np.uint8), 0, 3)
     EnImage = image_enhance(img)
     return EnImage
 
+def add_local_arguments(parser):
+    # add any additional arguments to parser
+    parser.add_argument('--force', action='store_true',
+                        help="whether to bypass the NRMAC quality score check")
+    parser.add_argument('--threshold', type=int, default=os.getenv('NRMAC_THRESHOLD', 15),
+                        help="minimum NRMAC quality score before enhancement is performed")
 
 class RGB_Enhance(TerrarefExtractor):
     def __init__(self):
         super(RGB_Enhance, self).__init__()
 
+        add_local_arguments(self.parser)
+
         # parse command line and load default logging configuration
-        self.setup(sensor='rgb_geotiff')
+        self.setup(sensor='rgb_enhanced')
+
+        # assign local arguments
+        self.force = self.args.force
+        self.threshold = self.args.threshold
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         if "rulechecked" in parameters and parameters["rulechecked"]:
             return CheckMessage.download
+
         self.start_check(resource)
 
-        if resource['name'].endswith('_left.tif') or resource['name'].endswith('_right.tif'):
-            # Check metadata to verify we have what we need
-            md = download_metadata(connector, host, secret_key, resource['id'])
-            if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
-                self.log_skip(resource, "metadata indicates it was already processed")
-                return CheckMessage.ignore
+        if not is_latest_file(resource):
+            self.log_skip(resource, "not latest file")
+            return CheckMessage.ignore
+
+        # Check for a left and right BIN file - skip if not found
+        if not contains_required_files(resource, ['_left.tif', '_right.tif']):
+            self.log_skip(resource, "missing required files")
+            return CheckMessage.ignore
+
+        # Check metadata to verify we have what we need
+        md = download_metadata(connector, host, secret_key, resource['id'])
+        if get_terraref_metadata(md):
+            if not self.force:
+                # Check NRMAC score > 15 before proceeding if available
+                nrmac_md = get_extractor_metadata(md, "terra.stereo-rgb.nrmac")
+                if not (nrmac_md and 'left_quality_score' in nrmac_md):
+                    self.log_skip(resource, "NRMAC quality score not available")
+                    return CheckMessage.ignore
+                elif float(nrmac_md['left_quality_score']) > self.threshold:
+                    self.log_skip(resource, "NRMAC quality score %s is above threshold of %s" % (
+                        float(nrmac_md['left_quality_score']), self.threshold))
+                    return CheckMessage.ignore
+
+            if get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
+                # Make sure outputs properly exist
+                timestamp = resource['dataset_info']['name'].split(" - ")[1]
+                left_enh_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
+                right_enh_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
+                if file_exists(left_enh_tiff) and file_exists(right_enh_tiff):
+                    if contains_required_files(resource, [os.path.basename(left_enh_tiff), os.path.basename(right_enh_tiff)]):
+                        self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
+                        return CheckMessage.ignore
+                    else:
+                        self.log_info(resource, "output files exist but not yet uploaded")
+            # Have TERRA-REF metadata, but not any from this extractor
             return CheckMessage.download
         else:
-            self.log_skip(resource, "not left/right geotiff")
+            self.log_error(resource, "no terraref metadata found")
             return CheckMessage.ignore
 
     def process_message(self, connector, host, secret_key, resource, parameters):
         self.start_message(resource)
 
-        f = resource['local_paths'][0]
+        # Get left/right files and metadata
+        img_left, img_right, metadata = None, None, None
+        for fname in resource['local_paths']:
+            if fname.endswith('_dataset_metadata.json'):
+                all_dsmd = load_json_file(fname)
+                terra_md_full = get_terraref_metadata(all_dsmd, 'stereoTop')
+            elif fname.endswith('_left.tif'):
+                img_left = fname
+            elif fname.endswith('_right.tif'):
+                img_right = fname
+        if None in [img_left, img_right, terra_md_full]:
+            raise ValueError("could not locate all files & metadata in processing")
 
-        self.log_info(resource, "determining image quality")
-        EI = getEnhancedImage(f)  # Enhanced Image (EI)
+        timestamp = resource['dataset_info']['name'].split(" - ")[1]
+        target_dsid = resource['id']
 
-        self.log_info(resource, "creating output image")
-        md = download_ds_metadata(connector,host, secret_key, resource['parent']['id'])
-        terramd = get_terraref_metadata(md)
-        if "left" in f:
-            bounds = geojson_to_tuples(terramd['spatial_metadata']['left']['bounding_box'])
-        else:
-            bounds = geojson_to_tuples(terramd['spatial_metadata']['right']['bounding_box'])
-        output = f.replace(".tif", "_nrmac.tif")
-        create_geotiff(np.array([[EI,EI],[EI,EI]]), bounds, output)
-        upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, resource['parent']['id'], output)
+        left_rgb_enh_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
+        right_rgb_enh_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
+        uploaded_file_ids = []
+
+        left_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['left']['bounding_box'])
+        right_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['right']['bounding_box'])
+
+
+        if not file_exists(left_rgb_enh_tiff) or self.overwrite:
+            self.log_info(resource, "creating %s" % left_rgb_enh_tiff)
+            EI = getEnhancedImage(img_left)
+            create_geotiff(EI, left_bounds, left_rgb_enh_tiff)
+            self.created += 1
+            self.bytes += os.path.getsize(left_rgb_enh_tiff)
+
+        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_enh_tiff,
+                                              remove=self.overwrite)
+        if not found_in_dest:
+            self.log_info(resource, "uploading %s" % left_rgb_enh_tiff)
+            fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
+                                       left_rgb_enh_tiff)
+            uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+
+
+        if not file_exists(right_rgb_enh_tiff) or self.overwrite:
+            self.log_info(resource, "creating %s" % right_rgb_enh_tiff)
+            EI = getEnhancedImage(img_right)
+            create_geotiff(EI, right_bounds, right_rgb_enh_tiff)
+            self.created += 1
+            self.bytes += os.path.getsize(right_rgb_enh_tiff)
+
+        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_rgb_enh_tiff,
+                                              remove=self.overwrite)
+        if not found_in_dest:
+            self.log_info(resource, "uploading %s" % right_rgb_enh_tiff)
+            fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
+                                       right_rgb_enh_tiff)
+            uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
+
 
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        ext_meta = build_metadata(host, self.extractor_info, resource['id'], {
-            "quality_score": EI
-        }, 'file')
+        ext_meta = build_metadata(host, self.extractor_info, target_dsid, {
+            "files_created": uploaded_file_ids
+        }, 'dataset')
         self.log_info(resource, "uploading extractor metadata")
-        upload_metadata(connector, host, secret_key, resource['id'], ext_meta)
+        remove_metadata(connector, host, secret_key, target_dsid, self.extractor_info['name'])
+        upload_metadata(connector, host, secret_key, target_dsid, ext_meta)
 
         self.end_message(resource)
 
