@@ -13,9 +13,10 @@
 
 import os
 import numpy as np
+import cv2
 from skimage.restoration import denoise_wavelet
 from scipy import ndimage
-from PIL import Image
+from osgeo import gdal
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import remove_metadata, download_metadata, upload_metadata
@@ -26,7 +27,7 @@ from terrautils.formats import create_geotiff
 from terrautils.spatial import geojson_to_tuples
 
 
-def image_enhance(self, Im):
+def image_enhance(Im):
     # wavelet based denoising
     Im = np.uint8(255*denoise_wavelet(Im, multichannel=True))
     I = np.float32(Im)
@@ -88,18 +89,32 @@ def image_enhance(self, Im):
     enhanced_image = np.uint8(output)
     return enhanced_image
 
-def getEnhancedImage(self, imgfile):
-    img = Image.open(imgfile)
-    img = np.array(img)
+def getEnhancedImage(imgfile):
+    #img = Image.open(imgfile)
+    #img = np.array(img)
+    img = np.rollaxis(gdal.Open(imgfile).ReadAsArray().astype(np.uint8), 0, 3)
     EnImage = image_enhance(img)
     return EnImage
+
+def add_local_arguments(parser):
+    # add any additional arguments to parser
+    parser.add_argument('--force', action='store_true',
+                        help="whether to bypass the NRMAC quality score check")
+    parser.add_argument('--threshold', type=int, default=os.getenv('NRMAC_THRESHOLD', 15),
+                        help="minimum NRMAC quality score before enhancement is performed")
 
 class RGB_Enhance(TerrarefExtractor):
     def __init__(self):
         super(RGB_Enhance, self).__init__()
 
+        add_local_arguments(self.parser)
+
         # parse command line and load default logging configuration
         self.setup(sensor='rgb_enhanced')
+
+        # assign local arguments
+        self.force = self.args.force
+        self.threshold = self.args.threshold
 
     def check_message(self, connector, host, secret_key, resource, parameters):
         if "rulechecked" in parameters and parameters["rulechecked"]:
@@ -119,6 +134,17 @@ class RGB_Enhance(TerrarefExtractor):
         # Check metadata to verify we have what we need
         md = download_metadata(connector, host, secret_key, resource['id'])
         if get_terraref_metadata(md):
+            if not self.force:
+                # Check NRMAC score > 15 before proceeding if available
+                nrmac_md = get_extractor_metadata(md, "terra.stereo-rgb.nrmac")
+                if not (nrmac_md and 'left_quality_score' in nrmac_md):
+                    self.log_skip(resource, "NRMAC quality score not available")
+                    return CheckMessage.ignore
+                elif float(nrmac_md['left_quality_score']) > self.threshold:
+                    self.log_skip(resource, "NRMAC quality score %s is above threshold of %s" % (
+                        float(nrmac_md['left_quality_score']), self.threshold))
+                    return CheckMessage.ignore
+
             if get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
                 # Make sure outputs properly exist
                 timestamp = resource['dataset_info']['name'].split(" - ")[1]
@@ -166,7 +192,7 @@ class RGB_Enhance(TerrarefExtractor):
         if not file_exists(left_rgb_enh_tiff) or self.overwrite:
             self.log_info(resource, "creating %s" % left_rgb_enh_tiff)
             EI = getEnhancedImage(img_left)
-            create_geotiff(np.array([[EI,EI],[EI,EI]]), left_bounds, left_rgb_enh_tiff)
+            create_geotiff(EI, left_bounds, left_rgb_enh_tiff)
             self.created += 1
             self.bytes += os.path.getsize(left_rgb_enh_tiff)
 
@@ -181,8 +207,8 @@ class RGB_Enhance(TerrarefExtractor):
 
         if not file_exists(right_rgb_enh_tiff) or self.overwrite:
             self.log_info(resource, "creating %s" % right_rgb_enh_tiff)
-            EI = getEnhancedImage(img_left)
-            create_geotiff(np.array([[EI,EI],[EI,EI]]), right_bounds, right_rgb_enh_tiff)
+            EI = getEnhancedImage(img_right)
+            create_geotiff(EI, right_bounds, right_rgb_enh_tiff)
             self.created += 1
             self.bytes += os.path.getsize(right_rgb_enh_tiff)
 
