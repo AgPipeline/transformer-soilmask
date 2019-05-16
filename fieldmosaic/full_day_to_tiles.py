@@ -179,13 +179,16 @@ def createVrt(base_dir,tif_file_list):
     except Exception as ex:
         fail("\tFailed to create virtual tif: " + str(ex))
 
-def createVrtPermanent(base_dir, tif_file_list, out_vrt='virtualTif.vrt'):
+def createVrtPermanent(base_dir, tif_file_list, out_vrt='virtualTif.vrt', alpha=False):
     # Create virtual tif for the files in this folder
     # Build a virtual TIF that combines all of the tifs that we just created
     print "\tCreating virtual TIF..."
     try:
         vrtPath = path.join(base_dir, out_vrt)
-        cmd = 'gdalbuildvrt -srcnodata "-99 -99 -99" -overwrite -input_file_list ' + tif_file_list +' ' + vrtPath
+        if alpha:
+            cmd = 'gdalbuildvrt -addalpha -srcnodata "-99 -99 -99" -overwrite -input_file_list ' + tif_file_list +' ' + vrtPath
+        else:
+            cmd = 'gdalbuildvrt -srcnodata "-99 -99 -99" -overwrite -input_file_list ' + tif_file_list +' ' + vrtPath
         print(cmd)
         system(cmd)
     except Exception as ex:

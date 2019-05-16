@@ -7,7 +7,9 @@ RUN useradd -u 49044 extractor
 RUN pip install terraref-stereo-rgb \
                 opencv-python \
                 Pillow \
-                scikit-image
+                dask \
+                'networkx==2.2' \
+                'scikit-image<0.15'
 RUN apt update && apt install -y libsm6 \
                                 libxext6 \
                                 libxrender-dev \
