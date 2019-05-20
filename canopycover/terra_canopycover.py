@@ -3,7 +3,7 @@
 import json
 import os
 import yaml
-from numpy import asarray, rollaxis, count_nonzero
+from numpy import asarray, rollaxis, count_nonzero, sum
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import get_info
@@ -14,8 +14,6 @@ from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, sub
     get_site_boundaries
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.spatial import geojson_to_tuples_betydb, clip_raster, centroid_from_geojson
-
-import terraref.stereo_rgb
 
 
 # TODO: Keep these in terrautils.bety instead
@@ -64,12 +62,12 @@ def calculate_canopycover_masked(pxarray):
     # If > 10% is NoData, return a -1 ccvalue for omission later
     nodata = count_nonzero(pxarray[:, :, 3]==0)
     nodata_ratio = nodata/float(pxarray.size)
-    if nodata_ratio > 0.1:
+    if nodata_ratio > 0.7:
         return -1
 
     # For masked images, all pixels with rgb>0,0,0 are considered canopy
     data = pxarray[pxarray[:, :, 3]==255]
-    canopy = count_nonzero(data[np.sum(data[:, 0:3], 1)>0])
+    canopy = count_nonzero(data[sum(data[:, 0:3], 1)>0])
     ratio = canopy/float(pxarray.size - nodata)
     # Scale ratio from 0-1 to 0-100
     ratio *= 100.0

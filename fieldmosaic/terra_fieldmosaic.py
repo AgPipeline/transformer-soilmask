@@ -213,7 +213,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             # Omit _mask.vrt from 2%
             if not (out_vrt.endswith('_mask.vrt')):
                 self.log_info(resource, "Converting VRT to %s..." % out_tif_thumb)
-                cmd = "gdal_translate -a_nodata NoData -co COMPRESS=LZW -co BIGTIFF=YES -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
+                cmd = "gdal_translate -co COMPRESS=LZW -co BIGTIFF=YES -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
                       "-outsize %s%% %s%% %s %s" % (2, 2, out_vrt, out_tif_thumb)
                 subprocess.call(cmd, shell=True)
                 created += 1
@@ -224,7 +224,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 # Omit _mask.vrt and _nrmac.vrt from 10%
                 if not (out_vrt.endswith('_mask.vrt') or out_vrt.endswith('_nrmac.vrt')):
                     self.log_info(resource, "Converting VRT to %s..." % out_tif_medium)
-                    cmd = "gdal_translate -a_nodata NoData -co COMPRESS=LZW -co BIGTIFF=YES -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
+                    cmd = "gdal_translate -co COMPRESS=LZW -co BIGTIFF=YES -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
                           "-outsize %s%% %s%% %s %s" % (10, 10, out_vrt, out_tif_medium)
                     subprocess.call(cmd, shell=True)
                     created += 1
@@ -234,7 +234,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 # Omit _nrmac.vrt from 100%
                 if not out_vrt.endswith('_nrmac.vrt'):
                     logging.info("Converting VRT to %s..." % out_tif_full)
-                    cmd = "gdal_translate -a_nodata NoData -co COMPRESS=LZW -co BIGTIFF=YES -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
+                    cmd = "gdal_translate -co COMPRESS=LZW -co BIGTIFF=YES -projwin -111.9750963 33.0764953 -111.9747967 33.074485715 " + \
                           "%s %s" % (out_vrt, out_tif_full)
                     subprocess.call(cmd, shell=True)
                     created += 1
