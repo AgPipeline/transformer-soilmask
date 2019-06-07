@@ -59,16 +59,17 @@ def calculate_canopycover_masked(pxarray):
       (float): greenness percentage
     """
 
-    # If > 10% is NoData, return a -1 ccvalue for omission later
+    # If > 75% is NoData, return a -1 ccvalue for omission later
+    total_size = pxarray.shape[0] * pxarray.shape[1]
     nodata = count_nonzero(pxarray[:, :, 3]==0)
-    nodata_ratio = nodata/float(pxarray.size)
-    if nodata_ratio > 0.7:
+    nodata_ratio = nodata/float(total_size)
+    if nodata_ratio > 0.75:
         return -1
 
     # For masked images, all pixels with rgb>0,0,0 are considered canopy
     data = pxarray[pxarray[:, :, 3]==255]
-    canopy = count_nonzero(data[sum(data[:, 0:3], 1)>0])
-    ratio = canopy/float(pxarray.size - nodata)
+    canopy = len(data[sum(data[:, 0:3], 1)>0])
+    ratio = canopy/float(total_size - nodata)
     # Scale ratio from 0-1 to 0-100
     ratio *= 100.0
 
