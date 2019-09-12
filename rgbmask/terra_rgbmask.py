@@ -20,11 +20,13 @@ MAX_PIXEL_VAL = 255
 SMALL_AREA_THRESHOLD = 200
 
 def getImageQuality(imgfile):
-    img = Image.open(imgfile)
-    img = np.array(img)
+    # Some RGB Geotiffs have issues with Image library...
+    #img = Image.open(imgfile)
+    #img = np.array(img)
 
+    img = np.rollaxis(gdal.Open(imgfile).ReadAsArray().astype(np.uint8), 0, 3)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     NRMAC = MAC(img, img, img)
-
     return NRMAC
 
 def gen_plant_mask(colorImg, kernelSize=3):
@@ -32,7 +34,7 @@ def gen_plant_mask(colorImg, kernelSize=3):
     g = colorImg[:, :, 1]
     b = colorImg[:, :, 0]
 
-    sub_img = (g.astype('int') - r.astype('int') - 0) > 0  # normal: -2
+    sub_img = (g.astype('int') - r.astype('int')) > 1
 
     mask = np.zeros_like(b)
 
@@ -178,26 +180,24 @@ def check_brightness(img):
 
     return aveValue
 
-def gen_cc_enhanced(input_path, kernelSize=3):
+def gen_cc_enhanced(input_path, kernelSize=3, quality_score=None):
     # abandon low quality images, mask enhanced
-    # TODO: cv2 has problems with some RGB geotiffs...
-    # img = cv2.imread(input_path)
     img = np.rollaxis(gdal.Open(input_path).ReadAsArray().astype(np.uint8), 0, 3)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # calculate image scores
     over_rate, low_rate = check_saturation(img)
 
-    # TODO: disabling this check for now because it's crashing extractor - generate mask regardless
     # if low score, return None
     # low_rate is percentage of low value pixels(lower than 20) in the grayscale image, if low_rate > 0.1, return
     # aveValue is average pixel value of grayscale image, if aveValue lower than 30 or higher than 195, return
     # quality_score is a score from Multiscale Autocorrelation (MAC), if quality_score lower than 13, return
 
-    #aveValue = check_brightness(img)
-    #quality_score = getImageQuality(input_path)
-    #if low_rate > 0.1 or aveValue < 30 or aveValue > 195 or quality_score < 13:
-    #    return None, None, None
+    aveValue = check_brightness(img)
+    #if not quality_score:
+    #    quality_score = getImageQuality(input_path)
+    if low_rate > 0.1 or aveValue < 30 or aveValue > 195:
+        return None, None, None
 
     # saturated image process
     # over_rate is percentage of high value pixels(higher than SATUTATE_THRESHOLD) in the grayscale image, if over_rate > 0.15, try to fix it use gen_saturated_mask()
@@ -250,7 +250,7 @@ class rgbEnhancementExtractor(TerrarefExtractor):
         # Check metadata to verify we have what we need
         md = download_metadata(connector, host, secret_key, resource['id'])
         if get_terraref_metadata(md):
-            if get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
+            if not self.overwrite and get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
                 # Make sure outputs properly exist
                 timestamp = resource['dataset_info']['name'].split(" - ")[1]
                 left_mask_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
@@ -291,59 +291,69 @@ class rgbEnhancementExtractor(TerrarefExtractor):
 
         left_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['left']['bounding_box'])
         right_bounds = geojson_to_tuples(terra_md_full['spatial_metadata']['right']['bounding_box'])
-
-        if not file_exists(left_rgb_mask_tiff) or self.overwrite:
+        #qual_md = get_extractor_metadata(all_dsmd, "terra.stereo-rgb.nrmac")
+        if (not file_exists(left_rgb_mask_tiff)) or self.overwrite:
             self.log_info(resource, "creating %s" % left_rgb_mask_tiff)
 
+            #if qual_md and 'left_quality_score' in qual_md:
+                #left_ratio, left_rgb = gen_cc_enhanced(img_left, quality_score=int(qual_md['left_quality_score']))
             left_ratio, left_rgb = gen_cc_enhanced(img_left)
-            # Bands must be reordered to avoid swapping R and B
-            left_rgb = cv2.cvtColor(left_rgb, cv2.COLOR_BGR2RGB)
 
-            create_geotiff(left_rgb, left_bounds, left_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
-            compress_geotiff(left_rgb_mask_tiff)
-            self.created += 1
-            self.bytes += os.path.getsize(left_rgb_mask_tiff)
+            if left_ratio is not None and left_rgb is not None:
+                # Bands must be reordered to avoid swapping R and B
+                left_rgb = cv2.cvtColor(left_rgb, cv2.COLOR_BGR2RGB)
+                create_geotiff(left_rgb, left_bounds, left_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
+                compress_geotiff(left_rgb_mask_tiff)
+                self.created += 1
+                self.bytes += os.path.getsize(left_rgb_mask_tiff)
+            else:
+                # If the masked version was not generated, delete any old version as well
+                self.log_info(resource, "a faulty version exists; deleting %s" % left_rgb_mask_tiff)
+                os.remove(left_rgb_mask_tiff)
 
-        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff,
-                                              remove=self.overwrite)
+        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_rgb_mask_tiff)
         if not found_in_dest:
             self.log_info(resource, "uploading %s" % left_rgb_mask_tiff)
             fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
                                        left_rgb_mask_tiff)
             uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
 
-
         if not self.leftonly:
-            if not file_exists(right_rgb_mask_tiff) or self.overwrite:
-
+            if (not file_exists(right_rgb_mask_tiff)) or self.overwrite:
 
                 right_ratio, right_rgb = gen_cc_enhanced(img_right)
 
-                create_geotiff(right_rgb, right_bounds, right_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
-                compress_geotiff(right_rgb_mask_tiff)
-                self.created += 1
-                self.bytes += os.path.getsize(right_rgb_mask_tiff)
+                if right_ratio is not None and right_rgb is not None:
+                    # Bands must be reordered to avoid swapping R and B
+                    right_rgb = cv2.cvtColor(right_rgb, cv2.COLOR_BGR2RGB)
+                    create_geotiff(right_rgb, right_bounds, right_rgb_mask_tiff, None, False, self.extractor_info, terra_md_full)
+                    compress_geotiff(right_rgb_mask_tiff)
+                    self.created += 1
+                    self.bytes += os.path.getsize(right_rgb_mask_tiff)
+                else:
+                    # If the masked version was not generated, delete any old version as well
+                    self.log_info(resource, "a faulty version exists; deleting %s" % right_rgb_mask_tiff)
+                    os.remove(right_rgb_mask_tiff)
 
-            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_rgb_mask_tiff,
-                                                  remove=self.overwrite)
+            found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_rgb_mask_tiff)
             if not found_in_dest:
                 self.log_info(resource, "uploading %s" % right_rgb_mask_tiff)
                 fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid,
                                            right_rgb_mask_tiff)
                 uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
 
-
         # Tell Clowder this is completed so subsequent file updates don't daisy-chain
-        md = {
-            "files_created": uploaded_file_ids,
-            "left_mask_ratio": left_ratio
-        }
-        if not self.leftonly:
-            md["right_mask_ratio"] = right_ratio
-        extractor_md = build_metadata(host, self.extractor_info, target_dsid, md, 'dataset')
-        self.log_info(resource, "uploading extractor metadata to Lv1 dataset")
-        remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
-        upload_metadata(connector, host, secret_key, resource['id'], extractor_md)
+        if len(uploaded_file_ids) > 0:
+            md = {
+                "files_created": uploaded_file_ids,
+                "left_mask_ratio": left_ratio
+            }
+            if not self.leftonly:
+                md["right_mask_ratio"] = right_ratio
+            extractor_md = build_metadata(host, self.extractor_info, target_dsid, md, 'dataset')
+            self.log_info(resource, "uploading extractor metadata to Lv1 dataset")
+            remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
+            upload_metadata(connector, host, secret_key, resource['id'], extractor_md)
 
         self.end_message(resource)
 

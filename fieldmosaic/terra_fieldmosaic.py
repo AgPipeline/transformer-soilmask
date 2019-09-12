@@ -92,7 +92,7 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
         # If outputs already exist, we don't need to do anything else
         found_all = True
         if self.thumb:
-            output_files = [out_tif_thumb]
+            output_files = [out_vrt, out_tif_thumb]
         else:
             output_files = [out_tif_full, out_tif_medium, out_png]
         for output_file in output_files:
@@ -155,9 +155,9 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
             generated_files = [out_tif_medium, out_tif_full, out_png]
         for checked_file in generated_files:
             if os.path.isfile(checked_file):
-                found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, checked_file, remove=self.overwrite,
-                                                      replacements=[("ir_fullfield", "fullfield"), ("L2", "L1")])
-                if not found_in_dest or self.overwrite:
+                found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, checked_file)
+                                                      #, replacements=[("ir_fullfield", "fullfield"), ("L2", "L1")])
+                if not found_in_dest:
                     id = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, checked_file)
                     meta = build_metadata(host, self.extractor_info, id, content, 'file')
                     upload_metadata(connector, host, secret_key, id, meta)
@@ -198,11 +198,13 @@ class FullFieldMosaicStitcher(TerrarefExtractor):
                 filepath = self.remapMountPath(connector, tpath)
                 tifftxt.write("%s\n" % filepath)
 
-        if (self.thumb and ((not file_exists(out_vrt)) or self.overwrite)) or (
-                    not self.thumb and (not file_exists(out_vrt))):
+        if (self.thumb and ((not file_exists(out_vrt)) or self.overwrite)) or (not self.thumb and (not file_exists(out_vrt))):
             # Create VRT from every GeoTIFF
             self.log_info(resource, "Creating VRT %s..." % out_vrt)
-            full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
+            if out_vrt.endswith("_mask.vrt"):
+                full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt, alpha=True)
+            else:
+                full_day_to_tiles.createVrtPermanent(out_dir, tiflist, out_vrt)
             os.remove(tiflist)
             created += 1
             bytes += os.path.getsize(out_vrt)

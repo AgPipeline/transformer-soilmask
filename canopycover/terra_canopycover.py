@@ -3,7 +3,7 @@
 import json
 import os
 import yaml
-from numpy import asarray, rollaxis, count_nonzero
+from numpy import asarray, rollaxis, count_nonzero, sum
 
 from pyclowder.utils import CheckMessage
 from pyclowder.datasets import get_info
@@ -14,8 +14,6 @@ from terrautils.betydb import add_arguments, get_sites, get_sites_by_latlon, sub
     get_site_boundaries
 from terrautils.metadata import get_extractor_metadata, get_terraref_metadata
 from terrautils.spatial import geojson_to_tuples_betydb, clip_raster, centroid_from_geojson
-
-import terraref.stereo_rgb
 
 
 # TODO: Keep these in terrautils.bety instead
@@ -55,15 +53,23 @@ def calculate_canopycover_masked(pxarray):
     """Return greenness percentage of given numpy array of pixels.
 
     Arguments:
-      pxarray (numpy array): rgb image
+      pxarray (numpy array): rgba image where alpha 255=data and alpha 0=NoData
 
     Returns:
       (float): greenness percentage
     """
 
-    # For masked images, all nonzero pixels are considered canopy
-    nz = count_nonzero(pxarray)
-    ratio = nz/float(pxarray.size)
+    # If > 75% is NoData, return a -1 ccvalue for omission later
+    total_size = pxarray.shape[0] * pxarray.shape[1]
+    nodata = count_nonzero(pxarray[:, :, 3]==0)
+    nodata_ratio = nodata/float(total_size)
+    if nodata_ratio > 0.75:
+        return -1
+
+    # For masked images, all pixels with rgb>0,0,0 are considered canopy
+    data = pxarray[pxarray[:, :, 3]==255]
+    canopy = len(data[sum(data[:, 0:3], 1)>0])
+    ratio = canopy/float(total_size - nodata)
     # Scale ratio from 0-1 to 0-100
     ratio *= 100.0
 
@@ -92,7 +98,7 @@ class CanopyCoverHeight(TerrarefExtractor):
         if resource['name'].startswith('rgb_fullfield') > -1 and resource['name'].endswith('_mask.tif'):
             # Check metadata to verify we have what we need
             md = download_metadata(connector, host, secret_key, resource['id'])
-            if get_extractor_metadata(md, self.extractor_info['name']) and not self.overwrite:
+            if get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']) and not self.overwrite:
                 self.log_skip(resource,"metadata indicates it was already processed")
                 return CheckMessage.ignore
             return CheckMessage.download
@@ -147,15 +153,16 @@ class CanopyCoverHeight(TerrarefExtractor):
 
                     ccVal = calculate_canopycover_masked(rollaxis(pxarray,0,3))
 
-                    # Prepare and submit datapoint
-                    geo_file.write(','.join([plotname,
-                                             'Canopy Cover',
-                                             str(centroid_lonlat[1]),
-                                             str(centroid_lonlat[0]),
-                                             time_fmt,
-                                             host + ("" if host.endswith("/") else "/") + "files/" + resource['id'],
-                                             str(ccVal),
-                                             timestamp]) + '\n')
+                    if (ccVal > -1):
+                        # Prepare and submit datapoint
+                        geo_file.write(','.join([plotname,
+                                                 'Canopy Cover',
+                                                 str(centroid_lonlat[1]),
+                                                 str(centroid_lonlat[0]),
+                                                 time_fmt,
+                                                 host + ("" if host.endswith("/") else "/") + "files/" + resource['id'],
+                                                 str(ccVal),
+                                                 timestamp]) + '\n')
 
                     successful_plots += 1
                     if successful_plots % 10 == 0:
@@ -166,11 +173,12 @@ class CanopyCoverHeight(TerrarefExtractor):
                 self.log_error(resource, "error generating cc for %s" % plotname)
                 continue
 
-            traits['canopy_cover'] = str(ccVal)
-            traits['site'] = plotname
-            traits['local_datetime'] = timestamp+"T12:00:00"
-            trait_list = generate_traits_list(traits)
-            csv_file.write(','.join(map(str, trait_list)) + '\n')
+            if (ccVal > -1):
+                traits['canopy_cover'] = str(ccVal)
+                traits['site'] = plotname
+                traits['local_datetime'] = timestamp+"T12:00:00"
+                trait_list = generate_traits_list(traits)
+                csv_file.write(','.join(map(str, trait_list)) + '\n')
 
         csv_file.close()
         geo_file.close()

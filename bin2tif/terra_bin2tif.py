@@ -46,17 +46,13 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         # Check metadata to verify we have what we need
         md = download_metadata(connector, host, secret_key, resource['id'])
         if get_terraref_metadata(md):
-            if get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
+            if not self.overwrite and get_extractor_metadata(md, self.extractor_info['name'], self.extractor_info['version']):
                 # Make sure outputs properly exist
                 timestamp = resource['dataset_info']['name'].split(" - ")[1]
                 left_tiff = self.sensors.create_sensor_path(timestamp, opts=['left'])
                 right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
                 if file_exists(left_tiff) and file_exists(right_tiff):
-                    if contains_required_files(resource, [os.path.basename(left_tiff), os.path.basename(right_tiff)]):
-                        self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
-                        return CheckMessage.ignore
-                    else:
-                        self.log_info(resource, "output files exist but not yet uploaded")
+                    self.log_skip(resource, "metadata v%s and outputs already exist" % self.extractor_info['version'])
             # Have TERRA-REF metadata, but not any from this extractor
             return CheckMessage.download
         else:
@@ -98,15 +94,17 @@ class StereoBin2JpgTiff(TerrarefExtractor):
         right_tiff = self.sensors.create_sensor_path(timestamp, opts=['right'])
         uploaded_file_ids = []
 
-        # Attach LemnaTec source metadata to Level_1 product
-        self.log_info(resource, "uploading LemnaTec metadata to ds [%s]" % target_dsid)
-        remove_metadata(connector, host, secret_key, target_dsid, self.extractor_info['name'])
-        terra_md_trim = get_terraref_metadata(all_dsmd)
-        if updated_experiment is not None:
-            terra_md_trim['experiment_metadata'] = updated_experiment
-        terra_md_trim['raw_data_source'] = host + ("" if host.endswith("/") else "/") + "datasets/" + resource['id']
-        level1_md = build_metadata(host, self.extractor_info, target_dsid, terra_md_trim, 'dataset')
-        upload_metadata(connector, host, secret_key, target_dsid, level1_md)
+        # Attach LemnaTec source metadata to Level_1 product if necessary
+        target_md = download_metadata(connector, host, secret_key, target_dsid)
+        if not get_extractor_metadata(target_md, self.extractor_info['name']):
+            self.log_info(resource, "uploading LemnaTec metadata to ds [%s]" % target_dsid)
+            remove_metadata(connector, host, secret_key, target_dsid, self.extractor_info['name'])
+            terra_md_trim = get_terraref_metadata(all_dsmd)
+            if updated_experiment is not None:
+                terra_md_trim['experiment_metadata'] = updated_experiment
+            terra_md_trim['raw_data_source'] = host + ("" if host.endswith("/") else "/") + "datasets/" + resource['id']
+            level1_md = build_metadata(host, self.extractor_info, target_dsid, terra_md_trim, 'dataset')
+            upload_metadata(connector, host, secret_key, target_dsid, level1_md)
 
         try:
             left_shape = terraref.stereo_rgb.get_image_shape(terra_md_full, 'left')
@@ -127,8 +125,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(left_tiff)
         # Check if the file should be uploaded, even if it was already created
-        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_tiff, remove=self.overwrite)
-        if not found_in_dest or self.overwrite:
+        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, left_tiff)
+        if not found_in_dest:
             self.log_info(resource, "uploading %s" % left_tiff)
             fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, left_tiff)
             uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
@@ -143,8 +141,8 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             self.created += 1
             self.bytes += os.path.getsize(right_tiff)
         # Check if the file should be uploaded, even if it was already created
-        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_tiff, remove=self.overwrite)
-        if not found_in_dest or self.overwrite:
+        found_in_dest = check_file_in_dataset(connector, host, secret_key, target_dsid, right_tiff)
+        if not found_in_dest:
             self.log_info(resource, "uploading %s" % right_tiff)
             fileid = upload_to_dataset(connector, host, self.clowder_user, self.clowder_pass, target_dsid, right_tiff)
             uploaded_file_ids.append(host + ("" if host.endswith("/") else "/") + "files/" + fileid)
@@ -162,7 +160,10 @@ class StereoBin2JpgTiff(TerrarefExtractor):
             }, 'dataset')
             self.log_info(resource, "uploading extractor metadata to raw dataset")
             remove_metadata(connector, host, secret_key, resource['id'], self.extractor_info['name'])
-            upload_metadata(connector, host, secret_key, resource['id'], extractor_md)
+            try:
+                upload_metadata(connector, host, secret_key, resource['id'], extractor_md)
+            except:
+                self.log_info(resource, "problem uploading extractor metadata...")
 
         self.end_message(resource)
 
