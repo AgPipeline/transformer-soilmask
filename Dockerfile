@@ -1,3 +1,5 @@
+# Version 1.0 template-transformer-simple 
+
 FROM agpipeline/gantry-base-image:latest
 LABEL maintainer="Chris Schnaufer <schnaufer@email.arizona.edu>"
 

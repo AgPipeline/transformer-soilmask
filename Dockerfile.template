@@ -1,3 +1,5 @@
+# Version 1.0 template-transformer-simple 
+
 FROM base-image
 LABEL maintainer=""
 
