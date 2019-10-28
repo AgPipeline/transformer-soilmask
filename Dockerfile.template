@@ -1,0 +1,7 @@
+FROM base-image
+LABEL maintainer=""
+
+COPY configuration.py transformer.py requirements.txt /home/extractor/
+
+RUN python3 -m pip install --no-cache-dir -r /home/extractor/requirements.txt && \
+    rm /home/extractor/requirements.txt

@@ -1,35 +1,24 @@
-# Stereo 3D RGB extractors
+# Transformer Template
+A template for creating transformers for multiple environments.
 
-This repository contains extractors that process data originating from the GT3300C 8MP RGB Camera.
+## Quick Start
+To use this template:
+1. Clone this template into a new repository
+2. Fill out the `configuration.py` file with your information. Feel free to add additional variables.
+3. Add your code to the `transformer.py` file, filling in the *add_parameters*, *check_continue*, and *perform_process* functions.
+4. Run the `generate-docker.py` script to generate your Dockerfile for building images
+5. Build the Docker image for your transformer, being sure to specify the desired source image
 
-### Canopy cover extractor
-This extractor processes binary stereo images and generates plot-level percentage canopy cover traits for BETYdb.
- 
-_Input_
+For your transformer to be accepted, be sure to have test cases and continuous integration setup.
+Please be sure to read about how to contribute in the documents held in our [main repository](https://github.com/AgPipeline/Organization-info).
 
-  - Evaluation is triggered whenever a file is added to a dataset
-  - Following data must be found
-    - _left.bin image
-    - _right.bin image
-    - dataset metadata for the left+right capture dataset; can be attached as Clowder metadata or included as a metadata.json file
-    
-_Output_
+## Extending the Template
+There are situations where this template won't be sufficient as a transformer for an environment.
+In these cases it's recommended that instead of forking this repo and making modifications, a new template repo is created with the expectation that the processing code will be a submodule to it.
+Scripts and/or instructions can then be provided on cloning this repo, specifying the submodule, and how to create a working transformer for the environment.
 
-  - CSV with canopy coverage traits will be added to original dataset in Clowder
-  - The configured BETYdb instance will have canopy coverage traits inserted
+The benefit of this approach is that the processing code can be updated in its original repo, and a clear update path is available to create an updated transformer for the environment.
+Another benefit is the clean separation of the processing logic and the environment via seperate repos.
 
-### Full field mosaic stitching extractor
-
-This extractor takes a day of stereo BIN files and creates tiled JPG/TIFF images as well as a map HTML page.
-
-_Input_
-
-  - Currently this should be run on Roger as a job. Date is primary parameter.
-
-### Stereo Texture Analysis
-
-Computes geometric and texture properties using the [computeFeatures](https://rdrr.io/bioc/EBImage/man/computeFeatures.html) functions in the EBImage R package 
-
-### RGB image quality enhancement extractor
-This extractor is designed to improve the RGB image (Gantry or UAS imaging systems) quality in term of visualization from four different aspects: illumination, contrast, noise, and color.
+A drawback is that there may be a proliferation of repos.
 
