@@ -23,249 +23,282 @@ SATURATE_THRESHOLD = 245
 MAX_PIXEL_VAL = 255
 SMALL_AREA_THRESHOLD = 200
 
-def get_image_quality(imgfile: str) -> np.ndarray:
-    """Computes and returns the image score for the image file
-    Arguments:
-        imgfile: the name of the file to compute the score for
-    Returns:
-        The score for the image
+class __internal__():
+    """Class for functions intended for internal use only for this file
     """
-    img = Image.open(imgfile)
-    img = np.array(img)
+    def __init__(self):
+        """Performs initialization of class instance
+        """
 
-    nrmac = MAC(img, img, img)
+    @staticmethod
+    def get_image_quality(imgfile: str) -> np.ndarray:
+        """Computes and returns the image score for the image file
+        Arguments:
+            imgfile: the name of the file to compute the score for
+        Returns:
+            The score for the image
+        """
+        img = Image.open(imgfile)
+        img = np.array(img)
 
-    return nrmac
+        nrmac = __internal__.MAC(img, img, img)
 
-def gen_plant_mask(color_img: np.ndarray, kernel_size: int = 3) -> np.ndarray:
-    """Generates an image with plants masked in.
-    Arguments:
-        color_img: RGB image to mask
-        kernel_size: masking kernel size
-    Return:
-        An RGB image with plants masked in
-    """
-    r_channel = color_img[:, :, 2]
-    g_channel = color_img[:, :, 1]
-    b_channel = color_img[:, :, 0]
+        return nrmac
 
-    sub_img = (g_channel.astype('int') - r_channel.astype('int') - 0) > 0  # normal: -2
+    @staticmethod
+    def gen_plant_mask(color_img: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+        """Generates an image with plants masked in.
+        Arguments:
+            color_img: RGB image to mask
+            kernel_size: masking kernel size
+        Return:
+            An RGB image with plants masked in
+        """
+        r_channel = color_img[:, :, 2]
+        g_channel = color_img[:, :, 1]
+        b_channel = color_img[:, :, 0]
 
-    mask = np.zeros_like(b_channel)
+        sub_img = (g_channel.astype('int') - r_channel.astype('int') - 0) > 0  # normal: -2
 
-    mask[sub_img] = MAX_PIXEL_VAL
+        mask = np.zeros_like(b_channel)
 
-    blur = cv2.blur(mask, (kernel_size, kernel_size))
-    pix = np.array(blur)
-    sub_mask = pix > 128
+        mask[sub_img] = MAX_PIXEL_VAL
 
-    mask_1 = np.zeros_like(b_channel)
-    mask_1[sub_mask] = MAX_PIXEL_VAL
+        blur = cv2.blur(mask, (kernel_size, kernel_size))
+        pix = np.array(blur)
+        sub_mask = pix > 128
 
-    return mask_1
+        mask_1 = np.zeros_like(b_channel)
+        mask_1[sub_mask] = MAX_PIXEL_VAL
 
-def remove_small_area_mask(mask_img: np.ndarray, min_area_size: int) -> np.ndarray:
-    """Removes small anomalies in the mask
-    Arguments:
-        mask_img: the mask image to remove anomalies from
-        min_area_size: the size of anomalies to look for
-    Return:
-        A new mask image with the anomalies removed
-    """
-    mask_array = mask_img > 0
-    rel_array = morphology.remove_small_objects(mask_array, min_area_size)
+        return mask_1
 
-    rel_img = np.zeros_like(mask_img)
-    rel_img[rel_array] = MAX_PIXEL_VAL
+    @staticmethod
+    def remove_small_area_mask(mask_img: np.ndarray, min_area_size: int) -> np.ndarray:
+        """Removes small anomalies in the mask
+        Arguments:
+            mask_img: the mask image to remove anomalies from
+            min_area_size: the size of anomalies to look for
+        Return:
+            A new mask image with the anomalies removed
+        """
+        mask_array = mask_img > 0
+        rel_array = morphology.remove_small_objects(mask_array, min_area_size)
 
-    return rel_img
+        rel_img = np.zeros_like(mask_img)
+        rel_img[rel_array] = MAX_PIXEL_VAL
 
-def remove_small_holes_mask(mask_img: np.ndarray, max_hole_size: int) -> np.ndarray:
-    """Removes small holes from the mask image
-    Arguments:
-        mask_image: the mask image to remove holes from
-        max_hole_size: the maximum size of holes to remove
-    Return:
-        A new mask image with the holes removed
-    """
-    mask_array = mask_img > 0
-    rel_array = morphology.remove_small_holes(mask_array, max_hole_size)
-    rel_img = np.zeros_like(mask_img)
-    rel_img[rel_array] = MAX_PIXEL_VAL
+        return rel_img
 
-    return rel_img
+    @staticmethod
+    def remove_small_holes_mask(mask_img: np.ndarray, max_hole_size: int) -> np.ndarray:
+        """Removes small holes from the mask image
+        Arguments:
+            mask_image: the mask image to remove holes from
+            max_hole_size: the maximum size of holes to remove
+        Return:
+            A new mask image with the holes removed
+        """
+        mask_array = mask_img > 0
+        rel_array = morphology.remove_small_holes(mask_array, max_hole_size)
+        rel_img = np.zeros_like(mask_img)
+        rel_img[rel_array] = MAX_PIXEL_VAL
 
-def saturated_pixel_classification(gray_img: np.ndarray, base_mask: np.ndarray, saturated_mask: np.ndarray,
-                                   dilate_size: int = 0) -> np.ndarray:
-    """Returns an image with pixes classified for masking
-    Arguments:
-    Returns:
-        A mask image with the pixels classified
-    """
-    # add saturated area into basic mask
-    saturated_mask = morphology.binary_dilation(saturated_mask, morphology.diamond(dilate_size))
+        return rel_img
 
-    rel_img = np.zeros_like(gray_img)
-    rel_img[saturated_mask] = MAX_PIXEL_VAL
+    @staticmethod
+    def saturated_pixel_classification(gray_img: np.ndarray, base_mask: np.ndarray, saturated_mask: np.ndarray,
+                                       dilate_size: int = 0) -> np.ndarray:
+        """Returns an image with pixes classified for masking
+        Arguments:
+        Returns:
+            A mask image with the pixels classified
+        """
+        # add saturated area into basic mask
+        saturated_mask = morphology.binary_dilation(saturated_mask, morphology.diamond(dilate_size))
 
-    label_img, num = morphology.label(rel_img, connectivity=2, return_num=True)
+        rel_img = np.zeros_like(gray_img)
+        rel_img[saturated_mask] = MAX_PIXEL_VAL
 
-    rel_mask = base_mask
+        label_img, num = morphology.label(rel_img, connectivity=2, return_num=True)
 
-    for idx in range(1, num):
-        match = (label_img == idx)
+        rel_mask = base_mask
 
-        if np.sum(match) > 100000:  # if the area is too large, do not add it into basic mask
-            continue
+        for idx in range(1, num):
+            match = (label_img == idx)
 
-        if not (match & base_mask).any():
-            continue
+            if np.sum(match) > 100000:  # if the area is too large, do not add it into basic mask
+                continue
 
-        rel_mask = rel_mask | match
+            if not (match & base_mask).any():
+                continue
 
-    return rel_mask
+            rel_mask = rel_mask | match
 
-def over_saturation_pocess(rgb_img: np.ndarray, init_mask: np.ndarray, \
-                           threshold: int = SATURATE_THRESHOLD) -> np.ndarray:
-    """Removes over saturated areas from an image
-    Arguments:
-        rgb_image: the image to process
-        init_mask:
-        threshold: The saturation threshold value
-    Return:
-        A new image with over saturated pixels removed
-    """
-    # connected component analysis for over saturation pixels
-    gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
+        return rel_mask
 
-    mask_over = gray_img > threshold
+    @staticmethod
+    def over_saturation_pocess(rgb_img: np.ndarray, init_mask: np.ndarray, \
+                               threshold: int = SATURATE_THRESHOLD) -> np.ndarray:
+        """Removes over saturated areas from an image
+        Arguments:
+            rgb_image: the image to process
+            init_mask:
+            threshold: The saturation threshold value
+        Return:
+            A new image with over saturated pixels removed
+        """
+        # connected component analysis for over saturation pixels
+        gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
 
-    mask_0 = gray_img < threshold
+        mask_over = gray_img > threshold
 
-    src_mask_array = init_mask > 0
+        mask_0 = gray_img < threshold
 
-    mask_1 = src_mask_array & mask_0
+        src_mask_array = init_mask > 0
 
-    mask_1 = morphology.remove_small_objects(mask_1, SMALL_AREA_THRESHOLD)
+        mask_1 = src_mask_array & mask_0
 
-    mask_over = morphology.remove_small_objects(mask_over, SMALL_AREA_THRESHOLD)
+        mask_1 = morphology.remove_small_objects(mask_1, SMALL_AREA_THRESHOLD)
 
-    rel_mask = saturated_pixel_classification(gray_img, mask_1, mask_over, 1)
-    rel_img = np.zeros_like(gray_img)
-    rel_img[rel_mask] = MAX_PIXEL_VAL
+        mask_over = morphology.remove_small_objects(mask_over, SMALL_AREA_THRESHOLD)
 
-    return rel_img
+        rel_mask = __internal__.saturated_pixel_classification(gray_img, mask_1, mask_over, 1)
+        rel_img = np.zeros_like(gray_img)
+        rel_img[rel_mask] = MAX_PIXEL_VAL
 
-def gen_saturated_mask(img: np.ndarray, kernel_size: int) -> np.ndarray:
-    """Generates a mask of over saturated pixels
-    Arguments:
-        img: the image to generate the mask from
-        kernel_size: the size of masking kernel
-    Returns:
-        The image mask of over saturated pixels
-    """
-    bin_mask = gen_plant_mask(img, kernel_size)
-    bin_mask = remove_small_area_mask(bin_mask,
-                                      500)  # 500 is a parameter for number of pixels to be removed as small area
-    bin_mask = remove_small_holes_mask(bin_mask,
-                                       300)  # 300 is a parameter for number of pixels to be filled as small holes
+        return rel_img
 
-    bin_mask = over_saturation_pocess(img, bin_mask, SATURATE_THRESHOLD)
+    @staticmethod
+    def gen_saturated_mask(img: np.ndarray, kernel_size: int) -> np.ndarray:
+        """Generates a mask of over saturated pixels
+        Arguments:
+            img: the image to generate the mask from
+            kernel_size: the size of masking kernel
+        Returns:
+            The image mask of over saturated pixels
+        """
+        bin_mask = __internal__.gen_plant_mask(img, kernel_size)
+        bin_mask = __internal__.remove_small_area_mask(bin_mask,
+                                                       500)  # 500 is a parameter for number of pixels to be removed as small area
+        bin_mask = __internal__.remove_small_holes_mask(bin_mask,
+                                                        300)  # 300 is a parameter for number of pixels to be filled as small holes
 
-    bin_mask = remove_small_holes_mask(bin_mask, 4000)
+        bin_mask = __internal__.over_saturation_pocess(img, bin_mask, SATURATE_THRESHOLD)
 
-    return bin_mask
+        bin_mask = __internal__.remove_small_holes_mask(bin_mask, 4000)
 
-def gen_mask(img: np.ndarray, kernel_size: int) -> np.ndarray:
-    """Generated the mask for plants
-    Arguments:
-        img: the image used to mask in plants
-        kernel_size: the size of the image processing kernel
-    Return:
-        A new image mask
-    """
-    bin_mask = gen_plant_mask(img, kernel_size)
-    bin_mask = remove_small_area_mask(bin_mask, SMALL_AREA_THRESHOLD)
-    bin_mask = remove_small_holes_mask(bin_mask,
-                                       3000)  # 3000 is a parameter for number of pixels to be filled as small holes
+        return bin_mask
 
-    return bin_mask
+    @staticmethod
+    def gen_mask(img: np.ndarray, kernel_size: int) -> np.ndarray:
+        """Generated the mask for plants
+        Arguments:
+            img: the image used to mask in plants
+            kernel_size: the size of the image processing kernel
+        Return:
+            A new image mask
+        """
+        bin_mask = __internal__.gen_plant_mask(img, kernel_size)
+        bin_mask = __internal__.remove_small_area_mask(bin_mask, SMALL_AREA_THRESHOLD)
+        bin_mask = __internal__.remove_small_holes_mask(bin_mask,
+                                                        3000)  # 3000 is a parameter for number of pixels to be filled as small holes
 
-def gen_rgb_mask(img: np.ndarray, bin_mask: np.ndarray) -> np.ndarray:
-    """Applies the mask to the image
-    Arguments:
-        img: the source image to mask
-        bin_mask: the mask to apply to the image
-    Return:
-        A new image that had the mask applied
-    """
-    rgb_mask = cv2.bitwise_and(img, img, mask=bin_mask)
+        return bin_mask
 
-    return rgb_mask
+    @staticmethod
+    def gen_rgb_mask(img: np.ndarray, bin_mask: np.ndarray) -> np.ndarray:
+        """Applies the mask to the image
+        Arguments:
+            img: the source image to mask
+            bin_mask: the mask to apply to the image
+        Return:
+            A new image that had the mask applied
+        """
+        rgb_mask = cv2.bitwise_and(img, img, mask=bin_mask)
 
-def rgb2gray(rgb: np.ndarray) -> np.ndarray:
-    """Converts RGB image to grey scale
-    Arguments:
-        rgb: the image to convert
-    Return:
-        The greyscale image
-    """
-    r_channel, g_channel, b_channel = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
-    gray = 0.2989 * r_channel + 0.5870 * g_channel + 0.1140 * b_channel
-    return gray
+        return rgb_mask
 
-def MAC(im1: np.ndarray, im2: np.ndarray, im: np.ndarray) -> np.ndarray:    # pylint: disable=invalid-name
-    """Calculates an image score of Multiscale Autocorrelation (MAC)
-    Arguments:
-    Return:
-        Returns the scored image
-    """
-    h_dim, _, c_dim = im1.shape
-    if c_dim > 1:
-        im = np.matrix.round(rgb2gray(im))
-        im1 = np.matrix.round(rgb2gray(im1))
-        im2 = np.matrix.round(rgb2gray(im2))
-    # multiscale parameters
-    scales = np.array([2, 3, 5])
-    fm_arr = np.zeros(len(scales))
-    for idx, _ in enumerate(scales):
-        im1[0: h_dim - 1, :] = im[1:h_dim, :]
-        im2[0: h_dim - scales[idx], :] = im[scales[idx]:h_dim, :]
-        dif = im * (im1 - im2)
-        fm_arr[idx] = np.mean(dif)
-    nrmac = np.mean(fm_arr)
-    return nrmac
+    @staticmethod
+    def rgb2gray(rgb: np.ndarray) -> np.ndarray:
+        """Converts RGB image to grey scale
+        Arguments:
+            rgb: the image to convert
+        Return:
+            The greyscale image
+        """
+        r_channel, g_channel, b_channel = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+        gray = 0.2989 * r_channel + 0.5870 * g_channel + 0.1140 * b_channel
+        return gray
 
-def check_saturation(img: np.ndarray) -> list:
-    """Checks the saturation of an image
-    Arguments:
-        img: the image to check
-    Return:
-        A list containing the over threshold rate and the under threshold rate
-    """
-    # check how many percent of pix close to 255 or 0
-    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    @staticmethod
+    def MAC(im1: np.ndarray, im2: np.ndarray, im: np.ndarray) -> np.ndarray:    # pylint: disable=invalid-name
+        """Calculates an image score of Multiscale Autocorrelation (MAC)
+        Arguments:
+        Return:
+            Returns the scored image
+        """
+        h_dim, _, c_dim = im1.shape
+        if c_dim > 1:
+            im = np.matrix.round(__internal__.rgb2gray(im))
+            im1 = np.matrix.round(__internal__.rgb2gray(im1))
+            im2 = np.matrix.round(__internal__.rgb2gray(im2))
+        # multiscale parameters
+        scales = np.array([2, 3, 5])
+        fm_arr = np.zeros(len(scales))
+        for idx, _ in enumerate(scales):
+            im1[0: h_dim - 1, :] = im[1:h_dim, :]
+            im2[0: h_dim - scales[idx], :] = im[scales[idx]:h_dim, :]
+            dif = im * (im1 - im2)
+            fm_arr[idx] = np.mean(dif)
+        nrmac = np.mean(fm_arr)
+        return nrmac
 
-    over_threshold = gray_img > SATURATE_THRESHOLD
-    under_threshold = gray_img < 20  # 20 is a threshold to classify low pixel value
+    @staticmethod
+    def check_saturation(img: np.ndarray) -> list:
+        """Checks the saturation of an image
+        Arguments:
+            img: the image to check
+        Return:
+            A list containing the over threshold rate and the under threshold rate
+        """
+        # check how many percent of pix close to 255 or 0
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    over_rate = float(np.sum(over_threshold)) / float(gray_img.size)
-    low_rate = float(np.sum(under_threshold)) / float(gray_img.size)
+        over_threshold = gray_img > SATURATE_THRESHOLD
+        under_threshold = gray_img < 20  # 20 is a threshold to classify low pixel value
 
-    return over_rate, low_rate
+        over_rate = float(np.sum(over_threshold)) / float(gray_img.size)
+        low_rate = float(np.sum(under_threshold)) / float(gray_img.size)
 
-def check_brightness(img: np.ndarray) -> float:
-    """Generates average pixel value from grayscale image
-    Arguments:
-        img: the source image
-    Returns:
-        The average pixel value of the image
-    """
-    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return over_rate, low_rate
 
-    avg_value = np.average(gray_img)
+    @staticmethod
+    def check_brightness(img: np.ndarray) -> float:
+        """Generates average pixel value from grayscale image
+        Arguments:
+            img: the source image
+        Returns:
+            The average pixel value of the image
+        """
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    return avg_value
+        avg_value = np.average(gray_img)
+
+        return avg_value
+
+    @staticmethod
+    def get_maskfilename(filename: str) -> str:
+        """Returns the name of the file to use as a mask. Any path information
+           in the filename parameter is not returned.
+        Arguments:
+            filename: the name of the file to convert to a mask name
+        Return:
+            The name of the mask file
+        """
+        base, ext = os.path.splitext(os.path.basename(filename))
+
+        return base + "_mask" + ext
 
 def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> list:
     """Generates an image mask keeping plants
@@ -283,7 +316,7 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> list:
 
     # calculate image scores
     # pylint: disable=unused-variable
-    over_rate, low_rate = check_saturation(img)
+    over_rate, low_rate = __internal__.check_saturation(img)
 
     # TODO: disabling this check for now because it's crashing extractor - generate mask regardless
     # if low score, return None
@@ -300,28 +333,16 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> list:
     # over_rate is percentage of high value pixels(higher than SATUTATE_THRESHOLD) in the grayscale image, if
     # over_rate > 0.15, try to fix it use gen_saturated_mask()
     if over_rate > 0.15:
-        bin_mask = gen_saturated_mask(img, kernel_size)
+        bin_mask = __internal__.gen_saturated_mask(img, kernel_size)
     else:  # nomal image process
-        bin_mask = gen_mask(img, kernel_size)
+        bin_mask = __internal__.gen_mask(img, kernel_size)
 
     count = np.count_nonzero(bin_mask)
     ratio = count / float(bin_mask.size)
 
-    rgb_mask = gen_rgb_mask(img, bin_mask)
+    rgb_mask = __internal__.gen_rgb_mask(img, bin_mask)
 
     return ratio, rgb_mask
-
-def get_maskfilename(filename: str) -> str:
-    """Returns the name of the file to use as a mask. Any path information
-       in the filename parameter is not returned.
-    Arguments:
-        filename: the name of the file to convert to a mask name
-    Return:
-        The name of the mask file
-    """
-    base, ext = os.path.splitext(os.path.basename(filename))
-
-    return base + "_mask" + ext
 
 def check_continue(transformer: transformer_class.Transformer, check_md: dict, transformer_md: dict,
                    full_md: dict) -> list:
@@ -406,7 +427,7 @@ def perform_process(transformer: transformer_class.Transformer, check_md: dict, 
                 continue
 
             # Get the mask name using the original name as reference
-            rgb_mask_tif = os.path.join(check_md['working_folder'], get_maskfilename(one_file))
+            rgb_mask_tif = os.path.join(check_md['working_folder'], __internal__.get_maskfilename(one_file))
 
             # Create the mask file
             logging.debug("Creating mask file '%s'", rgb_mask_tif)
