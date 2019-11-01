@@ -2,7 +2,7 @@
 Masks out the soil in images
 
 ### Sample Docker Command line
-Below is a sample command line that shows how the metadata cleaner Docker image could be run.
+Below is a sample command line that shows how the soil mask Docker image could be run.
 An explanation of the command line options used follows.
 Be sure to read up on the [docker run](https://docs.docker.com/engine/reference/run/) command line for more information.
 
