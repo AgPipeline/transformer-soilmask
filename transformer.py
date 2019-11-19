@@ -345,7 +345,7 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> list:
     return ratio, rgb_mask
 
 def check_continue(transformer: transformer_class.Transformer, check_md: dict, transformer_md: dict,
-                   full_md: dict) -> list:
+                   full_md: dict) -> tuple:
     """Checks if conditions are right for continuing processing
     Arguments:
         transformer: instance of transformer class
@@ -353,7 +353,7 @@ def check_continue(transformer: transformer_class.Transformer, check_md: dict, t
         transformer_md: the metadata associated with this transformer
         full_md: the full set of original metadata
     Return:
-        Returns a dictionary containining the return code for continuing or not, and
+        Returns a tuple containining the return code for continuing or not, and
         an error message if there's an error
     """
     # pylint: disable=unused-argument
