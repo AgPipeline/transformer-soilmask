@@ -353,11 +353,11 @@ def check_continue(transformer: transformer_class.Transformer, check_md: dict, t
         transformer_md: the metadata associated with this transformer
         full_md: the full set of original metadata
     Return:
-        Returns a tuple containining the return code for continuing or not, and
+        Returns a tuple containing the return code for continuing or not, and
         an error message if there's an error
     """
     # pylint: disable=unused-argument
-    result = {}
+    result = {'code': -2, 'message': "No TIFF files were specified for processing"}
 
     # Ensure we have a TIFF file
     if check_md and 'list_files' in check_md:
@@ -402,7 +402,7 @@ def perform_process(transformer: transformer_class.Transformer, check_md: dict, 
             mask_source = one_file
 
             # Get the image's EPSG code
-            epsg = tr_get_epsg(mask_source)
+            epsg = transformer.get_image_file_epsg(mask_source)
             if epsg is None:
                 logging.debug("Skipping image that is not georeferenced: '%s'", mask_source)
                 continue
@@ -417,7 +417,7 @@ def perform_process(transformer: transformer_class.Transformer, check_md: dict, 
                 mask_source = tmp_name
 
             # Get the bounds of the image to see if we can process it.
-            bounds = tr_image_get_geobounds(mask_source)
+            bounds = transformer.get_image_file_geobounds(mask_source)
 
             if bounds is None:
                 logging.warning("Unable to get bounds of georeferenced image: '%s'",
