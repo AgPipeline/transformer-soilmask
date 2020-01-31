@@ -18,8 +18,14 @@ RUN [ -s /home/extractor/packages.txt ] && \
     (echo 'No packages to install' && \
         rm /home/extractor/packages.txt)
 
-RUN python3 -m pip install --no-cache-dir -r /home/extractor/requirements.txt && \
-    rm /home/extractor/requirements.txt
+RUN [ -s /home/extractor/requirements.txt ] && \
+    (echo "Install python modules" && \
+    python3 -m pip install -U --no-cache-dir pip && \
+    python3 -m pip install --no-cache-dir setuptools && \
+    python3 -m pip install --no-cache-dir -r /home/extractor/requirements.txt && \
+    rm /home/extractor/requirements.txt) || \
+    (echo "No python modules to install" && \
+    rm /home/extractor/requirements.txt)
 
 USER extractor
 

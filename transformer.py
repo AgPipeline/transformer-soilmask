@@ -8,13 +8,11 @@ import numpy as np
 import cv2
 
 from osgeo import gdal
-from PIL import Image
+# from PIL import Image  Used by code that's getting deprecated
 from skimage import morphology
 
 from terrautils.formats import create_geotiff as tr_create_geotiff, \
                                compress_geotiff as tr_compress_geotiff
-from terrautils.imagefile import get_epsg as tr_get_epsg, \
-                                 image_get_geobounds as tr_image_get_geobounds
 
 import configuration
 import transformer_class
@@ -23,6 +21,7 @@ SATURATE_THRESHOLD = 245
 MAX_PIXEL_VAL = 255
 SMALL_AREA_THRESHOLD = 200
 
+
 class __internal__():
     """Class for functions intended for internal use only for this file
     """
@@ -30,20 +29,20 @@ class __internal__():
         """Performs initialization of class instance
         """
 
-    @staticmethod
-    def get_image_quality(imgfile: str) -> np.ndarray:
-        """Computes and returns the image score for the image file
-        Arguments:
-            imgfile: the name of the file to compute the score for
-        Returns:
-            The score for the image
-        """
-        img = Image.open(imgfile)
-        img = np.array(img)
-
-        nrmac = __internal__.MAC(img, img, img)
-
-        return nrmac
+#    @staticmethod
+#    def get_image_quality(imgfile: str) -> np.ndarray:
+#        """Computes and returns the image score for the image file
+#        Arguments:
+#            imgfile: the name of the file to compute the score for
+#        Returns:
+#            The score for the image
+#        """
+#        img = Image.open(imgfile)
+#        img = np.array(img)
+#
+#        nrmac = __internal__.MAC(img, img, img)
+#
+#        return nrmac
 
     @staticmethod
     def gen_plant_mask(color_img: np.ndarray, kernel_size: int = 3) -> np.ndarray:
@@ -91,7 +90,7 @@ class __internal__():
         return rel_img
 
     @staticmethod
-    def remove_small_holes_mask(mask_img: np.ndarray, max_hole_size: int) -> np.ndarray:
+    def remove_small_holes_mask(mask_image: np.ndarray, max_hole_size: int) -> np.ndarray:
         """Removes small holes from the mask image
         Arguments:
             mask_image: the mask image to remove holes from
@@ -99,9 +98,9 @@ class __internal__():
         Return:
             A new mask image with the holes removed
         """
-        mask_array = mask_img > 0
+        mask_array = mask_image > 0
         rel_array = morphology.remove_small_holes(mask_array, max_hole_size)
-        rel_img = np.zeros_like(mask_img)
+        rel_img = np.zeros_like(mask_image)
         rel_img[rel_array] = MAX_PIXEL_VAL
 
         return rel_img
@@ -138,8 +137,7 @@ class __internal__():
         return rel_mask
 
     @staticmethod
-    def over_saturation_pocess(rgb_img: np.ndarray, init_mask: np.ndarray, \
-                               threshold: int = SATURATE_THRESHOLD) -> np.ndarray:
+    def over_saturation_process(rgb_image: np.ndarray, init_mask: np.ndarray, threshold: int = SATURATE_THRESHOLD) -> np.ndarray:
         """Removes over saturated areas from an image
         Arguments:
             rgb_image: the image to process
@@ -149,7 +147,7 @@ class __internal__():
             A new image with over saturated pixels removed
         """
         # connected component analysis for over saturation pixels
-        gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
+        gray_img = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2GRAY)
 
         mask_over = gray_img > threshold
 
@@ -184,7 +182,7 @@ class __internal__():
         bin_mask = __internal__.remove_small_holes_mask(bin_mask,
                                                         300)  # 300 is a parameter for number of pixels to be filled as small holes
 
-        bin_mask = __internal__.over_saturation_pocess(img, bin_mask, SATURATE_THRESHOLD)
+        bin_mask = __internal__.over_saturation_process(img, bin_mask, SATURATE_THRESHOLD)
 
         bin_mask = __internal__.remove_small_holes_mask(bin_mask, 4000)
 
@@ -219,40 +217,40 @@ class __internal__():
 
         return rgb_mask
 
-    @staticmethod
-    def rgb2gray(rgb: np.ndarray) -> np.ndarray:
-        """Converts RGB image to grey scale
-        Arguments:
-            rgb: the image to convert
-        Return:
-            The greyscale image
-        """
-        r_channel, g_channel, b_channel = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
-        gray = 0.2989 * r_channel + 0.5870 * g_channel + 0.1140 * b_channel
-        return gray
+#    @staticmethod
+#    def rgb2gray(rgb: np.ndarray) -> np.ndarray:
+#        """Converts RGB image to grey scale
+#        Arguments:
+#            rgb: the image to convert
+#        Return:
+#            The greyscale image
+#        """
+#        r_channel, g_channel, b_channel = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+#        gray = 0.2989 * r_channel + 0.5870 * g_channel + 0.1140 * b_channel
+#        return gray
 
-    @staticmethod
-    def MAC(im1: np.ndarray, im2: np.ndarray, im: np.ndarray) -> np.ndarray:    # pylint: disable=invalid-name
-        """Calculates an image score of Multiscale Autocorrelation (MAC)
-        Arguments:
-        Return:
-            Returns the scored image
-        """
-        h_dim, _, c_dim = im1.shape
-        if c_dim > 1:
-            im = np.matrix.round(__internal__.rgb2gray(im))
-            im1 = np.matrix.round(__internal__.rgb2gray(im1))
-            im2 = np.matrix.round(__internal__.rgb2gray(im2))
-        # multiscale parameters
-        scales = np.array([2, 3, 5])
-        fm_arr = np.zeros(len(scales))
-        for idx, _ in enumerate(scales):
-            im1[0: h_dim - 1, :] = im[1:h_dim, :]
-            im2[0: h_dim - scales[idx], :] = im[scales[idx]:h_dim, :]
-            dif = im * (im1 - im2)
-            fm_arr[idx] = np.mean(dif)
-        nrmac = np.mean(fm_arr)
-        return nrmac
+#    @staticmethod
+#    def MAC(im1: np.ndarray, im2: np.ndarray, im: np.ndarray) -> np.ndarray:    # pylint: disable=invalid-name
+#        """Calculates an image score of Multiscale Autocorrelation (MAC)
+#        Arguments:
+#        Return:
+#            Returns the scored image
+#        """
+#        h_dim, _, c_dim = im1.shape
+#        if c_dim > 1:
+#            im = np.matrix.round(__internal__.rgb2gray(im))
+#            im1 = np.matrix.round(__internal__.rgb2gray(im1))
+#            im2 = np.matrix.round(__internal__.rgb2gray(im2))
+#        # multiscale parameters
+#        scales = np.array([2, 3, 5])
+#        fm_arr = np.zeros(len(scales))
+#        for idx, _ in enumerate(scales):
+#            im1[0: h_dim - 1, :] = im[1:h_dim, :]
+#            im2[0: h_dim - scales[idx], :] = im[scales[idx]:h_dim, :]
+#            dif = im * (im1 - im2)
+#            fm_arr[idx] = np.mean(dif)
+#        nrmac = np.mean(fm_arr)
+#        return nrmac
 
     @staticmethod
     def check_saturation(img: np.ndarray) -> list:
@@ -273,19 +271,19 @@ class __internal__():
 
         return over_rate, low_rate
 
-    @staticmethod
-    def check_brightness(img: np.ndarray) -> float:
-        """Generates average pixel value from grayscale image
-        Arguments:
-            img: the source image
-        Returns:
-            The average pixel value of the image
-        """
-        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        avg_value = np.average(gray_img)
-
-        return avg_value
+#    @staticmethod
+#    def check_brightness(img: np.ndarray) -> float:
+#        """Generates average pixel value from grayscale image
+#        Arguments:
+#            img: the source image
+#        Returns:
+#            The average pixel value of the image
+#        """
+#        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+#
+#        avg_value = np.average(gray_img)
+#
+#        return avg_value
 
     @staticmethod
     def get_maskfilename(filename: str) -> str:
@@ -300,7 +298,8 @@ class __internal__():
 
         return base + "_mask" + ext
 
-def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> list:
+
+def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> tuple:
     """Generates an image mask keeping plants
     Arguments:
         input_path: the path to the input image
@@ -324,17 +323,17 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> list:
     # aveValue is average pixel value of grayscale image, if aveValue lower than 30 or higher than 195, return
     # quality_score is a score from Multiscale Autocorrelation (MAC), if quality_score lower than 13, return
 
-    #aveValue = check_brightness(img)
-    #quality_score = get_image_quality(input_path)
-    #if low_rate > 0.1 or aveValue < 30 or aveValue > 195 or quality_score < 13:
+    # saveValue = check_brightness(img)
+    # quality_score = get_image_quality(input_path)
+    # if low_rate > 0.1 or aveValue < 30 or aveValue > 195 or quality_score < 13:
     #    return None, None, None
 
     # saturated image process
-    # over_rate is percentage of high value pixels(higher than SATUTATE_THRESHOLD) in the grayscale image, if
+    # over_rate is percentage of high value pixels(higher than SATURATE_THRESHOLD) in the grayscale image, if
     # over_rate > 0.15, try to fix it use gen_saturated_mask()
     if over_rate > 0.15:
         bin_mask = __internal__.gen_saturated_mask(img, kernel_size)
-    else:  # nomal image process
+    else:  # normal image process
         bin_mask = __internal__.gen_mask(img, kernel_size)
 
     count = np.count_nonzero(bin_mask)
@@ -344,8 +343,9 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> list:
 
     return ratio, rgb_mask
 
-def check_continue(transformer: transformer_class.Transformer, check_md: dict, transformer_md: dict,
-                   full_md: dict) -> tuple:
+
+def check_continue(transformer: transformer_class.Transformer, check_md: dict, transformer_md: list,
+                   full_md: list) -> tuple:
     """Checks if conditions are right for continuing processing
     Arguments:
         transformer: instance of transformer class
@@ -357,7 +357,7 @@ def check_continue(transformer: transformer_class.Transformer, check_md: dict, t
         an error message if there's an error
     """
     # pylint: disable=unused-argument
-    result = {'code': -2, 'message': "No TIFF files were specified for processing"}
+    result = {'code': -1002, 'message': "No TIFF files were specified for processing"}
 
     # Ensure we have a TIFF file
     if check_md and 'list_files' in check_md:
@@ -377,8 +377,9 @@ def check_continue(transformer: transformer_class.Transformer, check_md: dict, t
 
     return (result['code'], result['error']) if 'error' in result else (result['code'])
 
-def perform_process(transformer: transformer_class.Transformer, check_md: dict, transformer_md: dict,
-                    full_md: dict) -> dict:
+
+def perform_process(transformer: transformer_class.Transformer, check_md: dict, transformer_md: list,
+                    full_md: list) -> dict:
     """Performs the processing of the data
     Arguments:
         transformer: instance of transformer class'
@@ -397,7 +398,10 @@ def perform_process(transformer: transformer_class.Transformer, check_md: dict, 
         for one_file in check_md['list_files']():
             # Check file by type
             ext = os.path.splitext(one_file)[1].lower()
-            if not ext in ('.tiff', '.tif'):
+            if ext not in ('.tiff', '.tif'):
+                continue
+            if not os.path.exists(one_file):
+                logging.warning("Unable to access file '%s'", one_file)
                 continue
             mask_source = one_file
 
@@ -464,7 +468,7 @@ def perform_process(transformer: transformer_class.Transformer, check_md: dict, 
         result['file'] = file_md
 
     except Exception as ex:
-        result['code'] = -1
+        result['code'] = -1001
         result['error'] = "Exception caught masking files: %s" % str(ex)
 
     return result
