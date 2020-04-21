@@ -1,32 +1,17 @@
-# Version 1.0 template-transformer-simple 
+#FROM phusion/baseimage
+FROM agdrone/transformer-opendronemap:3.0
+# Env variables
+ENV DEBIAN_FRONTEND noninteractive
 
-FROM agpipeline/gantry-base-image:latest
-LABEL maintainer="Chris Schnaufer <schnaufer@email.arizona.edu>"
+COPY transformer_class.py configuration.py entrypoint.py /scif/apps/soilmask/src/
+COPY transformer.py /scif/apps/soilmask/src/
+# Install the filesystem from the recipe
+COPY *.scif /
+RUN scif install /recipe.scif
 
-COPY requirements.txt packages.txt /home/extractor/
+# Cleanup APT
+#RUN apt-get clean \
+#  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-USER root
-
-RUN [ -s /home/extractor/packages.txt ] && \
-    (echo 'Installing packages' && \
-        apt-get update && \
-        cat /home/extractor/packages.txt | xargs apt-get install -y --no-install-recommends && \
-        rm /home/extractor/packages.txt && \
-        apt-get autoremove -y && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/*) || \
-    (echo 'No packages to install' && \
-        rm /home/extractor/packages.txt)
-
-RUN [ -s /home/extractor/requirements.txt ] && \
-    (echo "Install python modules" && \
-    python3 -m pip install -U --no-cache-dir pip && \
-    python3 -m pip install --no-cache-dir setuptools && \
-    python3 -m pip install --no-cache-dir -r /home/extractor/requirements.txt && \
-    rm /home/extractor/requirements.txt) || \
-    (echo "No python modules to install" && \
-    rm /home/extractor/requirements.txt)
-
-USER extractor
-
-COPY configuration.py transformer.py /home/extractor/
+# SciF Entrypoint
+ENTRYPOINT ["scif"]

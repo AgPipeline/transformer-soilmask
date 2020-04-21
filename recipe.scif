@@ -1,0 +1,7 @@
+%appinstall soilmask
+    mv src/entrypoint.py bin/entrypoint.py
+%apprun soilmask
+    exec entrypoint.py
+%apphelp soilmask
+    This app provides an entrypoint to the soilmask tool
+    docker run agdrone/transformer-soilmask:3.0 run soilmask
