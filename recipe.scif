@@ -1,5 +1,13 @@
 %appinstall soilmask
-    mv src/entrypoint.py bin/entrypoint.py
+    apt-get update -y
+    apt-get install --no-install-recommends -y libsm6 \
+       libxext6 \
+       libxrender1 \
+       libglib2.0-0
+    ~/miniconda3/bin/conda create --prefix "${PWD}" --yes --file src/package-list.txt
+
+%appenv soilmask
+    PATH=~/miniconda3/bin:$PATH
 %apprun soilmask
     exec entrypoint.py
 %apphelp soilmask
