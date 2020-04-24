@@ -15,8 +15,8 @@
     # Install terrautils:
     mkdir tmp
     git clone --branch master --single-branch --depth 1 https://github.com/terraref/terrautils.git tmp/terrautils
-    conda run --prefix "${PWD}/conda" python3 -m pip install --no-deps pyclowder
-    conda run --prefix "${PWD}/conda" python3 -m pip install --no-deps tmp/terrautils
+    ~/miniconda3/bin/conda run --prefix "${PWD}/conda" python3 -m pip install --no-deps pyclowder
+    ~/miniconda3/bin/conda run --prefix "${PWD}/conda" python3 -m pip install --no-deps tmp/terrautils
     rm -rf tmp/terrautils
 %appenv soilmask
     PATH=~/miniconda3/bin:$PATH
