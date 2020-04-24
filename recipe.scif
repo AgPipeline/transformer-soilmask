@@ -3,7 +3,8 @@
     apt-get install --no-install-recommends -y libsm6 \
        libxext6 \
        libxrender1 \
-       libglib2.0-0
+       libglib2.0-0 \
+       git
 
     # Install conda packages:
     ~/miniconda3/bin/conda env create --prefix "${PWD}/conda" -f src/environment.yml
