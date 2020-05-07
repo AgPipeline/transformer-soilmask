@@ -11,12 +11,10 @@ RUN apt-get update -y \
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh \
     && bash miniconda.sh -b
 RUN  ~/miniconda3/bin/conda update -n base -c defaults conda
-COPY transformer_class.py configuration.py entrypoint.py /scif/apps/soilmask/src/
-COPY transformer.py /scif/apps/soilmask/src/
-COPY environment.yml /scif/apps/soilmask/src/
+COPY . /scif/apps/soilmask/src/
+
 # Install the filesystem from the recipe
 COPY *.scif /
-
 RUN scif install /recipe.scif
 
 # Cleanup APT
