@@ -1,5 +1,4 @@
-#FROM phusion/baseimage
-FROM agdrone/transformer-opendronemap:3.0
+FROM phusion/baseimage
 # Env variables
 ENV DEBIAN_FRONTEND noninteractive
 
