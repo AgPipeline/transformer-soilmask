@@ -9,7 +9,7 @@
 %appenv soilmask
     PATH=~/miniconda3/bin:$PATH
 %apprun soilmask
-    exec conda run --prefix "${SCIF_APPROOT}/conda" src/main.py "${@}"
+    exec conda run --prefix "${SCIF_APPROOT}/conda" python3 src/main.py "${@}"
 %apphelp soilmask
     This app provides an entrypoint to the soilmask tool
     docker run agpipeline/transformer-soilmask run soilmask
