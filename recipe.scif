@@ -13,8 +13,6 @@
     # Generate remainder of SCIF app help section by running: src/main.py --help
     ~/miniconda3/bin/conda run --prefix "${PWD}/conda" python3 src/main.py --help >> "${PWD}/scif/runscript.help"
 
-%appenv soilmask
-    PATH=~/miniconda3/bin:$PATH
 %apprun soilmask
     exec conda run --prefix "${SCIF_APPROOT}/conda" python3 src/main.py "${@}"
 %apphelp soilmask
