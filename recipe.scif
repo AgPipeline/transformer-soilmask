@@ -1,0 +1,19 @@
+%appinstall soilmask
+    # Install conda packages:
+    ~/miniconda3/bin/conda env create --prefix "${PWD}/conda" -f src/environment.yml
+
+    # To regenerate src/environment.yml:
+    # ~/miniconda3/bin/conda create --prefix "${PWD}/conda" --yes -c conda-forge py-opencv numpy
+    # ~/miniconda3/bin/conda env export --prefix "${PWD}/conda" > src/environment.yml
+
+    # Add example Docker command to SCIF app help section
+    test -z $DOCKER_IMAGE && DOCKER_IMAGE="agpipeline/soilmask:latest"
+    echo "\n\nExample Docker command: docker run $DOCKER_IMAGE run soilmask\n" >> "${PWD}/scif/runscript.help"
+
+    # Generate remainder of SCIF app help section by running: src/main.py --help
+    ~/miniconda3/bin/conda run --prefix "${PWD}/conda" python3 src/main.py --help >> "${PWD}/scif/runscript.help"
+
+%apprun soilmask
+    exec ~/miniconda3/bin/conda run --prefix "${SCIF_APPROOT}/conda" python3 src/main.py "${@}"
+%apphelp soilmask
+    This app provides an entrypoint to the soilmask tool
