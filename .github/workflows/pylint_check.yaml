@@ -79,5 +79,5 @@ jobs:
       - name: Files to be linted
         run: cat action_pylint_files.txt
       - name: Running pylint
-        run: cat action_pylint_files.txt | xargs python3 -m pylint --rcfile ./pylint.rc
+        run: cat action_pylint_files.txt | xargs python3 -m pylint --rcfile ./pylint.rc --extension-pkg-whitelist=cv2
 
