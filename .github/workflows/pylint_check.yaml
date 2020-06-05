@@ -1,0 +1,83 @@
+name: Enforcing pylint checks
+on:
+  push:
+    branches:
+      - master
+      - develop
+      - pylint_workflow
+  pull_request:
+    branches:
+      - master
+      - develop
+    tags:
+      - v*
+
+jobs:
+  update_python:
+    runs-on: ubuntu-latest
+    name: Running pylint checks
+    steps:
+      - name: Current python version
+        run: python3 --version || echo python3 not installed
+      - name: Install Python 3.7
+        run: sudo apt-get install -y --no-install-recommends python3.7 python3-pip && sudo ln -sfn /usr/bin/python3.7 /usr/bin/python3
+        id: install_python_3_7
+      - name: Updated python version
+        run: python3 --version
+      - name: PYTHONPATH environment variable
+        run: echo ${PYTHONPATH}
+      - name: Update pip
+        run: python3 -m pip install --upgrade --no-cache-dir pip
+        id: pip-install
+      - name: Fetch/update setuptools
+        run: python3 -m pip install --upgrade --no-cache-dir setuptools
+        id: setuptools-install
+      - name: Install python-apt
+        run: sudo apt-get install -y python-apt
+      - name: HACK to fix apt-get update problem w/ different python versions
+        run: 'cd /usr/lib/python3/dist-packages && sudo cp apt_pkg.cpython-36m-x86_64-linux-gnu.so apt_pkg.so'
+      - name: Update apt-get
+        run: sudo apt-get update
+      - name: Fetch/update pylint
+        run: python3 -m pip install --upgrade --no-cache-dir pylint
+        id: pylint-install
+      - name: Fetch source code
+        uses: actions/checkout@v2
+        id: fetch-source
+      - name: Finding files
+        run: find . -type f -name "*.py" > action_pylint_files.txt
+        id: find-python-files
+      - name: Install system requirements
+        shell: bash
+        run: 'sudo apt-get install -y python3-gdal gdal-bin libgdal-dev gcc g++ python3.7-dev'
+        id: install-gdal-other-reqs
+      - name: Install Python numpy
+        shell: bash
+        run: 'python3 -m pip install --upgrade --no-cache-dir numpy wheel terrautils'
+        id: install-python-numpy
+      - name: Install Python pygdal
+        shell: bash
+        run: 'sudo python3 -m pip install --no-cache-dir pygdal==2.2.3.5'
+        id: install-python-pygdal
+      - name: Install system requirements from source
+        shell: bash
+        run: '[ -s "packages.txt" ] && (cat packages.txt | xargs apt-get install -y --no-install-recommends) || (echo "No addtional packages to install")'
+        id: install-system-reqs
+      - name: Install Python requirements from source
+        shell: bash
+        run: '[ -s "requirements.txt" ] && (python3 -m pip install --no-cache-dir -r requirements.txt) || (echo "No Python packages to install")'
+        id: install-python-reqs
+      - name: Run action pylint script
+        shell: bash
+        run: '[ -s "action_pylint.sh" ] && (chmod +x "action_pylint.sh" && ./action_pylint.sh) || (echo "Not running special action script - empty or not found")'
+        id: run-special-action-script
+      - name: Fetching pylint.rc file
+        run: wget https://raw.githubusercontent.com/AgPipeline/Organization-info/master/pylint.rc
+        id: fetch_pylint_resource
+      - name: Listing
+        run: ls -la
+      - name: Files to be linted
+        run: cat action_pylint_files.txt
+      - name: Running pylint
+        run: cat action_pylint_files.txt | xargs python3 -m pylint --rcfile ./pylint.rc
+
