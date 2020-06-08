@@ -1,3 +1,3 @@
 #!/bin/bash
-cp ./.github/workflows/actions_github/*.py ./
+cp ./.github/workflows/*.py ./
 
