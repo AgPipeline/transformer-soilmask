@@ -7,12 +7,9 @@ import tempfile
 import numpy as np
 import cv2
 
-from osgeo import gdal
+from osgeo import gdal, osr
 # from PIL import Image  Used by code that's getting deprecated
 from skimage import morphology
-
-from terrautils.formats import create_geotiff as tr_create_geotiff, \
-                               compress_geotiff as tr_compress_geotiff
 
 import configuration
 import transformer_class
@@ -28,6 +25,132 @@ class __internal__():
     def __init__(self):
         """Performs initialization of class instance
         """
+
+    @staticmethod
+    def prepare_metadata_for_geotiff(extractor_info=None, terra_md=None):
+        """Create geotiff-embedded metadata from extractor_info and terraref metadata pieces.
+
+            Keyword arguments:
+            extractor_info -- details about extractor if applicable
+            system_md -- cleaned TERRA-REF metadata
+        """
+        extra_metadata = {}
+
+        if (terra_md != None):
+            extra_metadata["datetime"] = str(terra_md["gantry_variable_metadata"]["datetime"])
+            extra_metadata["sensor_id"] = str(terra_md["sensor_fixed_metadata"]["sensor_id"])
+            extra_metadata["sensor_url"] = str(terra_md["sensor_fixed_metadata"]["url"])
+            experiment_names = []
+            for e in terra_md["experiment_metadata"]:
+                experiment_names.append(e["name"])
+            terra_md["experiment_name"] = ", ".join(experiment_names)
+
+        if (extractor_info != None):
+            extra_metadata["extractor_name"] = str(extractor_info.get("name", ""))
+            extra_metadata["extractor_version"] = str(extractor_info.get("version", ""))
+            extra_metadata["extractor_author"] = str(extractor_info.get("author", ""))
+            extra_metadata["extractor_description"] = str(extractor_info.get("description", ""))
+            if "repository" in extractor_info and "repUrl" in extractor_info["repository"]:
+                extra_metadata["extractor_repo"] = str(extractor_info["repository"]["repUrl"])
+            else:
+                extra_metadata["extractor_repo"] = ""
+
+        return extra_metadata
+
+    @staticmethod
+    def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extractor_info=None, system_md=None,
+                       extra_metadata=None, compress=False):
+        """Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
+
+            Keyword arguments:
+            pixels -- numpy array of pixel values.
+                        if 2-dimensional array, a single-band GeoTIFF will be created.
+                        if 3-dimensional array, a band will be created for each Z dimension.
+            gps_bounds -- tuple of GeoTIFF coordinates as ( lat (y) min, lat (y) max,
+                                                            long (x) min, long (x) max)
+            out_path -- path to GeoTIFF to be created
+            nodata -- NoDataValue to be assigned to raster bands; set to None to ignore
+            float -- whether to use GDT_Float32 data type instead of GDT_Byte (e.g. for decimal numbers)
+            extractor_info -- details about extractor if applicable
+            system_md -- cleaned TERRA-REF metadata
+            extra_metadata -- any metadata to be embedded in geotiff; supersedes extractor_info and system_md
+        """
+        dimensions = np.shape(pixels)
+        if len(dimensions) == 2:
+            nrows, ncols = dimensions
+            channels = 1
+        else:
+            nrows, ncols, channels = dimensions
+
+        geotransform = (
+            gps_bounds[2],  # upper-left x
+            (gps_bounds[3] - gps_bounds[2]) / float(ncols),  # W-E pixel resolution
+            0,  # rotation (0 = North is up)
+            gps_bounds[1],  # upper-left y
+            0,  # rotation (0 = North is up)
+            -((gps_bounds[1] - gps_bounds[0]) / float(nrows))  # N-S pixel resolution
+        )
+
+        # Create output GeoTIFF and set coordinates & projection
+        if asfloat:
+            dtype = gdal.GDT_Float32
+        else:
+            dtype = gdal.GDT_Byte
+
+        if compress:
+            output_raster = gdal.GetDriverByName('GTiff') \
+                .Create(out_path, ncols, nrows, channels, dtype, ['COMPRESS=LZW'])
+        else:
+            output_raster = gdal.GetDriverByName('GTiff') \
+                .Create(out_path, ncols, nrows, channels, dtype)
+
+        output_raster.SetGeoTransform(geotransform)
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(4326)  # google mercator
+        output_raster.SetProjection(srs.ExportToWkt())
+
+        if not extra_metadata:
+            extra_metadata = __internal__.prepare_metadata_for_geotiff(extractor_info, system_md)
+
+        output_raster.SetMetadata(extra_metadata)
+
+        if channels == 3:
+            # typically 3 channels = RGB channels
+            # TODO: Something wonky w/ uint8s --> ending up w/ lots of gaps in data (white pixels)
+            output_raster.GetRasterBand(1).WriteArray(pixels[:, :, 0].astype('uint8'))
+            output_raster.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+            output_raster.GetRasterBand(1).FlushCache()
+            if nodata:
+                output_raster.GetRasterBand(1).SetNoDataValue(nodata)
+
+            output_raster.GetRasterBand(2).WriteArray(pixels[:, :, 1].astype('uint8'))
+            output_raster.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
+            output_raster.GetRasterBand(2).FlushCache()
+            if nodata:
+                output_raster.GetRasterBand(2).SetNoDataValue(nodata)
+
+            output_raster.GetRasterBand(3).WriteArray(pixels[:, :, 2].astype('uint8'))
+            output_raster.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+            output_raster.GetRasterBand(3).FlushCache()
+            if nodata:
+                output_raster.GetRasterBand(3).SetNoDataValue(nodata)
+
+        elif channels > 1:
+            # TODO: Something wonky w/ uint8s --> ending up w/ lots of gaps in data (white pixels)
+            for chan in range(channels):
+                band = chan + 1
+                output_raster.GetRasterBand(band).WriteArray(pixels[:, :, chan].astype('uint8'))
+                output_raster.GetRasterBand(band).FlushCache()
+                if nodata:
+                    output_raster.GetRasterBand(band).SetNoDataValue(nodata)
+        else:
+            # single channel image, e.g. temperature
+            output_raster.GetRasterBand(1).WriteArray(pixels)
+            output_raster.GetRasterBand(1).FlushCache()
+            if nodata:
+                output_raster.GetRasterBand(1).SetNoDataValue(nodata)
+
+        output_raster = None
 
 #    @staticmethod
 #    def get_image_quality(imgfile: str) -> np.ndarray:
@@ -442,9 +565,8 @@ def perform_process(transformer: transformer_class.Transformer, check_md: dict, 
 
             transformer_info = transformer.generate_transformer_md()
 
-            tr_create_geotiff(mask_rgb, bounds, rgb_mask_tif, None, False,
-                              transformer_info, check_md['context_md'])
-            tr_compress_geotiff(rgb_mask_tif)
+            __internal__.create_geotiff(mask_rgb, bounds, rgb_mask_tif, None, False,
+                              transformer_info, check_md['context_md'], compress=True)
 
             # Remove any temporary file
             if mask_source != one_file:
