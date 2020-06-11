@@ -68,7 +68,7 @@ jobs:
         id: install-python-reqs
       - name: Run action pylint script
         shell: bash
-        run: '[ -s ".github/workflows/action_pylint.sh" ] && (chmod +x ".github/workflows/action_pylint.sh" && ./.github/workflows/action_pylint.sh) || (echo "Not running special action script - empty or not found")'
+        run: '[ -s ".github/workflows/action_pylint.sh" ] && (chmod +x ".github/workflows/action_pylint.sh" && ./.github/workflows/action_pylint.sh) || (echo "Error running shell script")'
         id: run-special-action-script
       - name: Fetching pylint.rc file
         run: wget https://raw.githubusercontent.com/AgPipeline/Organization-info/master/pylint.rc
