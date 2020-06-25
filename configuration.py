@@ -1,29 +1,34 @@
 """Contains transformer configuration information
 """
+from agpypeline.configuration import Configuration
 
-# The version number of the transformer
-TRANSFORMER_VERSION = '2.0'
+class ConfigurationSoilmask(Configuration):
+    # Silence this error until we have public methods
+    # pylint: disable=too-few-public-methods
 
-# The transformer description
-TRANSFORMER_DESCRIPTION = 'Stereo RGB Image Enhancement & Masking'
+    # The version number of the transformer
+    transformer_version = '2.0'
 
-# Short name of the transformer
-TRANSFORMER_NAME = 'terra.stereo-rgb.rgbmask'
+    # The transformer description
+    transformer_description = 'Stereo RGB Image Enhancement & Masking'
 
-# The name of the author of the extractor
-AUTHOR_NAME = 'Chris Schnaufer'
+    # Short name of the transformer
+    transformer_name = 'terra.stereo-rgb.rgbmask'
 
-# The email of the author of the extractor
-AUTHOR_EMAIL = 'schnaufer@email.arizona.edu'
+    # The name of the author of the extractor
+    author_name = 'Chris Schnaufer'
 
-# Reposity URI of where the source code lives
-REPOSITORY = 'https://github.com/Chris-Schnaufer/rgbmask.git'
+    # The email of the author of the extractor
+    author_email = 'schnaufer@email.arizona.edu'
 
-# Contributors to this transformer
-CONTRUBUTORS = ['Max Burnette', 'Zongyang Li', 'Todd Nicholson']
+    # Reposity URI of where the source code lives
+    repository = 'https://github.com/Chris-Schnaufer/rgbmask.git'
 
-# The sensor associated with the transformer
-TRANSFORMER_SENSOR = 'stereoTop'
+    # Contributors to this transformer
+    contrubutors = ['Max Burnette', 'Zongyang Li', 'Todd Nicholson']
 
-# The transformer type (eg: 'rgbmask', 'plotclipper')
-TRANSFORMER_TYPE = 'rgb_mask'
+    # The sensor associated with the transformer
+    transformer_sensor = 'stereoTop'
+
+    # The transformer type (eg: 'rgbmask', 'plotclipper')
+    transformer_type = 'rgb_mask'

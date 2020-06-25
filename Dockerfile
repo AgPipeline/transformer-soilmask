@@ -1,6 +1,7 @@
-FROM FROM agdrone/drone-base-image:1.2
+FROM agpypeline
 LABEL maintainer="Chris Schnaufer <schnaufer@email.arizona.edu>"
 
+# Start installing things
 COPY requirements.txt packages.txt /home/extractor/
 
 USER root
@@ -26,5 +27,10 @@ RUN [ -s /home/extractor/requirements.txt ] && \
     rm /home/extractor/requirements.txt)
 
 USER extractor
+COPY configuration.py soilmask.py /home/extractor/
 
-COPY configuration.py transformer.py /home/extractor/
+USER root
+RUN chmod a+x /home/extractor/soilmask.py
+
+USER extractor
+ENTRYPOINT ["/home/extractor/soilmask.py"]
