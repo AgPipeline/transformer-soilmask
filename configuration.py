@@ -2,7 +2,9 @@
 """
 from agpypeline.configuration import Configuration
 
+
 class ConfigurationSoilmask(Configuration):
+    """Configuration information for Soil Mask transformer"""
     # Silence this error until we have public methods
     # pylint: disable=too-few-public-methods
 
@@ -21,11 +23,11 @@ class ConfigurationSoilmask(Configuration):
     # The email of the author of the extractor
     author_email = 'schnaufer@email.arizona.edu'
 
-    # Reposity URI of where the source code lives
+    # Repository URI of where the source code lives
     repository = 'https://github.com/Chris-Schnaufer/rgbmask.git'
 
     # Contributors to this transformer
-    contrubutors = ['Max Burnette', 'Zongyang Li', 'Todd Nicholson']
+    contributors = ['Max Burnette', 'Zongyang Li', 'Todd Nicholson']
 
     # The sensor associated with the transformer
     transformer_sensor = 'stereoTop'
