@@ -308,11 +308,11 @@ class SoilMask(algorithm.Algorithm):
         """Returns a tuple of supported file extensions in lowercase (with the preceeding dot: eg '.tif')"""
         return '.tiff', '.tif'
 
-    def check_continue(self, transformer: Environment, check_md: dict, transformer_md: list,
+    def check_continue(self, environment: Environment, check_md: dict, transformer_md: list,
                        full_md: list) -> tuple:
         """Checks if conditions are right for continuing processing
         Arguments:
-            transformer: instance of transformer class
+            environment: instance of environment class
             check_md: the metadata for this request
             transformer_md: the metadata associated with this transformer
             full_md: the full set of original metadata
