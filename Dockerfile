@@ -1,4 +1,4 @@
-FROM agpypeline
+FROM agdrone/agpypeline:1.0
 LABEL maintainer="Chris Schnaufer <schnaufer@email.arizona.edu>"
 
 # Start installing things
