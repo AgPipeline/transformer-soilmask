@@ -264,8 +264,6 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> tuple:
         A list containing the percent of unmasked pixels and the masked image
     """
     # abandon low quality images, mask enhanced
-    # TODO: cv2 has problems with some RGB geotiffs...
-    # img = cv2.imread(input_path)
     img = np.rollaxis(gdal.Open(input_path).ReadAsArray().astype(np.uint8), 0, 3)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -273,13 +271,12 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> tuple:
     # pylint: disable=unused-variable
     over_rate, low_rate = __internal__.check_saturation(img)
 
-    # TODO: disabling this check for now because it's crashing extractor - generate mask regardless
     # if low score, return None
     # low_rate is percentage of low value pixels(lower than 20) in the grayscale image, if low_rate > 0.1, return
     # aveValue is average pixel value of grayscale image, if aveValue lower than 30 or higher than 195, return
     # quality_score is a score from Multiscale Autocorrelation (MAC), if quality_score lower than 13, return
 
-    # saveValue = check_brightness(img)
+    # aveValue = check_brightness(img)
     # quality_score = get_image_quality(input_path)
     # if low_rate > 0.1 or aveValue < 30 or aveValue > 195 or quality_score < 13:
     #    return None, None, None
