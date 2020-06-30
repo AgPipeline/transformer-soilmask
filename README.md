@@ -86,4 +86,3 @@ Note that the paths provided are relative to the running image (see the --mount 
 - `--working_space "/mnt"` specifies the folder to use as a workspace
 - `--metadata "/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_metadata.cleaned.json"` is the name of the source metadata to be cleaned
 - `"/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_left.tif"` is the name of the image to mask
-

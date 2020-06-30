@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Testing instance of transformer
+"""Soil masking Transformer
 """
 
 import logging

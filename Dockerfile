@@ -34,4 +34,3 @@ RUN chmod a+x /home/extractor/soilmask.py
 
 USER extractor
 ENTRYPOINT ["/home/extractor/soilmask.py"]
-
