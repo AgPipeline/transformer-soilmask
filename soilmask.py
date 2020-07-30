@@ -1,48 +1,53 @@
-"""Testing instance of transformer
+#!/usr/bin/env python3
+"""Soil masking Transformer
 """
 
 import logging
 import os
-import tempfile
 import numpy as np
+from agpypeline import entrypoint, algorithm, geoimage
+from agpypeline.environment import Environment
 import cv2
 
 from osgeo import gdal
 # from PIL import Image  Used by code that's getting deprecated
 from skimage import morphology
 
-from terrautils.formats import create_geotiff as tr_create_geotiff, \
-                               compress_geotiff as tr_compress_geotiff
-
-import configuration
-import transformer_class
+from configuration import ConfigurationSoilmask
 
 SATURATE_THRESHOLD = 245
 MAX_PIXEL_VAL = 255
 SMALL_AREA_THRESHOLD = 200
 
 
-class __internal__():
+class __internal__:
     """Class for functions intended for internal use only for this file
     """
     def __init__(self):
         """Performs initialization of class instance
         """
 
-#    @staticmethod
-#    def get_image_quality(imgfile: str) -> np.ndarray:
-#        """Computes and returns the image score for the image file
-#        Arguments:
-#            imgfile: the name of the file to compute the score for
-#        Returns:
-#            The score for the image
-#        """
-#        img = Image.open(imgfile)
-#        img = np.array(img)
-#
-#        nrmac = __internal__.MAC(img, img, img)
-#
-#        return nrmac
+    @staticmethod
+    def prepare_metadata_for_geotiff(transformer_info: dict = None) -> dict:
+        """Create geotiff-embedable metadata from extractor_info and other metadata pieces.
+        Arguments:
+            transformer_info: details about the transformer
+        Return:
+            A dict containing information to save with an image
+        """
+        extra_metadata = {}
+
+        if transformer_info:
+            extra_metadata["transformer_name"] = str(transformer_info.get("name", ""))
+            extra_metadata["transformer_version"] = str(transformer_info.get("version", ""))
+            extra_metadata["transformer_author"] = str(transformer_info.get("author", ""))
+            extra_metadata["transformer_description"] = str(transformer_info.get("description", ""))
+            if "repository" in transformer_info and "repUrl" in transformer_info["repository"]:
+                extra_metadata["transformer_repo"] = str(transformer_info["repository"]["repUrl"])
+            else:
+                extra_metadata["transformer_repo"] = ""
+
+        return extra_metadata
 
     @staticmethod
     def gen_plant_mask(color_img: np.ndarray, kernel_size: int = 3) -> np.ndarray:
@@ -217,41 +222,6 @@ class __internal__():
 
         return rgb_mask
 
-#    @staticmethod
-#    def rgb2gray(rgb: np.ndarray) -> np.ndarray:
-#        """Converts RGB image to grey scale
-#        Arguments:
-#            rgb: the image to convert
-#        Return:
-#            The greyscale image
-#        """
-#        r_channel, g_channel, b_channel = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
-#        gray = 0.2989 * r_channel + 0.5870 * g_channel + 0.1140 * b_channel
-#        return gray
-
-#    @staticmethod
-#    def MAC(im1: np.ndarray, im2: np.ndarray, im: np.ndarray) -> np.ndarray:    # pylint: disable=invalid-name
-#        """Calculates an image score of Multiscale Autocorrelation (MAC)
-#        Arguments:
-#        Return:
-#            Returns the scored image
-#        """
-#        h_dim, _, c_dim = im1.shape
-#        if c_dim > 1:
-#            im = np.matrix.round(__internal__.rgb2gray(im))
-#            im1 = np.matrix.round(__internal__.rgb2gray(im1))
-#            im2 = np.matrix.round(__internal__.rgb2gray(im2))
-#        # multiscale parameters
-#        scales = np.array([2, 3, 5])
-#        fm_arr = np.zeros(len(scales))
-#        for idx, _ in enumerate(scales):
-#            im1[0: h_dim - 1, :] = im[1:h_dim, :]
-#            im2[0: h_dim - scales[idx], :] = im[scales[idx]:h_dim, :]
-#            dif = im * (im1 - im2)
-#            fm_arr[idx] = np.mean(dif)
-#        nrmac = np.mean(fm_arr)
-#        return nrmac
-
     @staticmethod
     def check_saturation(img: np.ndarray) -> list:
         """Checks the saturation of an image
@@ -269,21 +239,7 @@ class __internal__():
         over_rate = float(np.sum(over_threshold)) / float(gray_img.size)
         low_rate = float(np.sum(under_threshold)) / float(gray_img.size)
 
-        return over_rate, low_rate
-
-#    @staticmethod
-#    def check_brightness(img: np.ndarray) -> float:
-#        """Generates average pixel value from grayscale image
-#        Arguments:
-#            img: the source image
-#        Returns:
-#            The average pixel value of the image
-#        """
-#        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-#
-#        avg_value = np.average(gray_img)
-#
-#        return avg_value
+        return [over_rate, low_rate]
 
     @staticmethod
     def get_maskfilename(filename: str) -> str:
@@ -305,11 +261,9 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> tuple:
         input_path: the path to the input image
         kernel_size: the image kernel size for processing
     Return:
-        A list contianing the percent of unmasked pixels and the masked image
+        A list containing the percent of unmasked pixels and the masked image
     """
     # abandon low quality images, mask enhanced
-    # TODO: cv2 has problems with some RGB geotiffs...
-    # img = cv2.imread(input_path)
     img = np.rollaxis(gdal.Open(input_path).ReadAsArray().astype(np.uint8), 0, 3)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -317,13 +271,12 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> tuple:
     # pylint: disable=unused-variable
     over_rate, low_rate = __internal__.check_saturation(img)
 
-    # TODO: disabling this check for now because it's crashing extractor - generate mask regardless
     # if low score, return None
     # low_rate is percentage of low value pixels(lower than 20) in the grayscale image, if low_rate > 0.1, return
     # aveValue is average pixel value of grayscale image, if aveValue lower than 30 or higher than 195, return
     # quality_score is a score from Multiscale Autocorrelation (MAC), if quality_score lower than 13, return
 
-    # saveValue = check_brightness(img)
+    # aveValue = check_brightness(img)
     # quality_score = get_image_quality(input_path)
     # if low_rate > 0.1 or aveValue < 30 or aveValue > 195 or quality_score < 13:
     #    return None, None, None
@@ -344,131 +297,126 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> tuple:
     return ratio, rgb_mask
 
 
-def check_continue(transformer: transformer_class.Transformer, check_md: dict, transformer_md: list,
-                   full_md: list) -> tuple:
-    """Checks if conditions are right for continuing processing
-    Arguments:
-        transformer: instance of transformer class
-        check_md: the metadata for this request
-        transformer_md: the metadata associated with this transformer
-        full_md: the full set of original metadata
-    Return:
-        Returns a tuple containing the return code for continuing or not, and
-        an error message if there's an error
-    """
-    # pylint: disable=unused-argument
-    result = {'code': -1002, 'message': "No TIFF files were specified for processing"}
+class SoilMask(algorithm.Algorithm):
+    """Masks soil from an image"""
 
-    # Ensure we have a TIFF file
-    if check_md and 'list_files' in check_md:
-        files = check_md['list_files']()
-        try:
-            for one_file in files:
-                ext = os.path.splitext(one_file)[1].lower()
-                if ext in ('.tiff', '.tif'):
-                    result['code'] = 0
-                    break
-        except Exception as ex:
+    @property
+    def supported_file_ext(self) -> tuple:
+        """Returns a tuple of supported file extensions in lowercase (with the preceeding dot: eg '.tif')"""
+        return '.tiff', '.tif'
+
+    def check_continue(self, environment: Environment, check_md: dict, transformer_md: list,
+                       full_md: list) -> tuple:
+        """Checks if conditions are right for continuing processing
+        Arguments:
+            environment: instance of environment class
+            check_md: the metadata for this request
+            transformer_md: the metadata associated with this transformer
+            full_md: the full set of original metadata
+        Return:
+            Returns a tuple containing the return code for continuing or not, and
+            an error message if there's an error
+        """
+        # pylint: disable=unused-argument
+        result = {'code': -1002, 'message': "No TIFF files were specified for processing"}
+
+        # Ensure we have a TIFF file
+        if check_md and 'list_files' in check_md:
+            files = check_md['list_files']()
+            try:
+                for one_file in files:
+                    ext = os.path.splitext(one_file)[1].lower()
+                    if ext in self.supported_file_ext:
+                        result['code'] = 0
+                        break
+            except Exception as ex:
+                result['code'] = -1
+                result['error'] = "Exception caught processing file list: %s" % str(ex)
+        else:
             result['code'] = -1
-            result['error'] = "Exception caught processing file list: %s" % str(ex)
-    else:
-        result['code'] = -1
-        result['error'] = "Check metadata parameter is not configured to provide a list of files"
+            result['error'] = "Check metadata parameter is not configured to provide a list of files"
 
-    return (result['code'], result['error']) if 'error' in result else (result['code'])
+        return (result['code'], result['error']) if 'error' in result else (result['code'])
+
+    def perform_process(self, environment: Environment, check_md: dict, transformer_md: dict,
+                        full_md: list) -> dict:
+        """Performs the processing of the data
+        Arguments:
+            environment: instance of environment class
+            check_md: the metadata for this request
+            transformer_md: the metadata associated with this transformer
+            full_md: the full set of original metadata
+        Return:
+            Returns a dictionary with the results of processing
+        """
+        # pylint: disable=unused-argument
+        result = {}
+        file_md = []
+
+        # Loop through the files
+        try:
+            for one_file in check_md['list_files']():
+                # Check file by type
+                ext = os.path.splitext(one_file)[1].lower()
+                if ext not in self.supported_file_ext:
+                    continue
+                if not os.path.exists(one_file):
+                    logging.warning("Unable to access file '%s'", one_file)
+                    continue
+
+                # Get the image's EPSG code
+                epsg = geoimage.get_epsg(one_file)
+                if epsg is None:
+                    logging.debug("Skipping image that is not georeferenced: '%s'", one_file)
+                    continue
+
+                # Get the bounds of the image to see if we can process it.
+                bounds = geoimage.image_get_geobounds(one_file)
+
+                if bounds is None:
+                    logging.warning("Unable to get bounds of georeferenced image: '%s'",
+                                    os.path.basename(one_file))
+                    continue
+
+                # Get the mask name using the original name as reference
+                rgb_mask_tif = os.path.join(check_md['working_folder'], __internal__.get_maskfilename(one_file))
+
+                # Create the mask file
+                logging.debug("Creating mask file '%s'", rgb_mask_tif)
+                mask_ratio, mask_rgb = gen_cc_enhanced(one_file)
+
+                # Bands must be reordered to avoid swapping R and B
+                mask_rgb = cv2.cvtColor(mask_rgb, cv2.COLOR_BGR2RGB)
+
+                transformer_info = environment.generate_transformer_md()
+
+                image_md = __internal__.prepare_metadata_for_geotiff(transformer_info)
+                geoimage.create_geotiff(mask_rgb, bounds, rgb_mask_tif, epsg, None, False, image_md, compress=True)
+
+                transformer_md = {
+                    'name': transformer_info['name'],
+                    'version': transformer_info['version'],
+                    'ratio': mask_ratio
+                }
+
+                new_file_md = {'path': rgb_mask_tif,
+                               'key': ConfigurationSoilmask.transformer_sensor,
+                               'metadata': {
+                                   'data': transformer_md
+                               }
+                              }
+                file_md.append(new_file_md)
+
+            result['code'] = 0
+            result['file'] = file_md
+
+        except Exception as ex:
+            result['code'] = -1001
+            result['error'] = "Exception caught masking files: %s" % str(ex)
+
+        return result
 
 
-def perform_process(transformer: transformer_class.Transformer, check_md: dict, transformer_md: list,
-                    full_md: list) -> dict:
-    """Performs the processing of the data
-    Arguments:
-        transformer: instance of transformer class'
-        check_md: the metadata for this request
-        transformer_md: the metadata associated with this transformer
-        full_md: the full set of original metadata
-    Return:
-        Returns a dictionary with the results of processing
-    """
-    # pylint: disable=unused-argument
-    result = {}
-    file_md = []
-
-    # Loop through the files
-    try:
-        for one_file in check_md['list_files']():
-            # Check file by type
-            ext = os.path.splitext(one_file)[1].lower()
-            if ext not in ('.tiff', '.tif'):
-                continue
-            if not os.path.exists(one_file):
-                logging.warning("Unable to access file '%s'", one_file)
-                continue
-            mask_source = one_file
-
-            # Get the image's EPSG code
-            epsg = transformer.get_image_file_epsg(mask_source)
-            if epsg is None:
-                logging.debug("Skipping image that is not georeferenced: '%s'", mask_source)
-                continue
-
-            # Check that it's geo referenced and transform it if it'sin the wrong coordinate system
-            if epsg != transformer.default_epsg:
-                logging.info("Reprojecting image from EPSG %s to default EPSG %s", str(epsg),
-                             str(transformer.default_epsg))
-                _, tmp_name = tempfile.mkstemp(dir=check_md['working_folder'])
-                src = gdal.Open(mask_source)
-                gdal.Warp(tmp_name, src, dstSRS='EPSG:'+str(transformer.default_epsg))
-                mask_source = tmp_name
-
-            # Get the bounds of the image to see if we can process it.
-            bounds = transformer.get_image_file_geobounds(mask_source)
-
-            if bounds is None:
-                logging.warning("Unable to get bounds of georeferenced image: '%s'",
-                                os.path.basename(one_file))
-                if mask_source != one_file:
-                    os.remove(mask_source)
-                continue
-
-            # Get the mask name using the original name as reference
-            rgb_mask_tif = os.path.join(check_md['working_folder'], __internal__.get_maskfilename(one_file))
-
-            # Create the mask file
-            logging.debug("Creating mask file '%s'", rgb_mask_tif)
-            mask_ratio, mask_rgb = gen_cc_enhanced(mask_source)
-
-            # Bands must be reordered to avoid swapping R and B
-            mask_rgb = cv2.cvtColor(mask_rgb, cv2.COLOR_BGR2RGB)
-
-            transformer_info = transformer.generate_transformer_md()
-
-            tr_create_geotiff(mask_rgb, bounds, rgb_mask_tif, None, False,
-                              transformer_info, check_md['context_md'])
-            tr_compress_geotiff(rgb_mask_tif)
-
-            # Remove any temporary file
-            if mask_source != one_file:
-                os.remove(mask_source)
-
-            transformer_md = {
-                'name': transformer_info['name'],
-                'version': transformer_info['version'],
-                'ratio': mask_ratio
-            }
-
-            new_file_md = {'path': rgb_mask_tif,
-                           'key': configuration.TRANSFORMER_SENSOR,
-                           'metadata': {
-                               'data': transformer_md
-                           }
-                          }
-            file_md.append(new_file_md)
-
-        result['code'] = 0
-        result['file'] = file_md
-
-    except Exception as ex:
-        result['code'] = -1001
-        result['error'] = "Exception caught masking files: %s" % str(ex)
-
-    return result
+if __name__ == "__main__":
+    CONFIGURATION = ConfigurationSoilmask()
+    entrypoint.entrypoint(CONFIGURATION, SoilMask())
