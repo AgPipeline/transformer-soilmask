@@ -1,0 +1,96 @@
+name: Enforcing testing
+on:
+  push:
+    branches:
+      - master
+      - develop
+      - adding_testing
+  pull_request:
+    branches:
+      - master
+      - develop
+    tags:
+      - v*
+
+jobs:
+  testing:
+    runs-on: ubuntu-latest
+    name: Running testing
+    strategy:
+      matrix:
+          app: [pylint, pytest]
+          include:
+            - app: pylint
+              pip_installs: pylint
+              test_command: cat action_test_files.txt | xargs python3 -m pylint --rcfile ./pylint.rc
+            - app: pytest
+              pip_installs: pytest pytest-cov
+              test_command: python3 -m pytest --cov=. -rpP > coverage.txt
+              artifacts: coverage.txt
+    steps:
+      - name: Current python version
+        run: python3 --version || echo python3 not installed
+      - name: Install Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - name: Updated python version
+        run: python3 --version
+      - name: PYTHONPATH environment variable
+        run: echo ${PYTHONPATH}
+      - name: Update pip
+        run: python3 -m pip install --upgrade --no-cache-dir pip
+      - name: Fetch/update setuptools
+        run: python3 -m pip install --upgrade --no-cache-dir setuptools
+      - name: Install python-apt
+        run: sudo apt-get install -y python-apt
+      - name: HACK to fix apt-get update problem w/ different python versions
+        run: 'cd /usr/lib/python3/dist-packages && sudo cp apt_pkg.cpython-36m-x86_64-linux-gnu.so apt_pkg.so'
+      - name: Update apt-get
+        run: sudo apt-get update
+      - name: Fetch/update testing pip installations
+        run: python3 -m pip install --upgrade --no-cache-dir ${{ matrix.pip_installs }}
+      - name: Fetch source code
+        uses: actions/checkout@v2
+      - name: Finding files to process
+        run: find . -type f -name "*.py" > action_test_files.txt
+      - name: Install system requirements
+        shell: bash
+        run: 'sudo apt-get install -y python3-gdal gdal-bin libgdal-dev gcc g++ python3.7-dev'
+      - name: Install Python numpy
+        shell: bash
+        run: 'python3 -m pip install --upgrade --no-cache-dir numpy wheel'
+      - name: Install Python pygdal
+        shell: bash
+        run: 'python3 -m pip install --no-cache-dir pygdal==2.2.3.5'
+      - name: Install system requirements from source
+        shell: bash
+        run: 'if [ -s "packages.txt" ]; then (cat packages.txt | sudo xargs apt-get install -y --no-install-recommends) || (echo "Failed to install additional packages" && exit 1); fi'
+      - name: Install Python requirements from source
+        shell: bash
+        run: 'if [ -s "requirements.txt" ]; then (python3 -m pip install --no-cache-dir -r requirements.txt) || (echo "Failed to install Python requirements" && exit 1); fi'
+      - name: Run action pylint script
+        shell: bash
+        run: 'if [ -s ".github/workflows/action_pylint.sh" ]; then (chmod +x ".github/workflows/action_pylint.sh" && ./.github/workflows/action_pylint.sh) || (echo "Error running shell script" && exit 1); fi'
+      - name: Fetching pylint.rc file
+        run: wget https://raw.githubusercontent.com/AgPipeline/Organization-info/master/pylint.rc
+        if: ${{ matrix.name }} == "pylint"
+      - name: Fetching testing files
+        run: |
+          curl -X GET https://de.cyverse.org/dl/d/3CBFD03C-C82E-4EDE-A8E5-DD4DBD45C696/orthomosaic.tif -o "${PWD}/test_data/orthomosaic.tif"
+          curl -X GET "https://de.cyverse.org/dl/d/FD32B0CE-DBAB-4A44-B8A6-0E9AA4555A31/experiment.yaml" -o "${PWD}/test_data/experiment.yaml"
+        if: ${{ matrix.name }} == "pytest"
+      - name: Set execution permission for testing
+        run: chmod +x soilmask.py
+      - name: Listing
+        run: ls -la
+      - name: Files to be tested
+        run: cat action_test_files.txt
+      - name: Running test
+        run: ${{ matrix.test_command }}
+      - name: Upload testing artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: testing_artifacts
+          path: ${{ matrix.artifacts }}
+        if: ${{ matrix.artifacts }}
