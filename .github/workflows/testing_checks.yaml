@@ -74,12 +74,12 @@ jobs:
         run: 'if [ -s ".github/workflows/action_pylint.sh" ]; then (chmod +x ".github/workflows/action_pylint.sh" && ./.github/workflows/action_pylint.sh) || (echo "Error running shell script" && exit 1); fi'
       - name: Fetching pylint.rc file
         run: wget https://raw.githubusercontent.com/AgPipeline/Organization-info/master/pylint.rc
-        if: ${{ matrix.name }} == "pylint"
+        if: ${{ matrix.app }} == "pylint"
       - name: Fetching testing files
+        if: ${{ matrix.app == 'pytest' }}
         run: |
           curl -X GET https://de.cyverse.org/dl/d/3CBFD03C-C82E-4EDE-A8E5-DD4DBD45C696/orthomosaic.tif -o "${PWD}/test_data/orthomosaic.tif"
           curl -X GET "https://de.cyverse.org/dl/d/FD32B0CE-DBAB-4A44-B8A6-0E9AA4555A31/experiment.yaml" -o "${PWD}/test_data/experiment.yaml"
-        if: ${{ matrix.name }} == "pytest"
       - name: Set execution permission for testing
         run: chmod +x soilmask.py
       - name: Listing
