@@ -1,0 +1,9 @@
+%YAML 1.1
+---
+pipeline:
+    studyName: 'S7_20181011'
+    season: 'S7_20181011'
+    germplasmName: Sorghum bicolor
+    collectingSite: Maricopa
+    observationTimeStamp: '2018-10-11T13:01:02-08:00'
+
