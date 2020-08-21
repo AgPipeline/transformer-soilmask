@@ -50,24 +50,24 @@ def test_prepare_metadata_for_geotiff():
         test_data = json.load(in_file)
         test_data.append(None)
         for test in test_data:
-            md = sm.__internal__.prepare_metadata_for_geotiff(test)
-            assert md is not None
-            assert isinstance(md, dict)
+            metadata = sm.__internal__.prepare_metadata_for_geotiff(test)
+            assert metadata is not None
+            assert isinstance(metadata, dict)
             if test is None:
                 continue
-            for key, value in md.items():
+            for key, value in metadata.items():
                 if key in test:
                     if key not in ['transformer_repo']:
                         assert value == test[METADATA_KEY_TRANSLATION[key]]
                         continue
-                    elif key == 'transformer_repo':
+                    if key == 'transformer_repo':
                         # Special handling
                         if len(value) == 0 and isinstance(value, str):
                             assert ('transformer_repo' not in test) or \
                                    (not test['transformer_repo']) or \
                                    ('repUrl' not in test['transformer_repo'])
                         else:
-                            assert (value == test['transformer_repo']['repUrl'])
+                            assert value == test['transformer_repo']['repUrl']
 
 
 def test_command_line():
