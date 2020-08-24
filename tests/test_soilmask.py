@@ -56,7 +56,7 @@ def test_prepare_metadata_for_geotiff():
             if test is None:
                 continue
             for key, value in metadata.items():
-                if key in test:
+                if METADATA_KEY_TRANSLATION[key] in test:
                     if key not in ['transformer_repo']:
                         assert value == test[METADATA_KEY_TRANSLATION[key]]
                         continue
