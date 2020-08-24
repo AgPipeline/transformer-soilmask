@@ -63,11 +63,11 @@ def test_prepare_metadata_for_geotiff():
                     if key == 'transformer_repo':
                         # Special handling
                         if len(value) == 0 and isinstance(value, str):
-                            assert ('transformer_repo' not in test) or \
-                                   (not test['transformer_repo']) or \
-                                   ('repUrl' not in test['transformer_repo'])
+                            assert (METADATA_KEY_TRANSLATION['transformer_repo'] not in test) or \
+                                   (not test[METADATA_KEY_TRANSLATION['transformer_repo']]) or \
+                                   ('repUrl' not in test[METADATA_KEY_TRANSLATION['transformer_repo']])
                         else:
-                            assert value == test['transformer_repo']['repUrl']
+                            assert value == str(test[METADATA_KEY_TRANSLATION['transformer_repo']]['repUrl'])
 
 
 def test_command_line():
