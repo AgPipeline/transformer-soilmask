@@ -90,10 +90,10 @@ Note that the paths provided are relative to the running image (see the --mount 
 ## Testing Source Code
 
 Please also refer to our [Coding Standards](https://github.com/AgPipeline/Organization-info#python) for information on how we use [pylint](https://www.pylint.org/).
-A pylint command line could be:
+A pylint command line is:
 ```bash
-# Assumes Python3 is default Python version
-pylint --rcfile ~/agpipeline/Organization-info/pylint.rc soilmask.py
+# Assumes Python3.7+ is default Python version
+python -m pylint --rcfile ~/agpipeline/Organization-info/pylint.rc soilmask.py
 ``` 
 
 In the `tests` folder there are testing scripts; their supporting files are in the `test_data` folder.
@@ -109,13 +109,13 @@ tar -xzvf test_data/scif_test_data.tar.gz -C test_data/
 
 The command line for running the tests is as follows:
 ```bash
-# Assumes Python3 is default Python version
-pytest -rpP
+# Assumes Python3.7+ is default Python version
+python -m pytest -rpP
 ```
 
 If test coverage reporting is desired, we suggest using [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/).
 After installing this tool, the following command line will include a coverage report in the output:
 ```bash
-# Assumes Python3 is default Python version
-pytest --cov=. -rpP 
+# Assumes Python3.7+ is default Python version
+python -m pytest --cov=. -rpP 
 ```
