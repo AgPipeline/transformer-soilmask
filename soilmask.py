@@ -422,4 +422,3 @@ class SoilMask(algorithm.Algorithm):
 if __name__ == "__main__":
     CONFIGURATION = ConfigurationSoilmask()
     entrypoint.entrypoint(CONFIGURATION, SoilMask())
-    sys.exit(0)
