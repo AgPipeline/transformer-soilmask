@@ -4,7 +4,6 @@
 
 import logging
 import os
-import sys
 import numpy as np
 from agpypeline import entrypoint, algorithm, geoimage
 from agpypeline.environment import Environment
