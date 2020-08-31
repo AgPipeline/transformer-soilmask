@@ -86,3 +86,36 @@ Note that the paths provided are relative to the running image (see the --mount 
 - `--working_space "/mnt"` specifies the folder to use as a workspace
 - `--metadata "/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_metadata.cleaned.json"` is the name of the source metadata to be cleaned
 - `"/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_left.tif"` is the name of the image to mask
+
+## Testing Source Code
+
+Please also refer to our [Coding Standards](https://github.com/AgPipeline/Organization-info#python) for information on how we use [pylint](https://www.pylint.org/).
+A pylint command line is:
+```bash
+# Assumes Python3.7+ is default Python version
+python -m pylint --rcfile ~/agpipeline/Organization-info/pylint.rc soilmask.py
+``` 
+
+In the `tests` folder there are testing scripts; their supporting files are in the `test_data` folder.
+The tests are designed to be run with [Pytest](https://docs.pytest.org/en/stable/).
+When running the tests, the root of the repository is expected to be the starting directory.
+
+These tests use some of the files downloaded from [CyVerse](https://de.cyverse.org/dl/d/3C8A23C0-F77A-4598-ADC4-874EB265F9B0/scif_test_data.tar.gz).
+The following commands download and extracts the files in this archive:
+```bash
+curl -X GET https://de.cyverse.org/dl/d/3C8A23C0-F77A-4598-ADC4-874EB265F9B0/scif_test_data.tar.gz -o test_data/scif_test_data.tar.gz
+tar -xzvf test_data/scif_test_data.tar.gz -C test_data/
+```
+
+The command line for running the tests is as follows:
+```bash
+# Assumes Python3.7+ is default Python version
+python -m pytest -rpP
+```
+
+If test coverage reporting is desired, we suggest using [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/).
+After installing this tool, the following command line will include a coverage report in the output:
+```bash
+# Assumes Python3.7+ is default Python version
+python -m pytest --cov=. -rpP 
+```

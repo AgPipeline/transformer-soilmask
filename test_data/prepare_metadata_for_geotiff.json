@@ -1,0 +1,39 @@
+[
+  {},
+  {"name":  "my name"},
+  {"name":  "my name", "version":  "v1.1.1"},
+  {"name":  "my name", "version":  "v1.1.1", "author":  "myself"},
+  {"name":  "my name",
+    "version":  "v1.1.1",
+    "author":  "myself",
+    "description": "A nifty transformer"
+  },
+  {
+    "name": "my name",
+    "version": "v1.1.1",
+    "author": "myself",
+    "description": "A nifty transformer",
+    "repository": null
+  },
+  {
+    "name": "my name",
+    "version": "v1.1.1",
+    "author": "myself",
+    "description": "A nifty transformer",
+    "repository": {}
+  },
+  {
+    "name": "my name",
+    "version": "v1.1.1",
+    "author": "myself",
+    "description": "A nifty transformer",
+    "repository": {"repUrl":  null}
+  },
+  {
+    "name": "my name",
+    "version": "v1.1.1",
+    "author": "myself",
+    "description": "A nifty transformer",
+    "repository": {"repUrl":  "This is a repository"}
+  }
+]

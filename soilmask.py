@@ -42,7 +42,8 @@ class __internal__:
             extra_metadata["transformer_version"] = str(transformer_info.get("version", ""))
             extra_metadata["transformer_author"] = str(transformer_info.get("author", ""))
             extra_metadata["transformer_description"] = str(transformer_info.get("description", ""))
-            if "repository" in transformer_info and "repUrl" in transformer_info["repository"]:
+            if "repository" in transformer_info and transformer_info["repository"] and \
+                    "repUrl" in transformer_info["repository"]:
                 extra_metadata["transformer_repo"] = str(transformer_info["repository"]["repUrl"])
             else:
                 extra_metadata["transformer_repo"] = ""
