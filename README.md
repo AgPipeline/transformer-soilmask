@@ -58,14 +58,24 @@ For more details, see related discussions, including: https://github.com/terrare
 
 ### Sample Docker Command line
 
+There are two files needed for running the Docker image.
+In the example below the `experiment.yaml` file contains information on the experiment.
+The `orthomosiac.tif` file is an Orthomosaic image that is to have the soil removed.
+These two files can be retrieved using the following commands:
+```bash
+mkdir test_data
+curl -X GET https://de.cyverse.org/dl/d/3C8A23C0-F77A-4598-ADC4-874EB265F9B0/scif_test_data.tar.gz -o test_data/scif_test_data.tar.gz
+tar -xzvf test_data/scif_test_data.tar.gz -C test_data/
+```
+
 Below is a sample command line that shows how the soil mask Docker image could be run.
 An explanation of the command line options used follows.
 Be sure to read up on the [docker run](https://docs.docker.com/engine/reference/run/) command line for more information.
 
-```docker run --rm --mount "src=/home/test,target=/mnt,type=bind" agpipeline/soilmask:2.0 --working_space "/mnt" --metadata "/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_metadata_cleaned.json" "/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_left.tif" ```
+```docker run --rm --mount "src=${PWD}/test_data,target=/mnt,type=bind" agdrone/transformer-soilmask:2.1 --working_space "/mnt" --metadata "/mnt/experiment.yaml" "/mnt/orthomosaic.tif" ```
 
-This example command line assumes the source files are located in the `/home/test` folder of the local machine.
-The name of the image to run is `agpipeline/soilmask:2.0`.
+This example command line assumes the source files are located in the `test_data` folder off the current folder.
+The name of the image to run is `agdrone/transformer-soilmask:2.1`.
 
 We are using the same folder for the source files and the output files.
 By using multiple `--mount` options, the source and output files can be separated.
@@ -75,17 +85,17 @@ Everything between 'docker' and the name of the image are docker commands.
 
 - `run` indicates we want to run an image
 - `--rm` automatically delete the image instance after it's run
-- `--mount "src=/home/test,target=/mnt,type=bind"` mounts the `/home/test` folder to the `/mnt` folder of the running image
+- `--mount "src=${PWD}/test_data,target=/mnt,type=bind"` mounts the `${PWD}/test_data` folder to the `/mnt` folder of the running image
 
-We mount the `/home/test` folder to the running image to make files available to the software in the image.
+We mount the `${PWD}/test_data` folder to the running image to make files available to the software in the image.
 
 **Image's commands** \
 The command line parameters after the image name are passed to the software inside the image.
 Note that the paths provided are relative to the running image (see the --mount option specified above).
 
 - `--working_space "/mnt"` specifies the folder to use as a workspace
-- `--metadata "/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_metadata.cleaned.json"` is the name of the source metadata to be cleaned
-- `"/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_left.tif"` is the name of the image to mask
+- `--metadata "/mnt/experiment.yaml"` is the name of the source metadata to be cleaned
+- `"/mnt/orthomosaic.tif"` is the name of the image to mask
 
 ## Acceptance Testing
 
