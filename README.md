@@ -63,7 +63,9 @@ For more details, see related discussions, including: https://github.com/terrare
 First build the Docker image, using the Dockerfile, and tag it agdrone/transformer-soilmask:2.1. 
 Read about the [docker build](https://docs.docker.com/engine/reference/commandline/build/) command if needed.
 
-```docker build -t agdrone/transformer-soilmask:2.1 ./```
+```bash
+docker build -t agdrone/transformer-soilmask:2.1 ./
+```
 
 There are two files needed for running the Docker image.
 In the example below the `experiment.yaml` file contains information on the experiment.
@@ -79,7 +81,9 @@ Below is a sample command line that shows how the soil mask Docker image could b
 An explanation of the command line options used follows.
 Be sure to read up on the [docker run](https://docs.docker.com/engine/reference/run/) command line for more information.
 
-```docker run --rm --mount "src=${PWD}/test_data,target=/mnt,type=bind" agdrone/transformer-soilmask:2.1 --working_space "/mnt" --metadata "/mnt/experiment.yaml" "/mnt/orthomosaic.tif" ```
+```bash
+docker run --rm --mount "src=${PWD}/test_data,target=/mnt,type=bind" agdrone/transformer-soilmask:2.1 --working_space "/mnt" --metadata "/mnt/experiment.yaml" "/mnt/orthomosaic.tif"
+```
 
 This example command line assumes the source files are located in the `test_data` folder off the current folder.
 The name of the image to run is `agdrone/transformer-soilmask:2.1`.
