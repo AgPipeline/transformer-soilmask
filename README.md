@@ -87,13 +87,31 @@ Note that the paths provided are relative to the running image (see the --mount 
 - `--metadata "/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_metadata.cleaned.json"` is the name of the source metadata to be cleaned
 - `"/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_left.tif"` is the name of the image to mask
 
-## Testing Source Code
+## Acceptance Testing
 
+There are automated test suites that are run via [GitHub Actions](https://docs.github.com/en/actions).
+In this section we provide details on these tests so that they can be run locally as well.
+
+These tests are run when a [Pull Request](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests) or [push](https://docs.github.com/en/github/using-git/pushing-commits-to-a-remote-repository) occurs on the `develop` or `master` branches.
+There may be other instances when these tests are automatically run, but these are considered the mandatory events and branches.
+
+### PyLint and PyTest
+
+These tests are run against any Python scripts that are in the repository.
+
+[PyLint](https://www.pylint.org/) is used to both check that Python code conforms to the recommended coding style, and checks for syntax errors.
+The default behavior of PyLint is modified by the `pylint.rc` file in the [Organization-info](https://github.com/AgPipeline/Organization-info) repository.
 Please also refer to our [Coding Standards](https://github.com/AgPipeline/Organization-info#python) for information on how we use [pylint](https://www.pylint.org/).
-A pylint command line is:
+
+The following command can be used to fetch the `pylint.rc` file:
+```bash
+wget https://raw.githubusercontent.com/AgPipeline/Organization-info/master/pylint.rc
+```
+
+Assuming the `pylint.rc` file is in the current folder, the following command can be used against the `soilmask.py` file:
 ```bash
 # Assumes Python3.7+ is default Python version
-python -m pylint --rcfile ~/agpipeline/Organization-info/pylint.rc soilmask.py
+python -m pylint --rcfile ./pylint.rc soilmask.py
 ``` 
 
 In the `tests` folder there are testing scripts; their supporting files are in the `test_data` folder.
@@ -113,9 +131,14 @@ The command line for running the tests is as follows:
 python -m pytest -rpP
 ```
 
-If test coverage reporting is desired, we suggest using [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/).
-After installing this tool, the following command line will include a coverage report in the output:
+If [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/) is installed, it can be used to generate a code coverage report as part of running PyTest.
+The code coverage report shows how much of the code has been tested; it doesn't indicate **how well** that code has been tested.
+The modified PyTest command line including coverage is:
 ```bash
 # Assumes Python3.7+ is default Python version
 python -m pytest --cov=. -rpP 
 ```
+
+### Docker Testing
+
+The Docker testing Workflow replicate the examples in this document to ensure they continue to work.
