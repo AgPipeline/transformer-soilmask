@@ -56,7 +56,14 @@ At the same time, there are some limitations with the current threshold. Here ar
 
 For more details, see related discussions, including: https://github.com/terraref/reference-data/issues/186#issuecomment-333631648
 
+## Use 
+
 ### Sample Docker Command line
+
+First build the Docker image, using the Dockerfile, and tag it agdrone/transformer-soilmask:2.1. 
+Read about the [docker build](https://docs.docker.com/engine/reference/commandline/build/) command if needed.
+
+```docker build -t agdrone/transformer-soilmask:2.1 ./```
 
 There are two files needed for running the Docker image.
 In the example below the `experiment.yaml` file contains information on the experiment.
