@@ -1,0 +1,60 @@
+name: Testing Docker image
+on:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request:
+    branches:
+      - master
+      - develop
+    tags:
+      - v*
+
+jobs:
+  docker_testing:
+    runs-on: ubuntu-latest
+    name: Running Docker testing
+    steps:
+      - name: Fetch source code
+        uses: actions/checkout@v2
+      - name: Create folders
+        run: |
+             mkdir ./inputs && chmod 777 ./inputs
+             mkdir ./outputs && chmod 777 ./outputs
+      - name: Download testing data files
+        run: |
+             curl -X GET https://de.cyverse.org/dl/d/3CBFD03C-C82E-4EDE-A8E5-DD4DBD45C696/orthomosaic.tif > inputs/orthomosaic.tif
+             curl -X GET https://de.cyverse.org/dl/d/FD32B0CE-DBAB-4A44-B8A6-0E9AA4555A31/experiment.yaml > inputs/experiment.yaml
+      - name: Folder contents
+        run: |
+             echo "Current folder" && ls -l
+             echo "Inputs folder" && ls -l ./inputs
+             echo "Outputs folder" && ls -l ./outputs
+      - name: Build docker image
+        run: docker build -t soilmask_test:latest ./
+      - name: Compress docker image
+        run: docker save soilmask_test:latest | gzip -7 -c - > soilmask_test_image.tar.gz
+      - name: Upload docker image
+        uses: actions/upload-artifact@v2
+        with:
+          name: soilmask_test_image
+          path: soilmask_test_image.tar.gz
+      - name: Run docker test
+        run: docker run --rm -v "${PWD}/inputs:/inputs" -v "${PWD}/outputs:/outputs" soilmask_test:latest --working_space /outputs --metadata /inputs/experiment.yaml /inputs/orthomosaic.tif
+      - name: Output folder contents
+        run: echo "Outputs folder" && ls -l ./outputs
+      - name: Check outputs
+        run: |
+             chmod +x "./.github/workflows/docker_test_check.sh"
+             "./.github/workflows/docker_test_check.sh"
+
+  artifact_cleanup:
+    runs-on: ubuntu-latest
+    needs: [docker_testing]
+    name: Cleanup artifacts upon success
+    steps:
+      - name: Remove docker artifact
+        uses: geekyeggo/delete-artifact@v1
+        with:
+          name: soilmask_test_image
