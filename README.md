@@ -56,16 +56,37 @@ At the same time, there are some limitations with the current threshold. Here ar
 
 For more details, see related discussions, including: https://github.com/terraref/reference-data/issues/186#issuecomment-333631648
 
+## Use 
+
 ### Sample Docker Command line
+
+First build the Docker image, using the Dockerfile, and tag it agdrone/transformer-soilmask:2.1. 
+Read about the [docker build](https://docs.docker.com/engine/reference/commandline/build/) command if needed.
+
+```bash
+docker build -t agdrone/transformer-soilmask:2.1 ./
+```
+
+There are two files needed for running the Docker image.
+In the example below the `experiment.yaml` file contains information on the experiment.
+The `orthomosiac.tif` file is an Orthomosaic image that is to have the soil removed.
+These two files can be retrieved using the following commands:
+```bash
+mkdir test_data
+curl -X GET https://de.cyverse.org/dl/d/3C8A23C0-F77A-4598-ADC4-874EB265F9B0/scif_test_data.tar.gz -o test_data/scif_test_data.tar.gz
+tar -xzvf test_data/scif_test_data.tar.gz -C test_data/
+```
 
 Below is a sample command line that shows how the soil mask Docker image could be run.
 An explanation of the command line options used follows.
 Be sure to read up on the [docker run](https://docs.docker.com/engine/reference/run/) command line for more information.
 
-```docker run --rm --mount "src=/home/test,target=/mnt,type=bind" agpipeline/soilmask:2.0 --working_space "/mnt" --metadata "/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_metadata_cleaned.json" "/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_left.tif" ```
+```bash
+docker run --rm --mount "src=${PWD}/test_data,target=/mnt,type=bind" agdrone/transformer-soilmask:2.1 --working_space "/mnt" --metadata "/mnt/experiment.yaml" "/mnt/orthomosaic.tif"
+```
 
-This example command line assumes the source files are located in the `/home/test` folder of the local machine.
-The name of the image to run is `agpipeline/soilmask:2.0`.
+This example command line assumes the source files are located in the `test_data` folder off the current folder.
+The name of the image to run is `agdrone/transformer-soilmask:2.1`.
 
 We are using the same folder for the source files and the output files.
 By using multiple `--mount` options, the source and output files can be separated.
@@ -75,25 +96,43 @@ Everything between 'docker' and the name of the image are docker commands.
 
 - `run` indicates we want to run an image
 - `--rm` automatically delete the image instance after it's run
-- `--mount "src=/home/test,target=/mnt,type=bind"` mounts the `/home/test` folder to the `/mnt` folder of the running image
+- `--mount "src=${PWD}/test_data,target=/mnt,type=bind"` mounts the `${PWD}/test_data` folder to the `/mnt` folder of the running image
 
-We mount the `/home/test` folder to the running image to make files available to the software in the image.
+We mount the `${PWD}/test_data` folder to the running image to make files available to the software in the image.
 
 **Image's commands** \
 The command line parameters after the image name are passed to the software inside the image.
 Note that the paths provided are relative to the running image (see the --mount option specified above).
 
 - `--working_space "/mnt"` specifies the folder to use as a workspace
-- `--metadata "/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_metadata.cleaned.json"` is the name of the source metadata to be cleaned
-- `"/mnt/08f445ef-b8f9-421a-acf1-8b8c206c1bb8_left.tif"` is the name of the image to mask
+- `--metadata "/mnt/experiment.yaml"` is the name of the source metadata to be cleaned
+- `"/mnt/orthomosaic.tif"` is the name of the image to mask
 
-## Testing Source Code
+## Acceptance Testing
 
+There are automated test suites that are run via [GitHub Actions](https://docs.github.com/en/actions).
+In this section we provide details on these tests so that they can be run locally as well.
+
+These tests are run when a [Pull Request](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests) or [push](https://docs.github.com/en/github/using-git/pushing-commits-to-a-remote-repository) occurs on the `develop` or `master` branches.
+There may be other instances when these tests are automatically run, but these are considered the mandatory events and branches.
+
+### PyLint and PyTest
+
+These tests are run against any Python scripts that are in the repository.
+
+[PyLint](https://www.pylint.org/) is used to both check that Python code conforms to the recommended coding style, and checks for syntax errors.
+The default behavior of PyLint is modified by the `pylint.rc` file in the [Organization-info](https://github.com/AgPipeline/Organization-info) repository.
 Please also refer to our [Coding Standards](https://github.com/AgPipeline/Organization-info#python) for information on how we use [pylint](https://www.pylint.org/).
-A pylint command line is:
+
+The following command can be used to fetch the `pylint.rc` file:
+```bash
+wget https://raw.githubusercontent.com/AgPipeline/Organization-info/master/pylint.rc
+```
+
+Assuming the `pylint.rc` file is in the current folder, the following command can be used against the `soilmask.py` file:
 ```bash
 # Assumes Python3.7+ is default Python version
-python -m pylint --rcfile ~/agpipeline/Organization-info/pylint.rc soilmask.py
+python -m pylint --rcfile ./pylint.rc soilmask.py
 ``` 
 
 In the `tests` folder there are testing scripts; their supporting files are in the `test_data` folder.
@@ -113,9 +152,14 @@ The command line for running the tests is as follows:
 python -m pytest -rpP
 ```
 
-If test coverage reporting is desired, we suggest using [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/).
-After installing this tool, the following command line will include a coverage report in the output:
+If [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/) is installed, it can be used to generate a code coverage report as part of running PyTest.
+The code coverage report shows how much of the code has been tested; it doesn't indicate **how well** that code has been tested.
+The modified PyTest command line including coverage is:
 ```bash
 # Assumes Python3.7+ is default Python version
 python -m pytest --cov=. -rpP 
 ```
+
+### Docker Testing
+
+The Docker testing Workflow replicate the examples in this document to ensure they continue to work.
