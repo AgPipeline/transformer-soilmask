@@ -70,7 +70,7 @@ def test_prepare_metadata_for_geotiff():
                             assert value == str(test[METADATA_KEY_TRANSLATION['transformer_repo']]['repUrl'])
 
 
-def test_command_line():
+def test_simple_line():
     """Runs the command line and tests the result"""
     orthomosaic_mask_name = 'orthomosaic_mask.tif'
     result_name = 'result.json'
@@ -83,6 +83,37 @@ def test_command_line():
     os.makedirs(working_space, exist_ok=True)
 
     command_line = [SOURCE_PATH, '--metadata', source_metadata, '--working_space', working_space, source_image]
+    subprocess.run(command_line, check=True)
+
+    # Check that the expected files were created
+    for expected_file in [result_name, orthomosaic_mask_name]:
+        assert os.path.exists(os.path.join(working_space, expected_file))
+
+    # Inspect the created files
+    with open(os.path.join(working_space, result_name)) as in_file:
+        res = json.load(in_file)
+        assert 'code' in res
+        assert res['code'] == 0
+
+    img = gdal.Open(os.path.join(working_space, orthomosaic_mask_name)).ReadAsArray()
+    assert img is not None
+    assert isinstance(img, np.ndarray)
+
+
+def test_outputfile_command_line():
+    """Runs the command line and tests the result"""
+    orthomosaic_mask_name = 'soilmask.tif'
+    result_name = 'result.json'
+    source_image = os.path.join(TESTING_FILE_PATH, 'orthomosaic.tif')
+    source_metadata = os.path.join(TESTING_FILE_PATH, 'experiment.yaml')
+    assert os.path.exists(source_image)
+    assert os.path.exists(source_metadata)
+
+    working_space = os.path.realpath('./test_results')
+    os.makedirs(working_space, exist_ok=True)
+
+    command_line = [SOURCE_PATH, '--metadata', source_metadata, '--working_space', working_space,
+                    '--out_file', orthomosaic_mask_name, source_image]
     subprocess.run(command_line, check=True)
 
     # Check that the expected files were created
