@@ -2,6 +2,7 @@
 """Soil masking Transformer
 """
 
+import argparse
 import logging
 import os
 import numpy as np
@@ -327,6 +328,16 @@ class SoilMask(algorithm.Algorithm):
         """Returns a tuple of supported file extensions in lowercase (with the preceeding dot: eg '.tif')"""
         return '.tiff', '.tif'
 
+    def add_parameters(self, parser: argparse.ArgumentParser) -> None:
+        """Adds parameters
+        Arguments:
+            parser: instance of argparse
+        """
+        # pylint: disable=no-self-use
+        parser.add_argument('--out_file', type=str, help='the path to save the masked file to')
+
+        parser.epilog += 'Mask files are saved with the .msk filename extension added when not specified. '
+
     def check_continue(self, environment: Environment, check_md: dict, transformer_md: list,
                        full_md: list) -> tuple:
         """Checks if conditions are right for continuing processing
@@ -402,8 +413,14 @@ class SoilMask(algorithm.Algorithm):
                                     os.path.basename(one_file))
                     continue
 
-                # Get the mask name using the original name as reference
-                rgb_mask_tif = os.path.join(check_md['working_folder'], __internal__.get_maskfilename(one_file))
+                # Get the mask name
+                if environment.args.out_file:
+                    rgb_mask_tif = environment.args.out_file
+                    if not os.path.dirname(rgb_mask_tif):
+                        rgb_mask_tif = os.path.join(check_md['working_folder'], rgb_mask_tif)
+                else:
+                    # Use the original name
+                    rgb_mask_tif = os.path.join(check_md['working_folder'], __internal__.get_maskfilename(one_file))
 
                 # Create the mask file
                 logging.debug("Creating mask file '%s'", rgb_mask_tif)
