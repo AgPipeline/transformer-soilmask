@@ -9,13 +9,13 @@ class ConfigurationSoilmask(Configuration):
     # pylint: disable=too-few-public-methods
 
     # The version number of the transformer
-    transformer_version = '2.0'
+    transformer_version = '2.2'
 
     # The transformer description
-    transformer_description = 'Stereo RGB Image Enhancement & Masking'
+    transformer_description = 'RGB Image Soil Masking'
 
     # Short name of the transformer
-    transformer_name = 'terra.stereo-rgb.rgbmask'
+    transformer_name = 'soilmask'
 
     # The name of the author of the extractor
     author_name = 'Chris Schnaufer'
@@ -24,7 +24,7 @@ class ConfigurationSoilmask(Configuration):
     author_email = 'schnaufer@email.arizona.edu'
 
     # Repository URI of where the source code lives
-    repository = 'https://github.com/Chris-Schnaufer/rgbmask.git'
+    repository = 'https://github.com/AgPipeline/transformer-soilmask'
 
     # Contributors to this transformer
     contributors = ['Max Burnette', 'Zongyang Li', 'Todd Nicholson']
@@ -33,4 +33,4 @@ class ConfigurationSoilmask(Configuration):
     transformer_sensor = 'stereoTop'
 
     # The transformer type (eg: 'rgbmask', 'plotclipper')
-    transformer_type = 'rgb_mask'
+    transformer_type = 'rgbmask'
