@@ -105,7 +105,7 @@ The command line parameters after the image name are passed to the software insi
 Note that the paths provided are relative to the running image (see the --mount option specified above).
 
 - `--working_space "/mnt"` specifies the folder to use as a workspace
-- `--metadata "/mnt/experiment.yaml"` is the name of the source metadata to be cleaned
+- `--metadata "/mnt/experiment.yaml"` is the name of the source metadata
 - `"/mnt/orthomosaic.tif"` is the name of the image to mask
 
 ## Acceptance Testing
