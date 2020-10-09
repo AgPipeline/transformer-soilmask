@@ -219,7 +219,10 @@ class __internal__:
         Return:
             A new image that had the mask applied
         """
-        rgb_mask = cv2.bitwise_and(img, img, mask=bin_mask)
+        rgb_mask = cv2.bitwise_and(img[:, :, 0:3], img[:, :, 0:3], mask=bin_mask)
+
+        if img.shape[2] > 3:
+            rgb_mask = np.concatenate((rgb_mask, img[:, :, 3:]), axis=2)
 
         return rgb_mask
 
@@ -236,9 +239,10 @@ class __internal__:
 
         over_threshold = gray_img > SATURATE_THRESHOLD
         under_threshold = gray_img < 20  # 20 is a threshold to classify low pixel value
+        masked_count = 0 if img.shape[2] < 4 else np.sum(img[:, :, 3] == 0)
 
         over_rate = float(np.sum(over_threshold)) / float(gray_img.size)
-        low_rate = float(np.sum(under_threshold)) / float(gray_img.size)
+        low_rate = float(np.sum(under_threshold) - masked_count) / float(gray_img.size)
 
         return [over_rate, low_rate]
 
@@ -255,6 +259,22 @@ class __internal__:
 
         return base + "_mask" + ext
 
+    @staticmethod
+    def check_brightness(img: np.ndarray) -> float:
+        """Generate average pixel value from a BGR (blue, green, red) image array
+        Arguments:
+            img: the ndarray of image pixels to evaluate
+        Returns:
+            The average pixel value of the image
+        Notes:
+            This method computes the grayscale image used in the evaluation
+        """
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+
+        ave_value = np.average(gray_img)
+
+        return ave_value
+
 
 def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> tuple:
     """Generates an image mask keeping plants
@@ -266,7 +286,7 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> tuple:
     """
     # abandon low quality images, mask enhanced
     img = np.rollaxis(gdal.Open(input_path).ReadAsArray().astype(np.uint8), 0, 3)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB if img.shape[2] < 4 else cv2.COLOR_BGRA2RGBA)
 
     # calculate image scores
     # pylint: disable=unused-variable
@@ -277,10 +297,11 @@ def gen_cc_enhanced(input_path: str, kernel_size: int = 3) -> tuple:
     # aveValue is average pixel value of grayscale image, if aveValue lower than 30 or higher than 195, return
     # quality_score is a score from Multiscale Autocorrelation (MAC), if quality_score lower than 13, return
 
-    # aveValue = check_brightness(img)
-    # quality_score = get_image_quality(input_path)
-    # if low_rate > 0.1 or aveValue < 30 or aveValue > 195 or quality_score < 13:
-    #    return None, None, None
+    ave_value = __internal__.check_brightness(img)
+    # if not quality_score:
+    #     quality_score = getImageQuality(input_path)
+    if low_rate > 0.1 or ave_value < 30 or ave_value > 195:
+        return None, None
 
     # saturated image process
     # over_rate is percentage of high value pixels(higher than SATURATE_THRESHOLD) in the grayscale image, if
@@ -331,6 +352,8 @@ class SoilMask(algorithm.Algorithm):
                         result['code'] = 0
                         break
             except Exception as ex:
+                if logging.getLogger().level == logging.DEBUG:
+                    logging.exception("Exception caught in check_continue")
                 result['code'] = -1
                 result['error'] = "Exception caught processing file list: %s" % str(ex)
         else:
@@ -385,9 +408,12 @@ class SoilMask(algorithm.Algorithm):
                 # Create the mask file
                 logging.debug("Creating mask file '%s'", rgb_mask_tif)
                 mask_ratio, mask_rgb = gen_cc_enhanced(one_file)
+                if mask_rgb is None:
+                    logging.warning("Skipping over image that failed quality check: %s", one_file)
+                    continue
 
                 # Bands must be reordered to avoid swapping R and B
-                mask_rgb = cv2.cvtColor(mask_rgb, cv2.COLOR_BGR2RGB)
+                mask_rgb = cv2.cvtColor(mask_rgb, cv2.COLOR_BGR2RGB if mask_rgb.shape[2] < 4 else cv2.COLOR_BGRA2RGBA)
 
                 transformer_info = environment.generate_transformer_md()
 
@@ -412,6 +438,8 @@ class SoilMask(algorithm.Algorithm):
             result['file'] = file_md
 
         except Exception as ex:
+            if logging.getLogger().level == logging.DEBUG:
+                logging.exception("Exception caught in perform_process")
             result['code'] = -1001
             result['error'] = "Exception caught masking files: %s" % str(ex)
 
