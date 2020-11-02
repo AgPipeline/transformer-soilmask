@@ -336,7 +336,8 @@ class SoilMask(algorithm.Algorithm):
         # pylint: disable=no-self-use
         parser.add_argument('--out_file', type=str, help='the path to save the masked file to')
 
-        parser.epilog += '  Mask files are saved with the .msk filename extension added when not specified.'
+        parser.epilog = 'Mask files are saved with the .msk filename extension added when it\'s not specified. ' + \
+                        parser.epilog
 
     def check_continue(self, environment: Environment, check_md: dict, transformer_md: list,
                        full_md: list) -> tuple:
