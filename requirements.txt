@@ -1,4 +1,3 @@
 scikit-image
-opencv-python
 agpypeline
 

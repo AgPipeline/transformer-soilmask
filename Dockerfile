@@ -39,6 +39,8 @@ RUN apt-get update && \
         numpy && \
     python3 -m pip install --upgrade --no-cache-dir \
         pygdal==2.2.3.* && \
+    python3 -m pip install --upgrade --no-cache-dir \
+        opencv-python && \
     apt-get remove -y \
         libgdal-dev \
         gcc \
