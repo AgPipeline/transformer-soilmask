@@ -47,7 +47,7 @@ jobs:
         run: sudo apt-get install -y python-apt
       - name: Install python-opencv
         run: |
-          apt-get install -y --no-install-recommends gcc g++ python3.7-dev
+          sudo apt-get install -y --no-install-recommends gcc g++ python3.7-dev
           python3 -m pip install --upgrade --no-cache-dir wheel
           python3 -m pip install --upgrade --no-cache-dir opencv-python
       - name: HACK to fix apt-get update problem w/ different python versions
