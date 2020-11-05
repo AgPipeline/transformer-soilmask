@@ -4,7 +4,6 @@ on:
     branches:
       - master
       - develop
-      - data_quality_checks
   pull_request:
     branches:
       - master
