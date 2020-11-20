@@ -2,7 +2,7 @@
 
 Converts an RGB image into a soil mask in which the soil is represented as black.
 
-The core idea for this Transformer is a plant-soil segmentation. 
+The core idea for this Transformer is a plant-soil segmentation that was described by [Li et al 2019](LiCVPPP2019.pdf).
 
 ## Algorithm Description
 
@@ -55,6 +55,8 @@ At the same time, there are some limitations with the current threshold. Here ar
 ![2016-10-10__11-04-18-165](figures/sensor_problem.jpg)
 
 For more details, see related discussions, including: https://github.com/terraref/reference-data/issues/186#issuecomment-333631648
+
+Li, Zongyang, Abby Stylianou, and Robert Pless. "Learning to Correct for Bad Camera Settings in Large Scale Plant Monitoring." CVPPP 2019 Computer Vision Problems in Plant Phenotyping.
 
 ## Use 
 
