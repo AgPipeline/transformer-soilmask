@@ -52,7 +52,7 @@ jobs:
              chmod +x "./.github/workflows/docker_test_check.sh"
              "./.github/workflows/docker_test_check.sh"
       - name: Data quality check
-        run: if [[ "$(diff './test_data/orthomosaic_mask.tif' './outputs/orthomosaic_mask.tif')" == "" ]]; then echo "Test soilmask content matches expected"; exit 0; else echo "Error - soilmask contents mismatch from test_data/orthomosaicmask.tif"; exit 1; fi;
+        run: if [[ "$(diff './test_data/orthomosaic_mask.tif' './outputs/orthomosaic_mask.tif')" == "" ]]; then echo "Test soilmask content matches expected"; exit 0; else echo "Error - soilmask contents mismatch from test_data/orthomosaicmask.tif"; diff './test_data/orthomosaic_mask.tif' './outputs/orthomosaic_mask.tif'; exit 1; fi;
 
   artifact_cleanup:
     runs-on: ubuntu-latest
