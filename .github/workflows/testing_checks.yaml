@@ -42,8 +42,6 @@ jobs:
         run: python3 -m pip install --upgrade --no-cache-dir pip
       - name: Fetch/update setuptools
         run: python3 -m pip install --upgrade --no-cache-dir setuptools
-      - name: Install python-apt
-        run: sudo apt-get install -y python-apt
       - name: Install python-opencv
         run: |
           sudo apt-get install -y --no-install-recommends gcc g++ python3.7-dev
