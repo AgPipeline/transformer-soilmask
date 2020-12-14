@@ -26,7 +26,6 @@ jobs:
             - app: pytest
               pip_installs: pytest pytest-cov
               test_command: python3 -m pytest --cov=. -rpP --cov-report=xml
-              artifacts: coverage.txt
     steps:
       - name: Current python version
         run: python3 --version || echo python3 not installed
