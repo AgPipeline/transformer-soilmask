@@ -64,7 +64,7 @@ class __internal__:
         g_channel = color_img[:, :, 1]
         b_channel = color_img[:, :, 0]
 
-        sub_img = (g_channel.astype('int') - r_channel.astype('int') - 0) > 0  # normal: -2
+        sub_img = (g_channel.astype('int') - r_channel.astype('int')) > 1
 
         mask = np.zeros_like(b_channel)
 
