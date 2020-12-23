@@ -1,3 +1,8 @@
+[![license](https://img.shields.io/badge/license-BSD%203-green?logo=Open-Source-Initiative)](https://github.com/AgPipeline/transformer-soilmask/blob/master/LICENSE)
+
+[![Enforcing testing](https://github.com/AgPipeline/transformer-soilmask/workflows/Enforcing%20testing/badge.svg)](https://github.com/AgPipeline/transformer-soilmask/actions?query=workflow%3A%22Enforcing+testing%22)
+[![testing](https://github.com/AgPipeline/transformer-soilmask/workflows/Testing%20Docker%20image/badge.svg)](https://github.com/AgPipeline/transformer-soilmask/actions?query=workflow%3A%22Testing+Docker+image%22)
+
 # Transformer Soil Mask
 
 Converts an RGB image into a soil mask in which the soil is represented as black.
