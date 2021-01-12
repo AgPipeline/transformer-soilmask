@@ -42,17 +42,11 @@ jobs:
         run: python3 -m pip install --upgrade --no-cache-dir pip
       - name: Fetch/update setuptools
         run: python3 -m pip install --upgrade --no-cache-dir setuptools
-      - name: Install python-apt
-        run: sudo apt-get install -y python-apt
       - name: Install python-opencv
         run: |
           sudo apt-get install -y --no-install-recommends gcc g++ python3.7-dev
           python3 -m pip install --upgrade --no-cache-dir wheel
           python3 -m pip install --upgrade --no-cache-dir opencv-python
-      - name: HACK to fix apt-get update problem w/ different python versions
-        run: 'cd /usr/lib/python3/dist-packages && sudo cp apt_pkg.cpython-36m-x86_64-linux-gnu.so apt_pkg.so'
-      - name: Update apt-get
-        run: sudo apt-get update
       - name: Fetch/update testing pip installations
         run: python3 -m pip install --upgrade --no-cache-dir ${{ matrix.pip_installs }}
       - name: Fetch source code
