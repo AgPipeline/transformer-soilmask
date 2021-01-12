@@ -28,7 +28,7 @@ jobs:
              curl -X GET https://de.cyverse.org/dl/d/3CBFD03C-C82E-4EDE-A8E5-DD4DBD45C696/orthomosaic.tif > inputs/orthomosaic.tif
              curl -X GET https://de.cyverse.org/dl/d/FD32B0CE-DBAB-4A44-B8A6-0E9AA4555A31/experiment.yaml > inputs/experiment.yaml
              mkdir -p test_data
-             curl -X GET https://de.cyverse.org/dl/d/5108713B-0171-46B5-8810-2BBBA7D385F3/orthomosaicmask.tif > test_data/orthomosaic_mask.tif
+             curl -X GET https://de.cyverse.org/dl/d/D06CA5FF-34CE-46F6-91BD-C93167678941/orthomosaicmask_1.tif > test_data/orthomosaic_mask.tif
       - name: Folder contents
         run: |
              echo "Current folder" && ls -l
@@ -52,7 +52,7 @@ jobs:
              chmod +x "./.github/workflows/docker_test_check.sh"
              "./.github/workflows/docker_test_check.sh"
       - name: Data quality check
-        run: if [[ "$(diff './test_data/orthomosaic_mask.tif' './outputs/orthomosaic_mask.tif')" == "" ]]; then echo "Test soilmask content matches expected"; exit 0; else echo "Error - soilmask contents mismatch from test_data/orthomosaicmask.tif"; exit 1; fi;
+        run: if [[ "$(diff './test_data/orthomosaic_mask.tif' './outputs/orthomosaic_mask.tif')" == "" ]]; then echo "Test soilmask content matches expected"; exit 0; else echo "Error - soilmask contents mismatch from test_data/orthomosaicmask.tif"; diff './test_data/orthomosaic_mask.tif' './outputs/orthomosaic_mask.tif'; exit 1; fi;
 
   artifact_cleanup:
     runs-on: ubuntu-latest

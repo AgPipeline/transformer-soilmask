@@ -26,7 +26,6 @@ jobs:
             - app: pytest
               pip_installs: pytest pytest-cov
               test_command: python3 -m pytest --cov=. -rpP --cov-report=xml
-              artifacts: coverage.txt
     steps:
       - name: Current python version
         run: python3 --version || echo python3 not installed
@@ -42,8 +41,6 @@ jobs:
         run: python3 -m pip install --upgrade --no-cache-dir pip
       - name: Fetch/update setuptools
         run: python3 -m pip install --upgrade --no-cache-dir setuptools
-      - name: Install python-apt
-        run: sudo apt-get install -y python-apt
       - name: Install python-opencv
         run: |
           sudo apt-get install -y --no-install-recommends gcc g++ python3.7-dev
