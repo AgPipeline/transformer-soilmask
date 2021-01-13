@@ -8,6 +8,7 @@ on:
     branches:
       - master
       - develop
+      - ubuntu20.04
     tags:
       - v*
   workflow_dispatch:
