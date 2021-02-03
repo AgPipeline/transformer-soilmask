@@ -32,6 +32,7 @@ RUN apt-get update && \
         gdal-bin   \
         libgdal-dev  \
         gcc \
+        wget \
         g++ \
         python3.8-dev && \
     python3 -m pip install --upgrade --no-cache-dir \
@@ -76,10 +77,20 @@ RUN [ -s /home/extractor/requirements.txt ] && \
     (echo "No python modules to install" && \
     rm /home/extractor/requirements.txt)
 
+RUN wget -X GET https://de.cyverse.org/dl/d/3CBFD03C-C82E-4EDE-A8E5-DD4DBD45C696/orthomosaic.tif -o "${PWD}/test_data/orthomosaic.tif"
+
+RUN (echo "Installing agpypeline from testpypi" && \
+    python3 -m pip install --upgrade --no-cache-dir --index-url https://test.pypi.org/simple/ agpypeline==0.0.106)
+
 USER extractor
 COPY configuration.py soilmask.py /home/extractor/
 COPY test_data/* /home/extractor/test_data/
 COPY tests/* /home/extractor/tests/
+COPY test_data/orthomosaic.tif /home/extractor/
+
+RUN wget -X GET https://de.cyverse.org/dl/d/3CBFD03C-C82E-4EDE-A8E5-DD4DBD45C696/orthomosaic.tif
+COPY test_data/orthomosaic.tif /home/extractor/test_data/orthomosaic.tif
+
 
 USER root
 RUN chmod a+x /home/extractor/soilmask.py
