@@ -33,7 +33,7 @@ jobs:
       - name: Install Python 3.8
         uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
+          python-version: '3.8'
       - name: Updated python version
         run: python3 --version
       - name: PYTHONPATH environment variable
@@ -44,7 +44,7 @@ jobs:
         run: python3 -m pip install --upgrade --no-cache-dir setuptools
       - name: Install python-opencv
         run: |
-          sudo apt-get install -y --no-install-recommends gcc g++ python3.7-dev
+          sudo apt-get install -y --no-install-recommends gcc g++ python3.8-dev
           python3 -m pip install --upgrade --no-cache-dir wheel
           python3 -m pip install --upgrade --no-cache-dir opencv-python
       - name: Fetch/update testing pip installations
@@ -55,7 +55,7 @@ jobs:
         run: find . -type f -name "*.py" > action_test_files.txt
       - name: Install system requirements
         shell: bash
-        run: 'sudo apt-get install -y python3-gdal gdal-bin libgdal-dev gcc g++ python3.7-dev'
+        run: 'sudo apt-get install -y python3-gdal gdal-bin libgdal-dev gcc g++ python3.8-dev'
       - name: Install Python numpy
         shell: bash
         run: 'python3 -m pip install --upgrade --no-cache-dir numpy wheel'
@@ -68,9 +68,9 @@ jobs:
       - name: Install Python requirements from source
         shell: bash
         run: 'if [ -s "requirements.txt" ]; then (python3 -m pip install --no-cache-dir -r requirements.txt) || (echo "Failed to install Python requirements" && exit 1); fi'
-#      - name: Install testpypi agpypeline
-#        shell: bash
-#        run: 'python3 -m pip install --upgrade --no-cache-dir --index-url https://test.pypi.org/simple/ agpypeline==0.0.106'
+      - name: Install testpypi agpypeline
+        shell: bash
+        run: 'python3 -m pip install --upgrade --no-cache-dir --index-url https://test.pypi.org/simple/ agpypeline==0.0.106'
       - name: Run action pylint script
         shell: bash
         run: 'if [ -s ".github/workflows/action_pylint.sh" ]; then (chmod +x ".github/workflows/action_pylint.sh" && ./.github/workflows/action_pylint.sh) || (echo "Error running shell script" && exit 1); fi'
