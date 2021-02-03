@@ -89,6 +89,8 @@ COPY tests/* /home/extractor/tests/
 COPY test_data/orthomosaic.tif /home/extractor/
 
 RUN wget -X GET https://de.cyverse.org/dl/d/3CBFD03C-C82E-4EDE-A8E5-DD4DBD45C696/orthomosaic.tif
+RUN wget -X GET https://de.cyverse.org/dl/d/FD32B0CE-DBAB-4A44-B8A6-0E9AA4555A31/experiment.yaml
+COPY test_data/orthomosaic.tif /home/extractor/test_data/orthomosaic.tif
 COPY test_data/orthomosaic.tif /home/extractor/test_data/orthomosaic.tif
 
 
