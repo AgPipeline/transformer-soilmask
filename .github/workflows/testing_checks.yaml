@@ -32,10 +32,10 @@ jobs:
     steps:
       - name: Current python version
         run: python3 --version || echo python3 not installed
-      - name: Install Python 3.7
+      - name: Install Python 3.8
         uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
+          python-version: '3.8'
       - name: Updated python version
         run: python3 --version
       - name: PYTHONPATH environment variable
@@ -46,7 +46,7 @@ jobs:
         run: python3 -m pip install --upgrade --no-cache-dir setuptools
       - name: Install python-opencv
         run: |
-          sudo apt-get install -y --no-install-recommends gcc g++ python3.7-dev
+          sudo apt-get install -y --no-install-recommends gcc g++ python3.8-dev
           python3 -m pip install --upgrade --no-cache-dir wheel
           python3 -m pip install --upgrade --no-cache-dir opencv-python
       - name: Fetch/update testing pip installations
@@ -57,7 +57,7 @@ jobs:
         run: find . -type f -name "*.py" > action_test_files.txt
       - name: Install system requirements
         shell: bash
-        run: 'sudo apt-get install -y python3-gdal gdal-bin libgdal-dev gcc g++ python3.7-dev'
+        run: 'sudo apt-get install -y python3-gdal gdal-bin libgdal-dev gcc g++ python3.8-dev'
       - name: Install Python numpy
         shell: bash
         run: 'python3 -m pip install --upgrade --no-cache-dir numpy wheel'
@@ -79,7 +79,7 @@ jobs:
       - name: Fetching testing files
         if: ${{ matrix.app == 'pytest' }}
         run: |
-          curl -X GET https://de.cyverse.org/dl/d/3CBFD03C-C82E-4EDE-A8E5-DD4DBD45C696/orthomosaic.tif -o "${PWD}/test_data/orthomosaic.tif"
+          curl -X GET "https://de.cyverse.org/dl/d/3CBFD03C-C82E-4EDE-A8E5-DD4DBD45C696/orthomosaic.tif" -o "${PWD}/test_data/orthomosaic.tif"
           curl -X GET "https://de.cyverse.org/dl/d/FD32B0CE-DBAB-4A44-B8A6-0E9AA4555A31/experiment.yaml" -o "${PWD}/test_data/experiment.yaml"
       - name: Set execution permission for testing
         run: chmod +x soilmask.py
