@@ -8,6 +8,7 @@ import os
 import numpy as np
 from agpypeline import entrypoint, algorithm, geoimage
 from agpypeline.environment import Environment
+from agpypeline.checkmd import CheckMD
 import cv2
 
 from osgeo import gdal
@@ -37,7 +38,6 @@ class __internal__:
             A dict containing information to save with an image
         """
         extra_metadata = {}
-
         if transformer_info:
             extra_metadata["transformer_name"] = str(transformer_info.get("name", ""))
             extra_metadata["transformer_version"] = str(transformer_info.get("version", ""))
@@ -339,7 +339,7 @@ class SoilMask(algorithm.Algorithm):
         parser.epilog = 'Mask files are saved with the .msk filename extension added when it\'s not specified. ' + \
                         parser.epilog
 
-    def check_continue(self, environment: Environment, check_md: dict, transformer_md: list,
+    def check_continue(self, environment: Environment, check_md: CheckMD, transformer_md: list,
                        full_md: list) -> tuple:
         """Checks if conditions are right for continuing processing
         Arguments:
@@ -355,8 +355,8 @@ class SoilMask(algorithm.Algorithm):
         result = {'code': -1002, 'message': "No TIFF files were specified for processing"}
 
         # Ensure we have a TIFF file
-        if check_md and 'list_files' in check_md:
-            files = check_md['list_files']()
+        if check_md:
+            files = check_md.get_list_files()
             try:
                 for one_file in files:
                     ext = os.path.splitext(one_file)[1].lower()
@@ -391,7 +391,7 @@ class SoilMask(algorithm.Algorithm):
 
         # Loop through the files
         try:
-            for one_file in check_md['list_files']():
+            for one_file in check_md.get_list_files():
                 # Check file by type
                 ext = os.path.splitext(one_file)[1].lower()
                 if ext not in self.supported_file_ext:
@@ -399,7 +399,6 @@ class SoilMask(algorithm.Algorithm):
                 if not os.path.exists(one_file):
                     logging.warning("Unable to access file '%s'", one_file)
                     continue
-
                 # Get the image's EPSG code
                 epsg = geoimage.get_epsg(one_file)
                 if epsg is None:
@@ -413,16 +412,14 @@ class SoilMask(algorithm.Algorithm):
                     logging.warning("Unable to get bounds of georeferenced image: '%s'",
                                     os.path.basename(one_file))
                     continue
-
                 # Get the mask name
                 if environment.args.out_file:
                     rgb_mask_tif = environment.args.out_file
                     if not os.path.dirname(rgb_mask_tif):
-                        rgb_mask_tif = os.path.join(check_md['working_folder'], rgb_mask_tif)
+                        rgb_mask_tif = os.path.join(check_md.working_folder, rgb_mask_tif)
                 else:
                     # Use the original name
-                    rgb_mask_tif = os.path.join(check_md['working_folder'], __internal__.get_maskfilename(one_file))
-
+                    rgb_mask_tif = os.path.join(check_md.working_folder, __internal__.get_maskfilename(one_file))
                 # Create the mask file
                 logging.debug("Creating mask file '%s'", rgb_mask_tif)
                 mask_ratio, mask_rgb = gen_cc_enhanced(one_file)
