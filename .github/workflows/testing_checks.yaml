@@ -17,7 +17,7 @@ on:
 
 jobs:
   testing:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: Running testing
     strategy:
       matrix:
@@ -63,7 +63,7 @@ jobs:
         run: 'python3 -m pip install --upgrade --no-cache-dir numpy wheel'
       - name: Install Python pygdal
         shell: bash
-        run: 'python3 -m pip install --no-cache-dir pygdal==2.2.3.5'
+        run: 'python3 -m pip install --no-cache-dir pygdal==3.0.4.*'
       - name: Install system requirements from source
         shell: bash
         run: 'if [ -s "packages.txt" ]; then (cat packages.txt | sudo xargs apt-get install -y --no-install-recommends) || (echo "Failed to install additional packages" && exit 1); fi'
