@@ -374,7 +374,7 @@ class SoilMask(algorithm.Algorithm):
 
         return (result['code'], result['error']) if 'error' in result else (result['code'])
 
-    def perform_process(self, environment: Environment, check_md: dict, transformer_md: dict,
+    def perform_process(self, environment: Environment, check_md: CheckMD, transformer_md: dict,
                         full_md: list) -> dict:
         """Performs the processing of the data
         Arguments:
