@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - develop
+      - fix_actions
   pull_request:
     branches:
       - main
@@ -44,6 +45,9 @@ jobs:
         run: python3 -m pip install --upgrade --no-cache-dir pip
       - name: Fetch/update setuptools
         run: python3 -m pip install --upgrade --no-cache-dir setuptools
+      - name: Update apt databases
+        shell: bash
+        run: 'sudo apt-get update'
       - name: Install python-opencv
         run: |
           sudo apt-get install -y --no-install-recommends gcc g++ python3.8-dev
