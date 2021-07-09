@@ -67,11 +67,11 @@ Li, Zongyang, Abby Stylianou, and Robert Pless. "Learning to Correct for Bad Cam
 
 ### Sample Docker Command line
 
-First build the Docker image, using the Dockerfile, and tag it agdrone/transformer-soilmask:2.1. 
+First build the Docker image, using the Dockerfile, and tag it agdrone/transformer-soilmask:2.4. 
 Read about the [docker build](https://docs.docker.com/engine/reference/commandline/build/) command if needed.
 
 ```bash
-docker build -t agdrone/transformer-soilmask:2.1 ./
+docker build -t agdrone/transformer-soilmask:2.4 ./
 ```
 
 There are two files needed for running the Docker image.
@@ -89,11 +89,11 @@ An explanation of the command line options used follows.
 Be sure to read up on the [docker run](https://docs.docker.com/engine/reference/run/) command line for more information.
 
 ```bash
-docker run --rm --mount "src=${PWD}/test_data,target=/mnt,type=bind" agdrone/transformer-soilmask:2.1 --working_space "/mnt" --metadata "/mnt/experiment.yaml" "/mnt/orthomosaic.tif"
+docker run --rm --mount "src=${PWD}/test_data,target=/mnt,type=bind" agdrone/transformer-soilmask:2.4 --working_space "/mnt" --metadata "/mnt/experiment.yaml" "/mnt/orthomosaic.tif"
 ```
 
 This example command line assumes the source files are located in the `test_data` folder off the current folder.
-The name of the image to run is `agdrone/transformer-soilmask:2.1`.
+The name of the image to run is `agdrone/transformer-soilmask:2.4`.
 
 We are using the same folder for the source files and the output files.
 By using multiple `--mount` options, the source and output files can be separated.
