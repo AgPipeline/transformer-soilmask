@@ -23,7 +23,7 @@ RUN apt-get update && \
 
 # Perform some upgrades
 RUN python3 -m pip install --upgrade --no-cache-dir pip
-RUN python3 -m pip install --upgrade --no-cache-dir setuptools
+RUN python3 -m pip install --upgrade --no-cache-dir setuptools==58.0.1
 
 # Install applications we need
 RUN apt-get update && \
