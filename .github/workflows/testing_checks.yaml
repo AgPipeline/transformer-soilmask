@@ -43,7 +43,7 @@ jobs:
       - name: Update pip
         run: python3 -m pip install --upgrade --no-cache-dir pip
       - name: Fetch/update setuptools
-        run: python3 -m pip install --upgrade --no-cache-dir setuptools
+        run: python3 -m pip install --upgrade --no-cache-dir setuptools==58.0.1
       - name: Update apt databases
         shell: bash
         run: 'sudo apt-get update'
