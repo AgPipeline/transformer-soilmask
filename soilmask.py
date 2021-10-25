@@ -9,7 +9,7 @@ import numpy as np
 from agpypeline import entrypoint, algorithm, geoimage
 from agpypeline.environment import Environment
 from agpypeline.checkmd import CheckMD
-import cv2
+from cv2 import cv2
 
 from osgeo import gdal
 # from PIL import Image  Used by code that's getting deprecated
