@@ -25,7 +25,7 @@ jobs:
           include:
             - app: pylint
               pip_installs: pylint
-              test_command: cat action_test_files.txt | xargs python3 -m pylint --rcfile ./pylint.rc --extension-pkg-whitelist=cv2
+              test_command: cat action_test_files.txt | xargs python3 -m pylint --rcfile ./pylint.rc --generated-members=cv2
             - app: pytest
               pip_installs: pytest pytest-cov
               test_command: python3 -m pytest --cov=. -rpP --cov-report=xml
