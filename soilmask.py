@@ -9,7 +9,7 @@ import numpy as np
 from agpypeline import entrypoint, algorithm, geoimage
 from agpypeline.environment import Environment
 from agpypeline.checkmd import CheckMD
-from cv2 import cv2
+import cv2
 
 from osgeo import gdal
 # from PIL import Image  Used by code that's getting deprecated
@@ -333,7 +333,6 @@ class SoilMask(algorithm.Algorithm):
         Arguments:
             parser: instance of argparse
         """
-        # pylint: disable=no-self-use
         parser.add_argument('--out_file', type=str, help='the path to save the masked file to')
 
         parser.epilog = 'Mask files are saved with the .msk filename extension added when it\'s not specified. ' + \
