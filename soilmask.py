@@ -131,7 +131,7 @@ class __internal__:
         rel_mask = base_mask
 
         for idx in range(1, num):
-            match = (label_img == idx)
+            match = label_img == idx
 
             if np.sum(match) > 100000:  # if the area is too large, do not add it into basic mask
                 continue
